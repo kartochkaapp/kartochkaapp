@@ -1,0 +1,694 @@
+body.auth-open .topbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-card {
+  align-self: stretch;
+  justify-content: center;
+}
+
+a.btn,
+a.kartochka-hero-primary,
+.footer-links a,
+.faq-link,
+.mobile-menu-nav a,
+.topbar-nav a {
+  text-decoration: none;
+}
+
+body:not(.workspace-active) {
+  background:
+    radial-gradient(42% 26% at 92% 4%, rgba(245, 240, 232, 0.72), transparent 68%),
+    linear-gradient(180deg, #f6fbf8 0%, #f1f7f3 52%, #edf4ef 100%);
+}
+
+body:not(.workspace-active)::before {
+  opacity: 0.12;
+}
+
+main#publicView::before {
+  background:
+    radial-gradient(44% 22% at 84% 18%, rgba(34, 197, 94, 0.08), transparent 72%),
+    radial-gradient(42% 24% at 82% 82%, rgba(16, 185, 129, 0.06), transparent 76%);
+}
+
+main#publicView::after {
+  opacity: 0.16;
+}
+
+.kartochka-hero-shell {
+  background:
+    radial-gradient(38% 42% at 100% 10%, rgba(34, 197, 94, 0.14), transparent 74%),
+    linear-gradient(135deg, #eef6f1 0%, #eaf5ee 100%);
+}
+
+.kartochka-hero-shell::before {
+  opacity: 0.14;
+}
+
+.kartochka-hero-layout {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.kartochka-hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.kartochka-hero-title {
+  max-width: none;
+  margin-top: 14px;
+  color: #0f1a13;
+  font-family: "Unbounded", sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.2vw, 3.35rem);
+  line-height: 0.86;
+  letter-spacing: -0.052em;
+  text-wrap: initial;
+}
+
+.kartochka-hero-title .hero-title-line {
+  display: block;
+  margin-top: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.kartochka-hero-title .hero-title-line + .hero-title-line {
+  margin-top: 0.3em;
+}
+
+.hero-title-line-brand {
+  white-space: nowrap;
+  margin-top: 0.24em;
+}
+
+.hero-title-line-note {
+  margin-top: 0.42em;
+  font-size: clamp(1.02rem, 1.55vw, 1.52rem);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.015em;
+  white-space: normal;
+}
+
+.hero-inline-label {
+  display: inline;
+  margin-top: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+.kartochka-hero-title .hero-brand {
+  display: inline;
+  margin-top: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+}
+
+.hero-punctuation {
+  display: inline;
+  margin-top: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: #0f1a13;
+}
+
+.hero-brand-ozon {
+  color: #2563eb;
+}
+
+.hero-brand-wildberries {
+  color: #ec4899;
+}
+
+.hero-brand-yandex {
+  color: #f97316;
+}
+
+.kartochka-stage-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+}
+
+.kartochka-metrics {
+  margin-top: 0;
+}
+
+.kartochka-metric-card:nth-child(4) .kartochka-metric-bar-fill {
+  transition-delay: 0.48s;
+}
+
+.feature-card-media img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.faq-link {
+  color: #059669;
+  font-weight: 700;
+}
+
+.faq-link:hover,
+.footer-links a:hover {
+  opacity: 0.82;
+}
+
+.section-shell-process {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.section-shell-process::before {
+  display: none !important;
+}
+
+.flow-infographic::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media (min-width: 980px) {
+  .kartochka-hero-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 979px) {
+  .kartochka-hero-title {
+    max-width: none;
+    font-size: clamp(1.575rem, 7.42vw, 2.94rem);
+    line-height: 0.8;
+    letter-spacing: -0.065em;
+  }
+
+  .hero-title-line-brand {
+    white-space: normal;
+  }
+
+  .kartochka-stage-wrap {
+    margin-top: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .topbar-nav a {
+    position: relative;
+  }
+
+  .topbar-nav a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -8px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #10b981 0%, #22c55e 100%);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.28s ease;
+  }
+
+  .topbar-nav a:hover::after,
+  .topbar-nav a:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  .btn,
+  .kartochka-metric-card,
+  .feature-card,
+  .pricing-card,
+  .flow-step,
+  .faq-item,
+  .final-cta-preview {
+    transition:
+      transform 0.24s ease,
+      box-shadow 0.28s ease,
+      border-color 0.24s ease,
+      background-color 0.24s ease;
+  }
+
+  .btn:active {
+    transform: translateY(1px) scale(0.995);
+  }
+
+  .kartochka-metric-card:hover,
+  .kartochka-metric-card:focus-within {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 42px -30px rgba(15, 26, 19, 0.34);
+  }
+
+  .feature-card:hover,
+  .pricing-card:hover,
+  .flow-step:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 28px 52px -34px rgba(15, 23, 42, 0.34);
+    border-color: rgba(16, 185, 129, 0.22);
+  }
+
+  .feature-card-media img,
+  .final-cta-preview img {
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .feature-card:hover .feature-card-media img,
+  .final-cta-preview:hover img {
+    transform: scale(1.03);
+  }
+
+  .flow-step .flow-index {
+    transition: transform 0.24s ease, background-color 0.24s ease;
+  }
+
+  .flow-step:hover .flow-index {
+    transform: translateY(-1px) scale(1.05);
+    background: rgba(16, 185, 129, 0.2);
+  }
+
+  .faq-item summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .faq-item summary::after {
+    content: "+";
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: #059669;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: 1px;
+    transform: rotate(0deg);
+    transition:
+      transform 0.24s ease,
+      color 0.24s ease,
+      background-color 0.24s ease;
+  }
+
+  .faq-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(16, 185, 129, 0.18);
+  }
+
+  .faq-item[open] {
+    border-color: rgba(16, 185, 129, 0.24);
+    box-shadow: 0 14px 32px -26px rgba(15, 23, 42, 0.34);
+  }
+
+  .faq-item[open] summary::after {
+    color: #047857;
+    background: rgba(16, 185, 129, 0.12);
+    transform: rotate(45deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-nav a::after,
+  .btn,
+  .kartochka-metric-card,
+  .feature-card,
+  .pricing-card,
+  .flow-step,
+  .faq-item,
+  .final-cta-preview,
+  .feature-card-media img,
+  .final-cta-preview img,
+  .flow-step .flow-index,
+  .faq-item summary::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Static cards in "Как работает" block */
+.section-shell-process .feature-card,
+.section-shell-process .flow-step,
+.section-shell-process .feature-card-media img,
+.section-shell-process .flow-step .flow-index {
+  transition: none !important;
+}
+
+.section-shell-process .feature-card:hover,
+.section-shell-process .flow-step:hover {
+  transform: none !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.section-shell-process .feature-card:hover {
+  box-shadow: 0 22px 52px -36px rgba(15, 23, 42, 0.52) !important;
+}
+
+.section-shell-process .flow-step:hover {
+  box-shadow: none !important;
+}
+
+.section-shell-process .feature-card:hover .feature-card-media img,
+.section-shell-process .flow-step:hover .flow-index {
+  transform: none !important;
+}
+
+@media (min-width: 960px) {
+  .pricing-intro .section-subtitle {
+    margin-bottom: 0;
+  }
+
+  main#publicView > .pricing {
+    margin-top: 18px;
+  }
+
+  .pricing .roi-infographic {
+    margin-bottom: 18px;
+  }
+}
+
+.pricing .roi-row {
+  grid-template-columns: 148px minmax(0, 1fr) 92px;
+  column-gap: 10px;
+}
+
+.pricing .roi-row span,
+.pricing .roi-row b {
+  white-space: nowrap;
+}
+
+.pricing .roi-row b {
+  min-width: 92px;
+  text-align: right;
+}
+
+@media (max-width: 959px) {
+  body:not(.workspace-active) {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+
+  body:not(.workspace-active)::before,
+  main#publicView::before,
+  main#publicView::after,
+  .kartochka-hero-shell::before,
+  .kartochka-hero-shell::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  body:not(.workspace-active) .section-wrap {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  body:not(.workspace-active) .topbar {
+    top: 8px;
+    width: calc(100% - 16px);
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(29, 29, 31, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 16px 34px -30px rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(14px);
+  }
+
+  .logo-text {
+    letter-spacing: 0.01em;
+  }
+
+  body:not(.workspace-active) .topbar .btn {
+    min-height: 40px;
+    padding: 0 15px;
+    border-radius: 999px;
+    font-size: 0.93rem;
+  }
+
+  .kartochka-hero {
+    padding-top: 74px;
+  }
+
+  .kartochka-hero-shell {
+    border-radius: 22px;
+    border: 1px solid rgba(29, 29, 31, 0.08);
+    background: #ffffff !important;
+    box-shadow: 0 20px 38px -32px rgba(15, 23, 42, 0.42);
+    padding: 18px;
+  }
+
+  .kartochka-hero-layout {
+    gap: 16px;
+  }
+
+  .kartochka-hero-title {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    font-size: clamp(2rem, 9.8vw, 3rem);
+    line-height: 0.88;
+    letter-spacing: -0.045em;
+    margin-top: 6px;
+  }
+
+  .hero-title-line-note {
+    font-size: clamp(0.96rem, 4.4vw, 1.2rem);
+    line-height: 1.24;
+    margin-top: 0.38em;
+  }
+
+  .kartochka-hero-title .hero-title-line + .hero-title-line {
+    margin-top: 0.22em;
+  }
+
+  .kartochka-hero-subtitle {
+    color: #1d1d1f;
+    font-size: 1.02rem;
+    line-height: 1.35;
+  }
+
+  .kartochka-hero-description {
+    color: #6e6e73;
+    font-size: 0.98rem;
+    line-height: 1.45;
+    max-width: none;
+  }
+
+  .kartochka-metrics {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .kartochka-metric-card {
+    border-radius: 14px;
+    border: 1px solid rgba(29, 29, 31, 0.08);
+    background: #fafafc;
+    box-shadow: none;
+    padding: 14px;
+  }
+
+  .kartochka-metric-label {
+    color: #6e6e73;
+  }
+
+  .kartochka-metric-bar {
+    height: 8px;
+    background: #e7e7ec;
+  }
+
+  .kartochka-metric-bar-fill {
+    background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
+  }
+
+  main#publicView > section:not(.kartochka-hero) {
+    margin-top: 14px;
+  }
+
+  .final-cta-card,
+  .kartochka-stats-shell,
+  .section-shell-pricing,
+  .section-shell-faq,
+  .roi-infographic,
+  .feature-card,
+  .flow-step,
+  .pricing-card,
+  .faq-item {
+    border-radius: 20px !important;
+    border: 1px solid rgba(29, 29, 31, 0.08) !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.32) !important;
+  }
+
+  .final-cta-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .final-cta-copy h2 {
+    font-size: clamp(1.85rem, 9vw, 2.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+  }
+
+  .final-cta-copy > p {
+    color: #6e6e73;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .final-cta-actions {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .final-cta-preview-grid,
+  .feature-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .final-cta-preview,
+  .feature-card {
+    padding: 14px;
+  }
+
+  .feature-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .feature-card h3,
+  .flow-step h3 {
+    color: #1d1d1f;
+  }
+
+  .feature-card p,
+  .feature-card li,
+  .flow-step p,
+  .section-subtitle,
+  .faq-item p {
+    color: #6e6e73;
+  }
+
+  .flow-infographic {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .flow-step {
+    padding: 14px;
+  }
+
+  .kartochka-stats-shell {
+    padding: 22px 14px;
+  }
+
+  .kartochka-stats-number {
+    font-size: clamp(3.3rem, 16vw, 4.9rem);
+    line-height: 0.92;
+  }
+
+  .kartochka-stats-caption {
+    color: #1d1d1f;
+  }
+
+  .kartochka-stats-subtitle {
+    color: #6e6e73;
+  }
+
+  .kartochka-stats-tags {
+    gap: 8px;
+  }
+
+  .section-head h2 {
+    color: #1d1d1f;
+    font-size: clamp(1.95rem, 8.8vw, 2.5rem);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+  }
+
+  .pricing-intro .section-head {
+    margin-bottom: 8px;
+  }
+
+  .roi-infographic {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .roi-summary,
+  .roi-bars {
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .pricing .roi-row {
+    grid-template-columns: 102px minmax(0, 1fr) 74px;
+    column-gap: 8px;
+  }
+
+  .pricing .roi-row b {
+    min-width: 74px;
+  }
+
+  .pricing-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-auto-flow: row !important;
+    grid-auto-columns: 1fr !important;
+    overflow: visible !important;
+    gap: 10px;
+    padding: 0;
+  }
+
+  .pricing-card {
+    padding: 14px;
+  }
+
+  .plan-price {
+    font-size: clamp(1.85rem, 8vw, 2.3rem);
+  }
+
+  .final-cta-preview-grid {
+    display: none;
+  }
+
+  .faq-item {
+    padding: 14px;
+  }
+
+  .faq-item summary {
+    font-size: 0.98rem;
+    line-height: 1.35;
+  }
+
+  .footer-inner {
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
