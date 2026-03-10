@@ -45,50 +45,51 @@ const extractMessageText = (response) => {
 };
 
 const buildCreateAnalyzeUserText = (payload) => {
-  const description = toText(payload?.description) || "(empty)";
-  const highlights = toText(payload?.highlights) || "(empty)";
-  const marketplace = toText(payload?.marketplace) || "unknown";
+  const description = toText(payload?.description) || "(пусто)";
+  const highlights = toText(payload?.highlights) || "(пусто)";
+  const marketplace = toText(payload?.marketplace) || "не указан";
   const cardsCount = clamp(payload?.cardsCount, 1, 5, 1);
   const promptMode = toText(payload?.promptMode) || "ai";
   const customPrompt = toText(payload?.prompt) || toText(payload?.customPrompt) || "";
 
   return [
-    "Task: analyze product input for marketplace card generation.",
-    "Return valid JSON only with fields:",
+    "Задача: проанализировать входные данные товара для генерации карточки маркетплейса.",
+    "Верни только валидный JSON со следующими полями:",
     "{",
     '  "detectedCategory": string,',
     '  "insight": { "category": string, "recommendedStyle": string, "conversionAccent": string, "conversionAngle": string, "marketplaceFormat": string },',
     '  "headlineIdeas": string[],',
     '  "prompt": string',
     "}",
-    "Requirements:",
-    "- category must be specific for marketplace listing",
-    "- recommendedStyle must be practical and concise",
-    "- conversionAccent and conversionAngle must target seller conversion",
-    "- headlineIdeas must contain 3-5 concise options",
-    "- marketplaceFormat must match marketplace specifics",
-    "- prompt must be production-ready for image/card generation",
+    "Требования:",
+    "- все строковые поля должны быть только на русском языке",
+    "- category должна быть конкретной для карточки маркетплейса",
+    "- recommendedStyle должен быть прикладным и кратким",
+    "- conversionAccent и conversionAngle должны работать на конверсию продавца",
+    "- headlineIdeas должны содержать 3-5 коротких вариантов",
+    "- marketplaceFormat должен соответствовать особенностям маркетплейса",
+    "- prompt должен быть готов для продакшен-генерации карточки и изображения",
     "",
-    "Input:",
+    "Входные данные:",
     "- description: " + description,
     "- highlights: " + highlights,
     "- marketplace: " + marketplace,
     "- cardsCount: " + String(cardsCount),
     "- promptMode: " + promptMode,
-    "- customPrompt: " + (customPrompt || "(none)"),
+    "- customPrompt: " + (customPrompt || "(нет)"),
   ].join("\n");
 };
 
 const buildImproveAnalyzeUserText = (payload) => {
   const mode = toText(payload?.mode) || "ai";
-  const prompt = toText(payload?.prompt) || "(empty)";
+  const prompt = toText(payload?.prompt) || "(пусто)";
   const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
   const hasReference = Boolean(payload?.referenceCard || payload?.referencePreviewUrl);
   const hasSource = Boolean(payload?.sourceCard || payload?.sourcePreviewUrl);
 
   return [
-    "Task: analyze weaknesses of current marketplace card before improvement.",
-    "Return valid JSON only with fields:",
+    "Задача: проанализировать слабые места текущей карточки маркетплейса перед улучшением.",
+    "Верни только валидный JSON со следующими полями:",
     "{",
     '  "score": number,',
     '  "summary": string,',
@@ -97,12 +98,12 @@ const buildImproveAnalyzeUserText = (payload) => {
     '  "marketplaceFormat": string,',
     '  "reference": { "uploaded": boolean, "active": boolean, "note": string }',
     "}",
-    "Rules:",
-    "- include exactly these issue keys: design, readability, composition, accent, cta, overload, categoryFit",
-    "- score is 0..100",
-    "- recommendations must contain 2-4 short actions",
+    "Правила:",
+    "- используй ровно следующие issue keys: design, readability, composition, accent, cta, overload, categoryFit",
+    "- score должен быть в диапазоне 0..100",
+    "- recommendations должны содержать 2-4 коротких действия",
     "",
-    "Input:",
+    "Входные данные:",
     "- mode: " + mode,
     "- prompt: " + prompt,
     "- variantsCount: " + String(variantsCount),
@@ -112,34 +113,34 @@ const buildImproveAnalyzeUserText = (payload) => {
 };
 
 const normalizeCreateAnalyzeResult = (parsed, payload) => {
-  const fallbackCategory = "General marketplace product";
+  const fallbackCategory = "Товар для маркетплейса";
   const detectedCategory = toText(parsed?.detectedCategory || parsed?.insight?.category) || fallbackCategory;
 
   const insight = {
     category: toText(parsed?.insight?.category) || detectedCategory,
     recommendedStyle:
-      toText(parsed?.insight?.recommendedStyle) || "Clean hierarchy, one strong value block, readable mobile typography",
+      toText(parsed?.insight?.recommendedStyle) || "Чистая иерархия, один сильный блок ценности, читаемая мобильная типографика",
     conversionAccent:
-      toText(parsed?.insight?.conversionAccent) || "Highlight core benefit and clear CTA above the fold",
+      toText(parsed?.insight?.conversionAccent) || "Подсветить главную выгоду и ясный CTA в первом экране",
     conversionAngle:
       toText(parsed?.insight?.conversionAngle)
       || toText(parsed?.insight?.conversionAccent)
-      || "Highlight core benefit and clear CTA above the fold",
+      || "Подсветить главную выгоду и ясный CTA в первом экране",
     marketplaceFormat:
-      toText(parsed?.insight?.marketplaceFormat) || "Hero + benefits + CTA with marketplace-safe readability",
+      toText(parsed?.insight?.marketplaceFormat) || "Первый экран + преимущества + CTA с безопасной читаемостью для маркетплейса",
   };
   const headlineIdeas = Array.isArray(parsed?.headlineIdeas)
     ? parsed.headlineIdeas.map((item) => toText(item)).filter(Boolean).slice(0, 5)
     : [];
 
   const prompt = toText(parsed?.prompt) || [
-    "Create a marketplace-ready product card.",
-    "Category: " + insight.category + ".",
-    "Style: " + insight.recommendedStyle + ".",
-    "Conversion focus: " + insight.conversionAccent + ".",
-    "Format: " + insight.marketplaceFormat + ".",
-    "Product description: " + (toText(payload?.description) || "(not provided)") + ".",
-    "Highlights: " + (toText(payload?.highlights) || "(not provided)") + ".",
+    "Создай готовую карточку товара для маркетплейса.",
+    "Категория: " + insight.category + ".",
+    "Стиль: " + insight.recommendedStyle + ".",
+    "Конверсионный акцент: " + insight.conversionAccent + ".",
+    "Формат: " + insight.marketplaceFormat + ".",
+    "Описание товара: " + (toText(payload?.description) || "(не указано)") + ".",
+    "Акценты: " + (toText(payload?.highlights) || "(не указаны)") + ".",
   ].join(" ");
 
   return {
@@ -152,20 +153,20 @@ const normalizeCreateAnalyzeResult = (parsed, payload) => {
 
 const normalizeImproveAnalyzeResult = (parsed, payload) => {
   const fallbackIssues = [
-    { key: "design", title: "Design weaknesses", severity: "high", note: "Visual hierarchy is inconsistent." },
-    { key: "readability", title: "Readability", severity: "medium", note: "Main message is not scanned quickly." },
-    { key: "composition", title: "Composition", severity: "medium", note: "Key blocks compete for attention." },
-    { key: "accent", title: "Weak accent", severity: "high", note: "Primary value is not dominant." },
-    { key: "cta", title: "Weak CTA", severity: "high", note: "CTA is not explicit enough." },
-    { key: "overload", title: "Overload", severity: "medium", note: "Too many secondary details." },
-    { key: "categoryFit", title: "Category fit", severity: "medium", note: "Category markers are weak." },
+    { key: "design", title: "Слабые стороны дизайна", severity: "high", note: "Визуальная иерархия выглядит несобранно." },
+    { key: "readability", title: "Читаемость", severity: "medium", note: "Главное сообщение считывается недостаточно быстро." },
+    { key: "composition", title: "Композиция", severity: "medium", note: "Ключевые блоки конкурируют за внимание." },
+    { key: "accent", title: "Слабый акцент", severity: "high", note: "Главная ценность товара не доминирует." },
+    { key: "cta", title: "Слабый CTA", severity: "high", note: "CTA сформулирован недостаточно явно." },
+    { key: "overload", title: "Перегруз", severity: "medium", note: "Слишком много второстепенных деталей." },
+    { key: "categoryFit", title: "Соответствие категории", severity: "medium", note: "Категорийные маркеры выражены слабо." },
   ];
 
   const rawIssues = Array.isArray(parsed?.issues) ? parsed.issues : [];
   const issues = rawIssues.length
     ? rawIssues.map((item, index) => ({
         key: toText(item?.key || fallbackIssues[index]?.key || "issue-" + String(index + 1)),
-        title: toText(item?.title || fallbackIssues[index]?.title || "Issue"),
+        title: toText(item?.title || fallbackIssues[index]?.title || "Проблема"),
         severity: (() => {
           const value = toText(item?.severity).toLowerCase();
           return value === "high" || value === "medium" || value === "low" ? value : "medium";
@@ -186,31 +187,31 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
     summary:
       toText(parsed?.summary) ||
       (referenceActive
-        ? "Analysis completed with reference style context."
-        : "Analysis completed with conversion and readability weaknesses."),
+        ? "Анализ завершен с учетом стиля референса."
+        : "Анализ завершен: выявлены проблемы конверсии и читаемости."),
     issues,
     recommendations: recommendations.length ? recommendations : [
-      "Strengthen first-frame hierarchy around one key benefit.",
-      "Make CTA clearer and more prominent.",
-      "Reduce visual overload in secondary blocks.",
+      "Усилить иерархию первого экрана вокруг одной ключевой выгоды.",
+      "Сделать CTA понятнее и заметнее.",
+      "Снизить визуальный перегруз во вторичных блоках.",
     ],
     improvementPlan: recommendations.length ? recommendations : [
-      "Strengthen first-frame hierarchy around one key benefit.",
-      "Make CTA clearer and more prominent.",
-      "Reduce visual overload in secondary blocks.",
+      "Усилить иерархию первого экрана вокруг одной ключевой выгоды.",
+      "Сделать CTA понятнее и заметнее.",
+      "Снизить визуальный перегруз во вторичных блоках.",
     ],
     marketplaceFormat:
-      toText(parsed?.marketplaceFormat) || "Marketplace-ready format with clean hierarchy and CTA.",
+      toText(parsed?.marketplaceFormat) || "Готовый формат для маркетплейса с чистой иерархией и CTA.",
     reference: {
       uploaded: hasReference,
       active: referenceActive,
       note:
         toText(parsed?.reference?.note) ||
         (referenceActive
-          ? "Reference style is active."
+          ? "Стиль референса активен."
           : hasReference
-            ? "Reference uploaded, but standard mode is active."
-            : "No reference uploaded."),
+            ? "Референс загружен, но активен стандартный режим."
+            : "Референс не загружен."),
     },
   };
 };
@@ -285,7 +286,7 @@ const createOpenAIProvider = (config) => {
       {
         role: "system",
         content:
-          "You are an e-commerce AI copilot for marketplace sellers. Return only strict JSON.",
+          "Ты AI-ассистент для продавцов маркетплейсов. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
       },
     ];
 
@@ -323,7 +324,7 @@ const createOpenAIProvider = (config) => {
       {
         role: "system",
         content:
-          "You are an AI reviewer for marketplace card quality and conversion UX. Return only strict JSON.",
+          "Ты AI-ревьюер качества карточек маркетплейсов и конверсионного UX. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
       },
     ];
 

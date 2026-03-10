@@ -39,6 +39,7 @@
   const createAiPromptAcceptBtn = document.getElementById("createAiPromptAcceptBtn");
   const createAiPromptOutput = document.getElementById("createAiPromptOutput");
   const createAiPromptStatus = document.getElementById("createAiPromptStatus");
+  const createAiPromptEditor = document.getElementById("createAiPromptEditor");
   const createInsightCard = document.getElementById("createInsightCard");
   const createInsightRunBtn = document.getElementById("createInsightRunBtn");
   const createInsightStatus = document.getElementById("createInsightStatus");
@@ -46,6 +47,13 @@
   const createInsightStyle = document.getElementById("createInsightStyle");
   const createInsightAccent = document.getElementById("createInsightAccent");
   const createInsightFormat = document.getElementById("createInsightFormat");
+  const createInsightDetails = document.getElementById("createInsightDetails");
+  const createInsightSummaryBadge = document.getElementById("createInsightSummaryBadge");
+  const createPromptAssistDetails = document.getElementById("createPromptAssistDetails");
+  const createPromptAssistSummaryBadge = document.getElementById("createPromptAssistSummaryBadge");
+  const createAdvancedDetails = document.getElementById("createAdvancedDetails");
+  const createCustomPromptSummaryBadge = document.getElementById("createCustomPromptSummaryBadge");
+  const createCustomPromptHelper = document.getElementById("createCustomPromptHelper");
   const createMarketplace = document.getElementById("createMarketplace");
   const createCardsCount = document.getElementById("createCardsCount");
   const createGenerateBtn = document.getElementById("createGenerateBtn");
@@ -57,6 +65,37 @@
   const createResultsCaption = document.getElementById("createResultsCaption");
   const createResultsProcessing = document.getElementById("createResultsProcessing");
   const createResultsGrid = document.getElementById("createResultsGrid");
+  const createSourcePreviewFrame = document.getElementById("createSourcePreviewFrame");
+  const createSourcePreviewImage = document.getElementById("createSourcePreviewImage");
+  const createSourcePreviewEmpty = document.getElementById("createSourcePreviewEmpty");
+  const createEditImageBtn = document.getElementById("createEditImageBtn");
+  const createTemplateSearchInput = document.getElementById("createTemplateSearchInput");
+  const createTemplateTabButtons = Array.from(document.querySelectorAll("[data-create-template-tab]"));
+  const createTemplateGrid = document.getElementById("createTemplateGrid");
+  const createProductTitle = document.getElementById("createProductTitle");
+  const createProductShortDescription = document.getElementById("createProductShortDescription");
+  const createAutofillBtn = document.getElementById("createAutofillBtn");
+  const createCharacteristicPresets = document.getElementById("createCharacteristicPresets");
+  const createCharacteristicsList = document.getElementById("createCharacteristicsList");
+  const createCharacteristicsEmpty = document.getElementById("createCharacteristicsEmpty");
+  const createAddCharacteristicBtn = document.getElementById("createAddCharacteristicBtn");
+  const createPreviewCard = document.getElementById("createPreviewCard");
+  const createPreviewImage = document.getElementById("createPreviewImage");
+  const createPreviewEmpty = document.getElementById("createPreviewEmpty");
+  const createPreviewBadge = document.getElementById("createPreviewBadge");
+  const createPreviewTitle = document.getElementById("createPreviewTitle");
+  const createPreviewMeta = document.getElementById("createPreviewMeta");
+  const createExportBtn = document.getElementById("createExportBtn");
+  const createSettingAccentColor = document.getElementById("createSettingAccentColor");
+  const createSettingReferenceStrength = document.getElementById("createSettingReferenceStrength");
+  const createSettingVisualStyle = document.getElementById("createSettingVisualStyle");
+  const createSettingInfoDensity = document.getElementById("createSettingInfoDensity");
+  const createSettingReadabilityPriority = document.getElementById("createSettingReadabilityPriority");
+  const createSettingConversionPriority = document.getElementById("createSettingConversionPriority");
+  const createSettingAccentFormat = document.getElementById("createSettingAccentFormat");
+  const createSettingBackgroundMode = document.getElementById("createSettingBackgroundMode");
+  const createSettingPreserveLayout = document.getElementById("createSettingPreserveLayout");
+  const createSettingAutoMarketplace = document.getElementById("createSettingAutoMarketplace");
 
   const improveImageInput = document.getElementById("improveImageInput");
   const improvePrimaryUploadZone = document.getElementById("improvePrimaryUploadZone");
@@ -66,10 +105,16 @@
   const improveReferenceUploadZone = document.getElementById("improveReferenceUploadZone");
   const improveReferencePreview = document.getElementById("improveReferencePreview");
   const improveReferenceImage = document.getElementById("improveReferenceImage");
+  const improveReferencePanel = document.getElementById("improveReferencePanel");
   const improveReferenceNote = document.getElementById("improveReferenceNote");
   const improveReferenceState = document.getElementById("improveReferenceState");
   const improvePrompt = document.getElementById("improvePrompt");
   const improveModeButtons = Array.from(document.querySelectorAll("[data-improve-mode]"));
+  const improveModeSummary = document.getElementById("improveModeSummary");
+  const improveModeBadge = document.getElementById("improveModeBadge");
+  const improveModeSignal = document.getElementById("improveModeSignal");
+  const improveReferenceSignal = document.getElementById("improveReferenceSignal");
+  const improveVariantsSignal = document.getElementById("improveVariantsSignal");
   const improveVariantsCount = document.getElementById("improveVariantsCount");
   const improveCtaHint = document.getElementById("improveCtaHint");
   const improveRunBtn = document.getElementById("improveRunBtn");
@@ -149,6 +194,120 @@
     "./assets/examples/example-home.png",
     "./assets/examples/example-beauty.png",
   ];
+  const CREATE_TEMPLATE_LIBRARY = Object.freeze([
+    {
+      id: "tpl-ozon-clean",
+      title: "Чистый Ozon",
+      description: "Чистый макет маркетплейса с заметным первым экраном и компактной подачей преимуществ.",
+      tab: "marketplace",
+      previewUrl: "./assets/generated/accessories-card.png",
+      tags: ["ozon", "чистый", "маркетплейс", "преимущества", "clean"],
+    },
+    {
+      id: "tpl-beauty-premium",
+      title: "Премиум-косметика",
+      description: "Спокойная премиальная подача для косметики, ухода и beauty-категорий.",
+      tab: "clean",
+      previewUrl: "./assets/generated/beauty-sale.png",
+      tags: ["косметика", "уход", "beauty", "премиум", "чистый"],
+    },
+    {
+      id: "tpl-tech-grid",
+      title: "Техно-сетка",
+      description: "Структурный шаблон с акцентом на характеристики и читаемость.",
+      tab: "marketplace",
+      previewUrl: "./assets/examples/example-tech.png",
+      tags: ["техника", "сетка", "характеристики", "читаемость", "tech"],
+    },
+    {
+      id: "tpl-home-editorial",
+      title: "Домашняя редакционная подача",
+      description: "Редакционная подача для товаров для дома и lifestyle-категорий.",
+      tab: "reference",
+      previewUrl: "./assets/examples/example-home.png",
+      tags: ["дом", "редакционный", "референс", "мягкий", "home"],
+    },
+    {
+      id: "tpl-promo-burst",
+      title: "Промо-акцент",
+      description: "Промо-шаблон с сильным оффером, бейджами и быстрым CTA.",
+      tab: "promo",
+      previewUrl: "./assets/generated/beauty-sale.png",
+      tags: ["промо", "скидка", "cta", "контраст", "sale"],
+    },
+    {
+      id: "tpl-reference-beauty",
+      title: "Референс-настроение",
+      description: "Референс для мягкой композиции, глубины и визуального ритма.",
+      tab: "reference",
+      previewUrl: "./assets/examples/example-beauty.png",
+      tags: ["референс", "косметика", "настроение", "визуальный ритм", "beauty"],
+    },
+  ]);
+  const CREATE_TEMPLATE_TABS = new Set(["all", "marketplace", "clean", "promo", "reference"]);
+  const CREATE_USEFUL_SETTINGS_DEFAULTS = Object.freeze({
+    accentColor: "emerald",
+    referenceStrength: "medium",
+    visualStyle: "clean-market",
+    infoDensity: "balanced",
+    readabilityPriority: "high",
+    conversionPriority: "balanced",
+    accentFormat: "benefit",
+    backgroundMode: "clean",
+    preserveReferenceLayout: false,
+    autoMarketplaceAdaptation: true,
+  });
+  const CREATE_ACCENT_COLOR_MAP = Object.freeze({
+    emerald: "#10b981",
+    mint: "#34d399",
+    sky: "#38bdf8",
+    gold: "#f59e0b",
+  });
+  const CREATE_AI_AUTOFILL_PRESET_LABELS = Object.freeze([
+    "Материал",
+    "Размер",
+    "Цвет",
+    "Вес",
+    "Объём",
+    "Комплектация",
+  ]);
+  const CREATE_AI_AUTOFILL_COLOR_KEYWORDS = Object.freeze([
+    "черный",
+    "белый",
+    "серый",
+    "бежевый",
+    "коричневый",
+    "синий",
+    "голубой",
+    "зеленый",
+    "зелёный",
+    "красный",
+    "розовый",
+    "фиолетовый",
+    "желтый",
+    "жёлтый",
+    "оранжевый",
+    "золотой",
+    "серебристый",
+    "прозрачный",
+  ]);
+  const CREATE_AI_AUTOFILL_MATERIAL_KEYWORDS = Object.freeze([
+    "хлопок",
+    "лен",
+    "лён",
+    "кожа",
+    "экокожа",
+    "полиэстер",
+    "шерсть",
+    "дерево",
+    "металл",
+    "пластик",
+    "стекло",
+    "силикон",
+    "алюминий",
+    "нержавеющая сталь",
+    "керамика",
+  ]);
 
   const modeLabelMap = {
     create: "Создание",
@@ -203,12 +362,21 @@
   let createInsightData = null;
   let createInsightRequestId = 0;
   let createInsightFingerprint = "";
+  let createAutofillPhase = "idle";
+  let createAutofillRequestId = 0;
   let createAiPromptPhase = "empty";
   let createAiPromptRequestId = 0;
   let createGenerationRequestId = 0;
   let createGeneratedResults = [];
   let createResultExpandedId = "";
+  let createActivePreviewResultId = "";
   const createSelectedFiles = [];
+  let createActiveTemplateTab = "all";
+  let createTemplateSearchQuery = "";
+  let createSelectedTemplateId = CREATE_TEMPLATE_LIBRARY[0]?.id || "";
+  const createCharacteristics = [];
+  let createCharacteristicsComponent = null;
+  const createUsefulSettings = { ...CREATE_USEFUL_SETTINGS_DEFAULTS };
   let createUploadDragDepth = 0;
   let improveMode = "ai";
   let improveImageFile = null;
@@ -251,6 +419,13 @@
     if (type) node.classList.add(type);
   };
 
+  const setCreateSecondaryBadge = (node, text, tone) => {
+    if (!node) return;
+    node.textContent = text || "";
+    node.classList.remove("is-neutral", "is-active", "is-success", "is-warning", "is-error");
+    node.classList.add(tone || "is-neutral");
+  };
+
   const setRequestMeta = (node, title, value) => {
     if (!node) return;
     node.textContent = "";
@@ -266,6 +441,14 @@
 
   const setDoneState = (badge, isDone) => {
     badge?.classList.toggle("active", Boolean(isDone));
+  };
+
+  const toText = (value) => {
+    return String(value || "").trim();
+  };
+
+  const toLowerText = (value) => {
+    return toText(value).toLowerCase();
   };
 
   const setAuthMessage = (text, type) => {
@@ -461,6 +644,565 @@
     return urls.filter(Boolean);
   };
 
+  const normalizeCreateTemplateTab = (value) => {
+    const tab = String(value || "").trim().toLowerCase();
+    return CREATE_TEMPLATE_TABS.has(tab) ? tab : "all";
+  };
+
+  const getCreateSelectedTemplate = () => {
+    return CREATE_TEMPLATE_LIBRARY.find((item) => item.id === createSelectedTemplateId) || CREATE_TEMPLATE_LIBRARY[0] || null;
+  };
+
+  const getCreateProductTitleValue = () => {
+    return (createProductTitle?.value || "").trim();
+  };
+
+  const getCreateProductShortDescriptionValue = () => {
+    return (createProductShortDescription?.value || "").trim();
+  };
+
+  const normalizeCreateCharacteristicRows = (items) => {
+    const externalNormalizer = window.CreateCharacteristicsComponent?.normalizeItems;
+    if (typeof externalNormalizer === "function") {
+      return externalNormalizer(items);
+    }
+
+    return (Array.isArray(items) ? items : [])
+      .map((item, index) => ({
+        id: String(item?.id || "metric-" + String(index + 1)),
+        label: String(item?.label || ""),
+        value: String(item?.value || ""),
+        order: Number.isFinite(Number(item?.order)) ? Math.max(1, Math.floor(Number(item.order))) : index + 1,
+      }))
+      .sort((left, right) => left.order - right.order)
+      .map((item, index) => ({
+        ...item,
+        order: index + 1,
+      }));
+  };
+
+  const setCreateCharacteristicsState = (nextItems) => {
+    const normalizedItems = normalizeCreateCharacteristicRows(nextItems);
+    createCharacteristics.length = 0;
+    normalizedItems.forEach((item) => {
+      createCharacteristics.push({
+        id: item.id,
+        label: item.label,
+        value: item.value,
+        order: item.order,
+      });
+    });
+  };
+
+  const getCreateCharacteristicRows = () => {
+    return normalizeCreateCharacteristicRows(createCharacteristics)
+      .map((item) => ({
+        id: item.id,
+        label: String(item.label || "").trim(),
+        value: String(item.value || "").trim(),
+        order: Number.isFinite(Number(item.order)) ? Math.max(1, Math.floor(Number(item.order))) : 1,
+      }))
+      .filter((item) => item.label || item.value);
+  };
+
+  const getCreateAutofillInputError = () => {
+    syncCreateLegacyFields();
+    const hasImages = createSelectedFiles.length > 0;
+    const hasContext = Boolean(
+      toText(createProductTitle?.value)
+      || toText(createProductShortDescription?.value)
+      || toText(createDescription?.value)
+      || toText(createHighlights?.value)
+    );
+
+    if (hasImages || hasContext) return "";
+    return "Для AI автозаполнения добавьте фото товара или короткое описание.";
+  };
+
+  const getCreateAutofillPresetPriority = (categoryValue) => {
+    const category = toLowerText(categoryValue);
+
+    if (/beauty|уход|космет|сыворот|крем/.test(category)) {
+      return ["Объём", "Цвет", "Комплектация", "Материал"];
+    }
+    if (/tech|электрон|кабел|заряд|наушник|гаджет/.test(category)) {
+      return ["Размер", "Вес", "Комплектация", "Цвет"];
+    }
+    if (/food|еда|напит|чай|кофе|fmcg/.test(category)) {
+      return ["Вес", "Объём", "Комплектация", "Цвет"];
+    }
+    return Array.from(CREATE_AI_AUTOFILL_PRESET_LABELS);
+  };
+
+  const getCreateAutofillSourceText = (payload, analysis) => {
+    return [
+      toText(createProductTitle?.value),
+      toText(createProductShortDescription?.value),
+      toText(payload?.description),
+      toText(payload?.highlights),
+      toText(analysis?.detectedCategory),
+      toText(analysis?.insight?.category),
+      toText(analysis?.insight?.recommendedStyle),
+      toText(analysis?.insight?.conversionAccent),
+      toText(analysis?.insight?.marketplaceFormat),
+      toText(analysis?.prompt),
+      ...(Array.isArray(analysis?.headlineIdeas) ? analysis.headlineIdeas.map((item) => toText(item)) : []),
+      ...createSelectedFiles.map((file) => toText(file?.name)),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  };
+
+  const extractCreateAutofillCharacteristicValue = (label, sourceText) => {
+    const rawSource = String(sourceText || "");
+    const normalizedSource = toLowerText(rawSource);
+
+    if (!rawSource) return "";
+
+    if (label === "Материал") {
+      const materialKeyword = CREATE_AI_AUTOFILL_MATERIAL_KEYWORDS.find((item) => normalizedSource.includes(item));
+      return materialKeyword ? materialKeyword.replace(/(^|\s)\S/g, (char) => char.toUpperCase()) : "";
+    }
+
+    if (label === "Размер") {
+      const dimensionMatch = rawSource.match(/(\d+(?:[.,]\d+)?\s?(?:x|х|×)\s?\d+(?:[.,]\d+)?(?:\s?(?:x|х|×)\s?\d+(?:[.,]\d+)?)?\s?(?:мм|см|м)?)/i);
+      if (dimensionMatch?.[1]) return dimensionMatch[1].replace(/\s+/g, " ").trim();
+
+      const apparelSizeMatch = rawSource.match(/\b(XXL|XL|L|M|S|XS)\b/i);
+      return apparelSizeMatch?.[1] ? apparelSizeMatch[1].toUpperCase() : "";
+    }
+
+    if (label === "Цвет") {
+      const colorKeyword = CREATE_AI_AUTOFILL_COLOR_KEYWORDS.find((item) => normalizedSource.includes(item));
+      return colorKeyword ? colorKeyword.replace(/(^|\s)\S/g, (char) => char.toUpperCase()) : "";
+    }
+
+    if (label === "Вес") {
+      const weightMatch = rawSource.match(/(\d+(?:[.,]\d+)?)\s?(кг|г)\b/i);
+      return weightMatch ? (weightMatch[1] + " " + weightMatch[2]).replace(/\s+/g, " ").trim() : "";
+    }
+
+    if (label === "Объём") {
+      const volumeMatch = rawSource.match(/(\d+(?:[.,]\d+)?)\s?(мл|л)\b/i);
+      return volumeMatch ? (volumeMatch[1] + " " + volumeMatch[2]).replace(/\s+/g, " ").trim() : "";
+    }
+
+    if (label === "Комплектация") {
+      const packageMatch = rawSource.match(/(?:комплектация|в комплекте|includes?)\s*[:\-]?\s*([^.\n]+)/i);
+      if (packageMatch?.[1]) return packageMatch[1].replace(/\s+/g, " ").trim();
+
+      const countMatch = rawSource.match(/(\d+)\s?(шт|предмет|предмета|предметов)\b/i);
+      return countMatch ? (countMatch[1] + " " + countMatch[2]).replace(/\s+/g, " ").trim() : "";
+    }
+
+    return "";
+  };
+
+  const buildCreateAutofillTitle = (analysis, payload) => {
+    const headlineCandidates = Array.isArray(analysis?.headlineIdeas)
+      ? analysis.headlineIdeas.map((item) => toText(item)).filter(Boolean)
+      : [];
+
+    if (headlineCandidates.length) return headlineCandidates[0];
+
+    const descriptionText = toText(payload?.description);
+    if (descriptionText) return descriptionText.split(/[.!?]/)[0].trim();
+
+    return toText(analysis?.detectedCategory || analysis?.insight?.category || "Карточка товара");
+  };
+
+  const buildCreateAutofillDescription = (analysis) => {
+    const category = toText(analysis?.detectedCategory || analysis?.insight?.category);
+    const accent = toText(analysis?.insight?.conversionAccent);
+    const format = toText(analysis?.insight?.marketplaceFormat);
+    const parts = [category, accent, format].filter(Boolean);
+    const text = parts.join(". ");
+
+    if (!text) return "";
+    return text.endsWith(".") ? text : text + ".";
+  };
+
+  const mergeCreateAutofillCharacteristics = (suggestedItems) => {
+    const currentItems = normalizeCreateCharacteristicRows(createCharacteristics);
+    const mergedItems = currentItems.map((item) => ({ ...item }));
+    const labelLookup = new Map(
+      mergedItems
+        .map((item, index) => [toLowerText(item.label), index])
+        .filter((item) => item[0])
+    );
+
+    suggestedItems.forEach((item) => {
+      const normalizedLabel = toLowerText(item.label);
+      if (!normalizedLabel) return;
+
+      const existingIndex = labelLookup.get(normalizedLabel);
+      if (Number.isInteger(existingIndex) && existingIndex >= 0) {
+        const currentItem = mergedItems[existingIndex];
+        if (!toText(currentItem.value) && toText(item.value)) {
+          currentItem.value = toText(item.value);
+        }
+        return;
+      }
+
+      mergedItems.push({
+        id: "",
+        label: toText(item.label),
+        value: toText(item.value),
+        order: mergedItems.length + 1,
+      });
+      labelLookup.set(normalizedLabel, mergedItems.length - 1);
+    });
+
+    return normalizeCreateCharacteristicRows(mergedItems);
+  };
+
+  const buildCreateAutofillCharacteristics = (analysis, payload) => {
+    const sourceText = getCreateAutofillSourceText(payload, analysis);
+    const priorityLabels = getCreateAutofillPresetPriority(analysis?.detectedCategory || analysis?.insight?.category);
+    const suggestions = [];
+
+    priorityLabels.forEach((label) => {
+      const value = extractCreateAutofillCharacteristicValue(label, sourceText);
+      if (value) {
+        suggestions.push({
+          id: "",
+          label,
+          value,
+          order: suggestions.length + 1,
+        });
+      }
+    });
+
+    if (!suggestions.length) {
+      priorityLabels.slice(0, 3).forEach((label) => {
+        suggestions.push({
+          id: "",
+          label,
+          value: "",
+          order: suggestions.length + 1,
+        });
+      });
+    }
+
+    return mergeCreateAutofillCharacteristics(suggestions);
+  };
+
+  const buildCreateAutofillPayload = async () => {
+    const payload = await buildCreateInsightPayload();
+    return {
+      ...payload,
+      promptMode: createPromptMode,
+      prompt: toText(createCustomPrompt?.value),
+      customPrompt: toText(createCustomPrompt?.value),
+      characteristics: getCreateCharacteristicRows(),
+    };
+  };
+
+  const buildCreateCharacteristicsSummary = () => {
+    const rows = getCreateCharacteristicRows();
+    if (!rows.length) return "";
+    return "Характеристики: " + rows.map((item) => item.label + " — " + item.value).join(", ");
+  };
+
+  const buildCreateCharacteristicsSummaryClean = () => {
+    const rows = getCreateCharacteristicRows();
+    if (!rows.length) return "";
+    return "Характеристики: " + rows.map((item) => [item.label, item.value].filter(Boolean).join(": ")).join(", ");
+  };
+
+  const buildCreateSettingsSummary = () => {
+    const flags = [];
+    const accentColorLabel = createSettingAccentColor?.selectedOptions?.[0]?.textContent || "";
+    const visualStyleLabel = createSettingVisualStyle?.selectedOptions?.[0]?.textContent || "";
+    const accentFormatLabel = createSettingAccentFormat?.selectedOptions?.[0]?.textContent || "";
+    const backgroundModeLabel = createSettingBackgroundMode?.selectedOptions?.[0]?.textContent || "";
+    const referenceStrengthLabel = createSettingReferenceStrength?.selectedOptions?.[0]?.textContent || "";
+
+    if (accentColorLabel) flags.push("акцентный цвет " + accentColorLabel.trim());
+    if (visualStyleLabel) flags.push("стиль " + visualStyleLabel.trim());
+    if (accentFormatLabel) flags.push("формат акцента " + accentFormatLabel.trim());
+    if (backgroundModeLabel) flags.push("фон " + backgroundModeLabel.trim());
+    if (referenceStrengthLabel) flags.push("сила референса " + referenceStrengthLabel.trim());
+    if (createUsefulSettings.preserveReferenceLayout) flags.push("сохранить компоновку референса");
+    if (createUsefulSettings.autoMarketplaceAdaptation) flags.push("автоадаптация под маркетплейс");
+
+    return flags.length ? "Настройки: " + flags.join(", ") : "";
+  };
+
+  const buildCreateTemplateSummary = () => {
+    const template = getCreateSelectedTemplate();
+    if (!template) return "";
+    return "Шаблон: " + template.title + ". " + template.description;
+  };
+
+  const syncCreateUsefulSettings = () => {
+    createUsefulSettings.accentColor = String(createSettingAccentColor?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.accentColor);
+    createUsefulSettings.referenceStrength = String(createSettingReferenceStrength?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.referenceStrength);
+    createUsefulSettings.visualStyle = String(createSettingVisualStyle?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.visualStyle);
+    createUsefulSettings.infoDensity = String(createSettingInfoDensity?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.infoDensity);
+    createUsefulSettings.readabilityPriority = String(
+      createSettingReadabilityPriority?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.readabilityPriority
+    );
+    createUsefulSettings.conversionPriority = String(
+      createSettingConversionPriority?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.conversionPriority
+    );
+    createUsefulSettings.accentFormat = String(createSettingAccentFormat?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.accentFormat);
+    createUsefulSettings.backgroundMode = String(createSettingBackgroundMode?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.backgroundMode);
+    createUsefulSettings.preserveReferenceLayout = Boolean(createSettingPreserveLayout?.checked);
+    createUsefulSettings.autoMarketplaceAdaptation = Boolean(createSettingAutoMarketplace?.checked);
+  };
+
+  const syncCreateLegacyFields = () => {
+    syncCreateUsefulSettings();
+
+    const title = getCreateProductTitleValue();
+    const shortDescription = getCreateProductShortDescriptionValue();
+    const descriptionParts = [title, shortDescription].filter(Boolean);
+    const highlightParts = [
+      buildCreateTemplateSummary(),
+      buildCreateCharacteristicsSummaryClean(),
+      buildCreateSettingsSummary(),
+    ].filter(Boolean);
+
+    if (createDescription) {
+      createDescription.value = descriptionParts.join(". ");
+    }
+    if (createHighlights) {
+      createHighlights.value = highlightParts.join(". ");
+    }
+  };
+
+  const createCharacteristicDraft = () => {
+    return {
+      id: "metric-" + String(Date.now()),
+      label: "",
+      value: "",
+      order: createCharacteristics.length + 1,
+    };
+  };
+
+  const renderCreateCharacteristics = () => {
+    createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
+    if (createCharacteristicsComponent) return;
+    if (!createCharacteristicsList) return;
+
+    createCharacteristicsList.textContent = "";
+
+    createCharacteristics.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "create-characteristic-row";
+      row.dataset.characteristicId = item.id;
+
+      const labelInput = document.createElement("input");
+      labelInput.type = "text";
+      labelInput.className = "create-characteristic-input";
+      labelInput.placeholder = "Метрика";
+      labelInput.value = item.label;
+      labelInput.dataset.characteristicField = "label";
+      labelInput.dataset.characteristicId = item.id;
+      labelInput.toggleAttribute("disabled", isCreateControlsLocked());
+
+      const valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.className = "create-characteristic-input";
+      valueInput.placeholder = "Значение";
+      valueInput.value = item.value;
+      valueInput.dataset.characteristicField = "value";
+      valueInput.dataset.characteristicId = item.id;
+      valueInput.toggleAttribute("disabled", isCreateControlsLocked());
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "create-characteristic-remove";
+      removeBtn.dataset.removeCharacteristicId = item.id;
+      removeBtn.textContent = "Удалить";
+      removeBtn.toggleAttribute("disabled", isCreateControlsLocked());
+
+      row.append(labelInput, valueInput, removeBtn);
+      createCharacteristicsList.append(row);
+    });
+
+    createCharacteristicsEmpty?.classList.toggle("hidden", createCharacteristics.length > 0);
+  };
+
+  const initCreateCharacteristicsComponent = () => {
+    if (createCharacteristicsComponent || !createCharacteristicsList || !window.CreateCharacteristicsComponent?.create) {
+      return;
+    }
+
+    createCharacteristicsComponent = window.CreateCharacteristicsComponent.create({
+      listElement: createCharacteristicsList,
+      emptyElement: createCharacteristicsEmpty,
+      presetsElement: createCharacteristicPresets,
+      addButton: createAddCharacteristicBtn,
+      initialItems: createCharacteristics,
+      getDisabled: () => isCreateControlsLocked(),
+      onChange: (nextItems, meta) => {
+        setCreateCharacteristicsState(nextItems);
+        syncCreateLegacyFields();
+        renderCreatePreviewPanel();
+
+        if (meta?.commit) {
+          handleCreateInputMutation();
+        }
+      },
+    });
+  };
+
+  const getFilteredCreateTemplates = () => {
+    const query = createTemplateSearchQuery;
+    const activeTab = normalizeCreateTemplateTab(createActiveTemplateTab);
+
+    return CREATE_TEMPLATE_LIBRARY.filter((item) => {
+      if (activeTab !== "all" && item.tab !== activeTab) return false;
+      if (!query) return true;
+      const haystack = [item.title, item.description, ...(Array.isArray(item.tags) ? item.tags : [])]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  };
+
+  const renderCreateTemplateLibrary = () => {
+    if (!createTemplateGrid) return;
+
+    createTemplateGrid.textContent = "";
+    createTemplateTabButtons.forEach((button) => {
+      button.classList.toggle("active", normalizeCreateTemplateTab(button.dataset.createTemplateTab) === createActiveTemplateTab);
+    });
+
+    const templates = getFilteredCreateTemplates();
+
+    if (!templates.length) {
+      const empty = document.createElement("div");
+      empty.className = "create-template-empty";
+      empty.textContent = "Ничего не найдено. Попробуйте другой запрос или вкладку.";
+      createTemplateGrid.append(empty);
+      return;
+    }
+
+    templates.forEach((template) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "create-template-item";
+      card.dataset.templateId = template.id;
+      card.classList.toggle("is-active", template.id === createSelectedTemplateId);
+
+      const thumb = document.createElement("span");
+      thumb.className = "create-template-thumb";
+
+      const image = document.createElement("img");
+      image.src = template.previewUrl;
+      image.alt = template.title;
+      image.loading = "lazy";
+
+      thumb.append(image);
+
+      const body = document.createElement("span");
+      body.className = "create-template-item-body";
+
+      const title = document.createElement("strong");
+      title.textContent = template.title;
+
+      const description = document.createElement("span");
+      description.textContent = template.description;
+
+      const meta = document.createElement("span");
+      meta.className = "create-template-meta";
+      meta.textContent = (template.tags || []).slice(0, 3).join(" • ");
+
+      body.append(title, description, meta);
+      card.append(thumb, body);
+      createTemplateGrid.append(card);
+    });
+  };
+
+  const renderCreateSourcePreview = () => {
+    const sourceFile = createSelectedFiles[0] || null;
+    const sourceUrl = sourceFile ? getCreateFilePreviewUrl(sourceFile) : "";
+
+    createSourcePreviewFrame?.classList.toggle("is-filled", Boolean(sourceUrl));
+    createSourcePreviewImage?.classList.toggle("hidden", !sourceUrl);
+    createSourcePreviewEmpty?.classList.toggle("hidden", Boolean(sourceUrl));
+
+    if (createSourcePreviewImage) {
+      if (sourceUrl) {
+        createSourcePreviewImage.src = sourceUrl;
+      } else {
+        createSourcePreviewImage.removeAttribute("src");
+      }
+    }
+  };
+
+  const getActiveCreateResult = () => {
+    if (!createGeneratedResults.length) return null;
+    return createGeneratedResults.find((item) => item.id === createActivePreviewResultId) || createGeneratedResults[0] || null;
+  };
+
+  const renderCreatePreviewPanel = () => {
+    const activeResult = getActiveCreateResult();
+    const selectedTemplate = getCreateSelectedTemplate();
+    const uploadUrl = createSelectedFiles[0] ? getCreateFilePreviewUrl(createSelectedFiles[0]) : "";
+    const previewUrl = activeResult?.previewUrl || selectedTemplate?.previewUrl || uploadUrl;
+    const accentColor = CREATE_ACCENT_COLOR_MAP[createUsefulSettings.accentColor] || CREATE_ACCENT_COLOR_MAP.emerald;
+    const title = activeResult?.title || getCreateProductTitleValue() || selectedTemplate?.title || "Готовим структуру карточки";
+    const meta = activeResult
+      ? [
+          activeResult.marketplace || createMarketplace?.value || "",
+          activeResult.style || "",
+        ].filter(Boolean).join(" • ")
+      : [
+          getCreateProductShortDescriptionValue() || "Выберите шаблон, заполните данные и запустите генерацию.",
+          buildCreateCharacteristicsSummaryClean(),
+        ].filter(Boolean).join(" ");
+
+    if (createPreviewCard) {
+      createPreviewCard.style.setProperty("--create-accent-color", accentColor);
+    }
+
+    createPreviewImage?.classList.toggle("hidden", !previewUrl);
+    createPreviewEmpty?.classList.toggle("hidden", Boolean(previewUrl));
+
+    if (createPreviewImage) {
+      if (previewUrl) {
+        createPreviewImage.src = previewUrl;
+      } else {
+        createPreviewImage.removeAttribute("src");
+      }
+    }
+
+    if (createPreviewBadge) {
+      createPreviewBadge.textContent = activeResult
+        ? "Готово"
+        : selectedTemplate
+          ? selectedTemplate.title
+          : "Черновик";
+    }
+    if (createPreviewTitle) {
+      createPreviewTitle.textContent = title;
+    }
+    if (createPreviewMeta) {
+      createPreviewMeta.textContent = meta || "Здесь будет итоговое превью 3:4.";
+    }
+
+    if (createExportBtn) {
+      const canExport = Boolean(activeResult?.previewUrl);
+      createExportBtn.classList.toggle("is-disabled", !canExport);
+      createExportBtn.setAttribute("aria-disabled", canExport ? "false" : "true");
+      createExportBtn.href = canExport ? activeResult.previewUrl : "#";
+      createExportBtn.download = canExport ? activeResult.downloadName || "kartochka-prevyu.png" : "";
+    }
+  };
+
+  const clearCreateResultsData = () => {
+    createGeneratedResults = [];
+    createResultExpandedId = "";
+    createActivePreviewResultId = "";
+    setCreateResultsProcessing(false);
+    renderCreateResults();
+    renderCreatePreviewPanel();
+  };
+
   const dataUrlToFile = async (dataUrl, fileName, fallbackMimeType) => {
     const safeUrl = String(dataUrl || "").trim();
     if (!safeUrl) return null;
@@ -490,14 +1232,16 @@
   };
 
   const getCreateValidationError = () => {
+    const productTitle = getCreateProductTitleValue();
+    const shortDescription = getCreateProductShortDescriptionValue();
     if (createSelectedFiles.length < 1) return "Добавьте минимум 1 фото товара";
     if (createSelectedFiles.length > CREATE_UPLOAD_MAX_FILES) {
       return "Допустимо максимум " + String(CREATE_UPLOAD_MAX_FILES) + " фото";
     }
-    if ((createDescription?.value || "").trim().length < 12) return "Заполните поле «Описание товара»";
-    if ((createHighlights?.value || "").trim().length < 8) return "Добавьте пожелания и акценты";
+    if (productTitle.length < 3) return "Заполните название товара";
+    if (shortDescription.length < 12) return "Добавьте краткое описание товара";
     if (createPromptMode === "custom" && (createCustomPrompt?.value || "").trim().length < 12) {
-      return "В режиме «Свой prompt» заполните собственный prompt";
+      return "В режиме «Свой промпт» заполните собственный промпт";
     }
     if (!(createMarketplace?.value || "").trim()) return "Выберите маркетплейс";
     if (!(createCardsCount?.value || "").trim()) return "Выберите количество карточек";
@@ -509,6 +1253,7 @@
 
     createImagesList.textContent = "";
     createImagesEmpty?.classList.toggle("hidden", createSelectedFiles.length > 0);
+    renderCreateSourcePreview();
 
     createSelectedFiles.forEach((file, index) => {
       const item = document.createElement("article");
@@ -574,9 +1319,26 @@
         createCustomPrompt.removeAttribute("aria-disabled");
       }
     }
+
+    if (createPromptAssistDetails) {
+      if (createPromptMode === "ai") {
+        createPromptAssistDetails.open = true;
+      } else if (!(createAiPromptOutput?.value || "").trim() && createAiPromptPhase !== "loading") {
+        createPromptAssistDetails.open = false;
+      }
+    }
+
+    if (createAdvancedDetails) {
+      if (createPromptMode === "custom") {
+        createAdvancedDetails.open = true;
+      } else if (!(createCustomPrompt?.value || "").trim()) {
+        createAdvancedDetails.open = false;
+      }
+    }
   };
 
   const getCreateInsightFingerprint = () => {
+    syncCreateLegacyFields();
     return [
       (createDescription?.value || "").trim(),
       (createHighlights?.value || "").trim(),
@@ -587,13 +1349,15 @@
   };
 
   const getCreateInsightInputError = () => {
+    syncCreateLegacyFields();
     const hasImages = createSelectedFiles.length > 0;
     const hasDescription = (createDescription?.value || "").trim().length >= 8;
     if (hasImages || hasDescription) return "";
-    return "Для AI insight добавьте минимум 1 фото или заполните «Описание товара».";
+    return "Для AI-анализа добавьте минимум 1 фото или заполните «Описание товара».";
   };
 
   const buildCreateInsightPayload = async () => {
+    syncCreateLegacyFields();
     const imageDataUrls = await buildCreateImageDataUrls();
     return {
       description: (createDescription?.value || "").trim(),
@@ -616,7 +1380,7 @@
     });
 
     if (!payload.description && payload.files.length === 0) {
-      throw new Error("Недостаточно данных для анализа AI insight.");
+      throw new Error("Недостаточно данных для AI-анализа.");
     }
 
     const sourceText = [payload.description, payload.highlights].join(" ").toLowerCase();
@@ -625,16 +1389,16 @@
       : /кабель|заряд|наушник|электрон|гаджет|tech/.test(sourceText)
         ? "Электроника и аксессуары"
         : /кофе|чай|снек|еда|food/.test(sourceText)
-          ? "Food / FMCG"
+          ? "Еда и FMCG"
           : payload.files.length >= 3
-            ? "Lifestyle товар"
+            ? "Лайфстайл-товар"
             : "Универсальный потребительский товар";
 
     const style = /premium|премиум|дорог/.test(sourceText)
-      ? "Premium clean: светлый фон, аккуратная типографика, один сильный фокус"
+      ? "Премиальная чистая подача: светлый фон, аккуратная типографика, один сильный фокус"
       : /скидк|выгод|акци/.test(sourceText)
-        ? "Promo-first: контрастная выгода + четкая иерархия оффера"
-        : "Catalog+benefit: чистая продуктовая композиция с блоком выгод";
+        ? "Промо-подача: контрастная выгода и четкая иерархия оффера"
+        : "Каталожная подача: чистая продуктовая композиция с блоком выгод";
 
     const conversionAccent = /доставк|быстр|сегодня/.test(sourceText)
       ? "Сфокусироваться на скорости доставки и наличии"
@@ -645,8 +1409,8 @@
     const marketplaceFormat = payload.marketplace === "Wildberries"
       ? "Крупный hero + 3 быстрых буллета + короткий CTA, акцент на считываемость с мобильного"
       : payload.marketplace === "Яндекс Маркет"
-        ? "Рациональный формат: факты, выгоды, доказательства, спокойный visual tone"
-        : "Ozon-ready: яркий first frame, блок выгод, продукт в центре и чистый оффер";
+        ? "Рациональный формат: факты, выгоды, доказательства, спокойный визуальный тон"
+        : "Под Ozon: яркий первый экран, блок выгод, продукт в центре и чистый оффер";
 
     return {
       category,
@@ -661,7 +1425,7 @@
       const response = await serviceClient.createAnalyze(payload, { intent: "insight" });
       if (response?.insight) return response.insight;
       if (response && response.category && response.recommendedStyle) return response;
-      throw new Error("Invalid createAnalyze response: insight is missing.");
+      throw new Error("Некорректный ответ createAnalyze: отсутствует insight.");
     }
     if (serviceClient?.ai?.generateProductInsight) {
       const detectedCategory = serviceClient.ai.detectProductCategory
@@ -711,23 +1475,33 @@
       createInsightRunBtn.classList.toggle("is-loading", isLoading);
     }
 
+    if (createInsightSummaryBadge) {
+      if (isLoading) {
+        setCreateSecondaryBadge(createInsightSummaryBadge, "AI анализ", "is-active");
+      } else if (isError && !hasInsight) {
+        setCreateSecondaryBadge(createInsightSummaryBadge, "Нужны данные", "is-error");
+      } else if (isSuccess && isStale) {
+        setCreateSecondaryBadge(createInsightSummaryBadge, "Обновить", "is-warning");
+      } else if (hasInsight) {
+        setCreateSecondaryBadge(createInsightSummaryBadge, createInsightData?.category || "Готово", "is-success");
+      } else {
+        setCreateSecondaryBadge(createInsightSummaryBadge, "Пусто", "is-neutral");
+      }
+    }
+
+    if (createInsightDetails && (isLoading || (isError && !hasInsight))) {
+      createInsightDetails.open = true;
+    }
+
     if (!hasInsight) {
       renderCreateInsightValues(null);
     }
 
     if (createInsightStatus) {
       if (createInsightPhase === "empty") {
-        setStatusMessage(
-          createInsightStatus,
-          inputError || "Данные готовы. Нажмите «Собрать insight».",
-          ""
-        );
+        setStatusMessage(createInsightStatus, inputError || "Данные готовы. Соберите insight.", "");
       } else if (isSuccess && isStale) {
-        setStatusMessage(
-          createInsightStatus,
-          "Данные изменились. Обновите insight, чтобы prompt использовал актуальные рекомендации.",
-          ""
-        );
+        setStatusMessage(createInsightStatus, "Данные изменились. Обновите insight.", "");
       }
     }
   };
@@ -748,8 +1522,8 @@
     createInsightPhase = "loading";
     const requestId = ++createInsightRequestId;
     setDoneState(createDoneBadge, false);
-    setStatusMessage(createInsightStatus, "AI copilot анализирует товар и формирует insight...", "");
-    setRequestMeta(createMeta, "Статус запроса:", "AI insight: анализ данных");
+    setStatusMessage(createInsightStatus, "AI собирает insight...", "");
+    setRequestMeta(createMeta, "Статус запроса:", "AI-анализ: выполняется");
     syncCreateFormState();
 
     try {
@@ -764,22 +1538,20 @@
 
       setStatusMessage(
         createInsightStatus,
-        source === "prompt"
-          ? "Insight обновлен и применен при генерации prompt."
-          : "Insight готов. Используйте его как опору для prompt и карточки.",
+        source === "prompt" ? "Инсайт обновлен для промпта." : "Инсайт готов.",
         "success"
       );
 
       if (source !== "prompt") {
-        setRequestMeta(createMeta, "Статус запроса:", "AI insight готов");
+        setRequestMeta(createMeta, "Статус запроса:", "AI-анализ готов");
       }
       return true;
     } catch (error) {
       if (requestId !== createInsightRequestId) return false;
       createInsightPhase = "error";
-      const message = error instanceof Error ? error.message : "Не удалось получить AI insight. Повторите попытку.";
+      const message = error instanceof Error ? error.message : "Не удалось собрать insight.";
       setStatusMessage(createInsightStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка генерации AI insight");
+      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI-анализа");
       return false;
     } finally {
       if (requestId === createInsightRequestId) {
@@ -789,13 +1561,15 @@
   };
 
   const getCreateAiPromptInputError = () => {
+    syncCreateLegacyFields();
     const hasImages = createSelectedFiles.length > 0;
     const hasDescription = (createDescription?.value || "").trim().length >= 8;
     if (hasImages || hasDescription) return "";
-    return "Для AI prompt добавьте минимум 1 фото или заполните «Описание товара».";
+    return "Для AI-промпта добавьте минимум 1 фото или заполните «Описание товара».";
   };
 
   const buildCreateAiPromptPayload = async () => {
+    syncCreateLegacyFields();
     const hasInsight = Boolean(createInsightData);
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
     const imageDataUrls = await buildCreateImageDataUrls();
@@ -821,7 +1595,7 @@
     });
 
     if (!payload.description && payload.files.length === 0) {
-      throw new Error("Недостаточно данных для генерации prompt.");
+      throw new Error("Недостаточно данных для генерации промпта.");
     }
 
     const headlineSource = payload.description
@@ -838,18 +1612,18 @@
     const insight = payload.insight || null;
 
     return [
-      "Ты senior e-commerce designer для marketplace sellers.",
-      "Собери продающий prompt для генерации карточки товара.",
+      "Ты senior e-commerce designer для продавцов маркетплейсов.",
+      "Собери продающий промпт для генерации карточки товара.",
       'Товар: "' + headlineSource + '".',
       "Маркетплейс: " + targetMarketplace + ".",
       "Нужно вариантов: " + variants + ".",
       "Акценты: " + focusLine + ".",
-      insight ? "Категория (AI insight): " + insight.category + "." : "",
-      insight ? "Рекомендуемый стиль (AI insight): " + insight.recommendedStyle + "." : "",
-      insight ? "Конверсионный акцент (AI insight): " + insight.conversionAccent + "." : "",
-      insight ? "Формат подачи (AI insight): " + insight.marketplaceFormat + "." : "",
+      insight ? "Категория (AI-анализ): " + insight.category + "." : "",
+      insight ? "Рекомендуемый стиль (AI-анализ): " + insight.recommendedStyle + "." : "",
+      insight ? "Конверсионный акцент (AI-анализ): " + insight.conversionAccent + "." : "",
+      insight ? "Формат подачи (AI-анализ): " + insight.marketplaceFormat + "." : "",
       visualLine,
-      "Верни структуру: 1) Hero-заголовок 2) 3-5 буллетов выгод 3) CTA 4) визуальные указания.",
+      "Верни структуру: 1) главный заголовок 2) 3-5 буллетов выгод 3) CTA 4) визуальные указания.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -860,7 +1634,7 @@
       const response = await serviceClient.createAnalyze(payload, { intent: "prompt" });
       const prompt = (response?.prompt || "").trim();
       if (prompt) return prompt;
-      throw new Error("Invalid createAnalyze response: prompt is missing.");
+      throw new Error("Некорректный ответ createAnalyze: отсутствует промпт.");
     }
     if (serviceClient?.ai?.generatePrompt) {
       return serviceClient.ai.generatePrompt(payload);
@@ -875,6 +1649,7 @@
     const isLoading = createAiPromptPhase === "loading";
     const controlsLocked = isLoading || createIsGenerating || createInsightPhase === "loading";
     const canAcceptPrompt = promptValue.length >= CREATE_AI_PROMPT_MIN_ACCEPT_LEN;
+    const showEditor = isLoading || hasPrompt;
 
     createAiPromptCard?.classList.toggle("is-empty", !hasPrompt && createAiPromptPhase === "empty");
     createAiPromptCard?.classList.toggle("is-loading", isLoading);
@@ -889,6 +1664,26 @@
     createAiPromptRegenerateBtn?.toggleAttribute("disabled", controlsLocked || !hasPrompt);
     createAiPromptAcceptBtn?.toggleAttribute("disabled", controlsLocked || !canAcceptPrompt);
 
+    if (createPromptAssistSummaryBadge) {
+      if (isLoading) {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Генерация", "is-active");
+      } else if (createAiPromptPhase === "error" && !hasPrompt) {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Ошибка", "is-error");
+      } else if (hasPrompt) {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Готово", "is-success");
+      } else if (createPromptMode === "ai") {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "AI режим", "is-active");
+      } else {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Неактивно", "is-neutral");
+      }
+    }
+
+    if (createPromptAssistDetails && (isLoading || hasPrompt || createAiPromptPhase === "error")) {
+      createPromptAssistDetails.open = true;
+    }
+
+    createAiPromptEditor?.classList.toggle("hidden", !showEditor);
+
     if (createAiPromptOutput) {
       createAiPromptOutput.readOnly = controlsLocked;
       createAiPromptOutput.toggleAttribute("disabled", isLoading || (!hasPrompt && createAiPromptPhase !== "loading"));
@@ -898,11 +1693,7 @@
     }
 
     if (createAiPromptStatus && createAiPromptPhase === "empty") {
-      setStatusMessage(
-        createAiPromptStatus,
-        inputError || "Данные готовы. Нажмите «Сгенерировать prompt с AI».",
-        ""
-      );
+      setStatusMessage(createAiPromptStatus, inputError || "Данные готовы. Соберите промпт.", "");
     }
   };
 
@@ -920,11 +1711,7 @@
       const insightReady = await runCreateInsightAnalysis({ source: "prompt" });
       if (!insightReady) {
         createAiPromptPhase = "error";
-        setStatusMessage(
-          createAiPromptStatus,
-          "Не удалось получить AI insight. Проверьте входные данные и повторите попытку.",
-          "error"
-        );
+        setStatusMessage(createAiPromptStatus, "Не удалось обновить insight.", "error");
         syncCreateFormState();
         return;
       }
@@ -935,10 +1722,10 @@
     setDoneState(createDoneBadge, false);
     if (createAiPromptOutput) {
       createAiPromptOutput.value = "";
-      createAiPromptOutput.placeholder = "AI анализирует входные данные...";
+      createAiPromptOutput.placeholder = "AI собирает промпт...";
     }
-    setStatusMessage(createAiPromptStatus, "AI анализирует входные данные и формирует prompt...", "");
-    setRequestMeta(createMeta, "Статус запроса:", "AI prompt: анализ входных данных");
+    setStatusMessage(createAiPromptStatus, "AI собирает промпт...", "");
+    setRequestMeta(createMeta, "Статус запроса:", "AI-промпт: выполняется");
     syncCreateFormState();
 
     try {
@@ -948,24 +1735,20 @@
 
       if (createAiPromptOutput) {
         createAiPromptOutput.value = generatedPrompt;
-        createAiPromptOutput.placeholder = "Здесь появится auto-generated prompt.";
+        createAiPromptOutput.placeholder = "Здесь появится промпт.";
       }
       createAiPromptPhase = "success";
-      setStatusMessage(
-        createAiPromptStatus,
-        "Prompt готов. Можно принять его, отредактировать или сгенерировать заново.",
-        "success"
-      );
-      setRequestMeta(createMeta, "Статус запроса:", "AI prompt готов");
+      setStatusMessage(createAiPromptStatus, "Prompt готов. Можно применить или править.", "success");
+      setRequestMeta(createMeta, "Статус запроса:", "AI-промпт готов");
     } catch (error) {
       if (requestId !== createAiPromptRequestId) return;
       createAiPromptPhase = "error";
       if (createAiPromptOutput && !createAiPromptOutput.value.trim()) {
-        createAiPromptOutput.placeholder = "Здесь появится auto-generated prompt.";
+        createAiPromptOutput.placeholder = "Здесь появится промпт.";
       }
-      const message = error instanceof Error ? error.message : "Не удалось сгенерировать prompt. Повторите попытку.";
+      const message = error instanceof Error ? error.message : "Не удалось собрать промпт.";
       setStatusMessage(createAiPromptStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка генерации AI prompt");
+      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI-промпта");
     } finally {
       if (requestId === createAiPromptRequestId) {
         syncCreateFormState();
@@ -973,17 +1756,164 @@
     }
   };
 
+  const requestCreateAutofillAnalysis = async (payload) => {
+    if (serviceClient?.createAnalyze) {
+      const response = await serviceClient.createAnalyze(payload, { intent: "full" });
+      const hasHeadlineIdeas = Array.isArray(response?.headlineIdeas) && response.headlineIdeas.length > 0;
+      if (response?.detectedCategory || response?.insight || response?.prompt || hasHeadlineIdeas) {
+        return response;
+      }
+      throw new Error("Invalid createAnalyze response: autofill data is missing.");
+    }
+
+    const insight = await requestCreateInsight(payload);
+    const prompt = await requestCreateAiPrompt({
+      ...payload,
+      insight,
+    });
+
+    return {
+      detectedCategory: insight?.category || "",
+      insight,
+      prompt,
+      headlineIdeas: [],
+    };
+  };
+
+  const applyCreateAutofillResult = (analysis, payload) => {
+    let titleFilled = false;
+    let descriptionFilled = false;
+
+    if (createProductTitle && getCreateProductTitleValue().length < 3) {
+      const nextTitle = buildCreateAutofillTitle(analysis, payload);
+      if (nextTitle) {
+        createProductTitle.value = nextTitle;
+        titleFilled = true;
+      }
+    }
+
+    if (createProductShortDescription && getCreateProductShortDescriptionValue().length < 12) {
+      const nextDescription = buildCreateAutofillDescription(analysis);
+      if (nextDescription) {
+        createProductShortDescription.value = nextDescription;
+        descriptionFilled = true;
+      }
+    }
+
+    const nextCharacteristics = buildCreateAutofillCharacteristics(analysis, payload);
+    const characteristicsBefore = getCreateCharacteristicRows().length;
+    setCreateCharacteristicsState(nextCharacteristics);
+    createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
+    const characteristicsAfter = getCreateCharacteristicRows().length;
+
+    if (analysis?.insight) {
+      createInsightData = { ...analysis.insight };
+      createInsightFingerprint = getCreateInsightFingerprint();
+      createInsightPhase = "success";
+      renderCreateInsightValues(createInsightData);
+      syncCreateInsightState();
+    }
+
+    if (createAiPromptOutput) {
+      createAiPromptOutput.value = toText(analysis?.prompt);
+    }
+    createAiPromptPhase = toText(analysis?.prompt) ? "success" : "empty";
+    syncCreateAiPromptState();
+
+    if (
+      createSettingVisualStyle
+      && createSettingVisualStyle.value === CREATE_USEFUL_SETTINGS_DEFAULTS.visualStyle
+      && analysis?.insight?.recommendedStyle
+    ) {
+      const styleSource = toLowerText(analysis.insight.recommendedStyle);
+      if (/premium|lux/.test(styleSource)) {
+        createSettingVisualStyle.value = "premium";
+      } else if (/promo|sale|contrast/.test(styleSource)) {
+        createSettingVisualStyle.value = "promo";
+      } else if (/editorial/.test(styleSource)) {
+        createSettingVisualStyle.value = "editorial";
+      } else {
+        createSettingVisualStyle.value = "clean-market";
+      }
+    }
+
+    syncCreateLegacyFields();
+    handleCreateInputMutation();
+
+    const feedbackParts = [];
+    if (titleFilled) feedbackParts.push("название");
+    if (descriptionFilled) feedbackParts.push("описание");
+    if (characteristicsAfter > characteristicsBefore) feedbackParts.push("характеристики");
+    if (toText(analysis?.prompt)) feedbackParts.push("AI-промпт");
+
+    setStatusMessage(
+      createStatus,
+      feedbackParts.length
+        ? "AI заполнил: " + feedbackParts.join(", ") + "."
+        : "AI обновил контекст формы и подготовил данные.",
+      "success"
+    );
+    setRequestMeta(createMeta, "Статус запроса:", "AI автозаполнение готово");
+  };
+
+  const runCreateAutofill = async () => {
+    const inputError = getCreateAutofillInputError();
+    if (inputError) {
+      setStatusMessage(createStatus, inputError, "error");
+      syncCreateFormState();
+      return;
+    }
+
+    createAutofillPhase = "loading";
+    const requestId = ++createAutofillRequestId;
+    setDoneState(createDoneBadge, false);
+    setStatusMessage(createStatus, "AI анализирует товар и заполняет поля...", "");
+    setRequestMeta(createMeta, "Статус запроса:", "AI автозаполнение: анализ");
+    syncCreateFormState();
+
+    try {
+      const payload = await buildCreateAutofillPayload();
+      const analysis = await requestCreateAutofillAnalysis(payload);
+      if (requestId !== createAutofillRequestId) return;
+
+      createAutofillPhase = "success";
+      applyCreateAutofillResult(analysis, payload);
+    } catch (error) {
+      if (requestId !== createAutofillRequestId) return;
+      createAutofillPhase = "error";
+      const message = error instanceof Error ? error.message : "Не удалось выполнить AI автозаполнение.";
+      setStatusMessage(createStatus, message, "error");
+      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI автозаполнения");
+    } finally {
+      if (requestId === createAutofillRequestId && createAutofillPhase !== "loading") {
+        syncCreateFormState();
+      }
+    }
+  };
+
   const syncCreateFormState = () => {
+    syncCreateLegacyFields();
+
     const validationError = getCreateValidationError();
+    const autofillInputError = getCreateAutofillInputError();
     const controlsLocked =
       createIsGenerating ||
+      createAutofillPhase === "loading" ||
       createInsightPhase === "loading" ||
       createAiPromptPhase === "loading";
     const isDisabled = Boolean(validationError) || controlsLocked;
+    const aiPromptValue = (createAiPromptOutput?.value || "").trim();
+    const customPromptValue = (createCustomPrompt?.value || "").trim();
 
     if (createGenerateBtn) {
+      createGenerateBtn.textContent = createGeneratedResults.length ? "Перегенерировать" : "Сгенерировать карточку";
       createGenerateBtn.toggleAttribute("disabled", isDisabled);
       createGenerateBtn.classList.toggle("is-loading", createIsGenerating);
+    }
+
+    if (createAutofillBtn) {
+      createAutofillBtn.toggleAttribute("disabled", controlsLocked || Boolean(autofillInputError));
+      createAutofillBtn.classList.toggle("is-loading", createAutofillPhase === "loading");
     }
 
     createPromptModeButtons.forEach((button) => {
@@ -993,8 +1923,18 @@
     if (createImagesInput) createImagesInput.toggleAttribute("disabled", controlsLocked);
     if (createDescription) createDescription.toggleAttribute("disabled", controlsLocked);
     if (createHighlights) createHighlights.toggleAttribute("disabled", controlsLocked);
+    if (createProductTitle) createProductTitle.toggleAttribute("disabled", controlsLocked);
+    if (createProductShortDescription) createProductShortDescription.toggleAttribute("disabled", controlsLocked);
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
+    if (createTemplateSearchInput) createTemplateSearchInput.toggleAttribute("disabled", controlsLocked);
+    if (createAddCharacteristicBtn) createAddCharacteristicBtn.toggleAttribute("disabled", controlsLocked);
+    if (createEditImageBtn) {
+      createEditImageBtn.toggleAttribute("disabled", controlsLocked || createSelectedFiles.length === 0);
+    }
+    createTemplateTabButtons.forEach((button) => {
+      button.toggleAttribute("disabled", controlsLocked);
+    });
 
     if (createCustomPrompt) {
       const disableCustomPrompt = controlsLocked || createPromptMode !== "custom";
@@ -1009,24 +1949,84 @@
     createUploadZone?.classList.toggle("is-disabled", controlsLocked);
     createUploadZone?.setAttribute("aria-disabled", controlsLocked ? "true" : "false");
 
+    [
+      createSettingAccentColor,
+      createSettingReferenceStrength,
+      createSettingVisualStyle,
+      createSettingInfoDensity,
+      createSettingReadabilityPriority,
+      createSettingConversionPriority,
+      createSettingAccentFormat,
+      createSettingBackgroundMode,
+    ].forEach((field) => {
+      field?.toggleAttribute("disabled", controlsLocked);
+    });
+    createSettingPreserveLayout?.toggleAttribute("disabled", controlsLocked);
+    createSettingAutoMarketplace?.toggleAttribute("disabled", controlsLocked);
+    createCharacteristicsComponent?.setDisabled(controlsLocked);
+
+    if (createPromptAssistDetails && createPromptMode !== "ai" && !aiPromptValue && createAiPromptPhase !== "loading") {
+      createPromptAssistDetails.open = false;
+    }
+
+    if (createAdvancedDetails) {
+      if (createPromptMode === "custom" || customPromptValue) {
+        createAdvancedDetails.open = true;
+      } else {
+        createAdvancedDetails.open = false;
+      }
+    }
+
+    if (createCustomPromptSummaryBadge) {
+      if (createPromptMode === "custom" && customPromptValue) {
+        setCreateSecondaryBadge(createCustomPromptSummaryBadge, "Ручной", "is-success");
+      } else if (createPromptMode === "custom") {
+        setCreateSecondaryBadge(createCustomPromptSummaryBadge, "Ввод", "is-active");
+      } else if (customPromptValue) {
+        setCreateSecondaryBadge(createCustomPromptSummaryBadge, "Сохранен", "is-success");
+      } else {
+        setCreateSecondaryBadge(createCustomPromptSummaryBadge, "Опционально", "is-neutral");
+      }
+    }
+
+    if (createCustomPromptHelper) {
+      createCustomPromptHelper.textContent = createPromptMode === "custom"
+        ? "Короткий промпт для ручной настройки."
+        : "Откройте, если нужен ручной контроль.";
+    }
+
     if (createCtaHint) {
-      if (createIsGenerating) {
+      if (createAutofillPhase === "loading") {
+        createCtaHint.textContent = "AI заполняет название, описание и предложенные характеристики...";
+      } else if (createIsGenerating) {
         createCtaHint.textContent = "Генерация в процессе...";
       } else if (validationError) {
         createCtaHint.textContent = validationError;
+      } else if (createGeneratedResults.length) {
+        createCtaHint.textContent = "Можно перегенерировать текущий вариант или экспортировать активное превью.";
       } else {
-        createCtaHint.textContent = "Форма заполнена. Можно запускать генерацию.";
+        createCtaHint.textContent = "Форма готова к запуску.";
       }
     }
+    renderCreateTemplateLibrary();
+    renderCreatePreviewPanel();
     syncCreateInsightState();
     syncCreateAiPromptState();
   };
 
   const isCreateControlsLocked = () => {
-    return createIsGenerating || createInsightPhase === "loading" || createAiPromptPhase === "loading";
+    return (
+      createIsGenerating
+      || createAutofillPhase === "loading"
+      || createInsightPhase === "loading"
+      || createAiPromptPhase === "loading"
+    );
   };
 
   const resetCreateTransientErrorState = () => {
+    if (createAutofillPhase === "error") {
+      createAutofillPhase = "idle";
+    }
     if (createAiPromptPhase === "error" && !(createAiPromptOutput?.value || "").trim()) {
       createAiPromptPhase = "empty";
     }
@@ -1037,6 +2037,12 @@
 
   const cancelPendingCreateRequests = () => {
     let cancelled = false;
+
+    if (createAutofillPhase === "loading") {
+      createAutofillRequestId += 1;
+      createAutofillPhase = "idle";
+      cancelled = true;
+    }
 
     if (createInsightPhase === "loading") {
       createInsightRequestId += 1;
@@ -1106,6 +2112,7 @@
 
     resetCreateTransientErrorState();
 
+    clearCreateResultsData();
     setDoneState(createDoneBadge, false);
     renderCreateFiles();
     syncCreateFormState();
@@ -1188,7 +2195,7 @@
     const explicitSummary = String(ai?.summary || "").trim();
     if (explicitSummary) return explicitSummary;
     if (mode === "create" && ai?.insight?.conversionAccent) {
-      return "AI insight: " + String(ai.insight.conversionAccent);
+      return "AI-инсайт: " + String(ai.insight.conversionAccent);
     }
     if (mode === "improve" && ai?.analysis?.summary) {
       return String(ai.analysis.summary);
@@ -1214,6 +2221,7 @@
       improveMode: String(entry?.input?.improveMode || entry?.meta?.improveMode || "").trim() || "ai",
       variantsCount: Number(entry?.input?.variantsCount || entry?.resultsCount || 1),
       referenceStyle: Boolean(entry?.input?.referenceStyle || entry?.meta?.referenceStyle),
+      characteristics: normalizeCreateCharacteristicRows(entry?.input?.characteristics),
     };
     const uploads = Array.isArray(entry?.uploads)
       ? entry.uploads.map((upload, index) => normalizeHistoryUpload(upload, mode, index)).slice(0, CREATE_UPLOAD_MAX_FILES)
@@ -1469,13 +2477,13 @@
       ? [
           { label: "Режим", value: entry.input.improveMode === "reference" ? "В стиле референса" : "Обычное AI улучшение" },
           { label: "Количество вариантов", value: String(entry.input.variantsCount || entry.resultsCount || 1) },
-          { label: "Reference style", value: entry.input.referenceStyle ? "Включен" : "Не включен" },
+          { label: "Стиль референса", value: entry.input.referenceStyle ? "Включен" : "Не включен" },
           { label: "Комментарий", value: entry.input.improvePrompt || "Не указан" },
         ]
       : [
           { label: "Маркетплейс", value: entry.input.marketplace || "Не указан" },
           { label: "Количество карточек", value: String(entry.input.cardsCount || entry.resultsCount || 1) },
-          { label: "Режим prompt", value: entry.input.promptMode === "custom" ? "Свой prompt" : "AI prompt" },
+          { label: "Режим промпта", value: entry.input.promptMode === "custom" ? "Свой промпт" : "AI-промпт" },
           { label: "Описание товара", value: entry.input.description || "Не указано" },
         ];
 
@@ -1683,7 +2691,7 @@
     if (historyDetailsSummary) historyDetailsSummary.textContent = selectedEntry.summary;
     if (historyDetailsPrompt) {
       const promptValue = selectedEntry.prompt || selectedEntry.input.customPrompt || "";
-      historyDetailsPrompt.textContent = promptValue || "Пользовательский prompt не указан.";
+      historyDetailsPrompt.textContent = promptValue || "Пользовательский промпт не указан.";
     }
     if (historyDetailsHighlights) {
       historyDetailsHighlights.textContent =
@@ -1947,6 +2955,7 @@
         improveMode: "ai",
         variantsCount: Number(payload?.cardsCount || normalizedResults.length || 1),
         referenceStyle: false,
+        characteristics: getCreateCharacteristicRows(),
       },
       uploads,
       ai: {
@@ -2063,14 +3072,29 @@
       createSelectedFiles.push(file);
     });
 
+    const restoredDescription = entry.input.description || "";
+    const restoredHighlights = entry.input.highlights || "";
+    if (createProductTitle) {
+      createProductTitle.value = restoredDescription.split(/[.!?]/)[0] || restoredDescription;
+    }
+    if (createProductShortDescription) {
+      createProductShortDescription.value = restoredHighlights || restoredDescription;
+    }
     if (createDescription) {
-      createDescription.value = entry.input.description || "";
+      createDescription.value = restoredDescription;
     }
     if (createHighlights) {
-      createHighlights.value = entry.input.highlights || "";
+      createHighlights.value = restoredHighlights;
     }
     setSelectValueIfExists(createMarketplace, entry.input.marketplace);
     setSelectValueIfExists(createCardsCount, String(entry.input.cardsCount || entry.resultsCount || 1));
+    createTemplateSearchQuery = "";
+    if (createTemplateSearchInput) {
+      createTemplateSearchInput.value = "";
+    }
+    createActiveTemplateTab = "all";
+    createSelectedTemplateId = CREATE_TEMPLATE_LIBRARY[0]?.id || "";
+    setCreateCharacteristicsState(entry.input.characteristics || []);
 
     const historyPromptMode = entry.input.promptMode === "custom" ? "custom" : "ai";
     syncCreatePromptMode(historyPromptMode);
@@ -2090,6 +3114,10 @@
 
     createGeneratedResults = [];
     createResultExpandedId = "";
+    createActivePreviewResultId = "";
+    syncCreateLegacyFields();
+    createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
+    renderCreateTemplateLibrary();
     renderCreateResults();
 
     setDoneState(createDoneBadge, false);
@@ -2213,6 +3241,7 @@
   };
 
   const resolveCreatePromptForGeneration = () => {
+    syncCreateLegacyFields();
     if (createPromptMode === "custom") {
       return (createCustomPrompt?.value || "").trim();
     }
@@ -2230,6 +3259,7 @@
   };
 
   const buildCreateGenerationPayload = async () => {
+    syncCreateLegacyFields();
     const cardsCount = Number(createCardsCount?.value || 1);
     const hasInsight = Boolean(createInsightData);
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
@@ -2238,6 +3268,7 @@
     return {
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
+      characteristics: getCreateCharacteristicRows(),
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: Number.isFinite(cardsCount) ? cardsCount : 1,
       promptMode: createPromptMode,
@@ -2259,14 +3290,11 @@
     });
 
     const totalVariants = Math.max(1, Math.min(CREATE_UPLOAD_MAX_FILES, Number(payload.cardsCount) || 1));
-    const uploadedPreviews = createSelectedFiles.map((file) => getCreateFilePreviewUrl(file));
     const promptPreview = (payload.prompt || "").trim().slice(0, 240);
 
     return Array.from({ length: totalVariants }, (_, index) => {
       const variantNumber = index + 1;
-      const previewUrl =
-        uploadedPreviews[index % uploadedPreviews.length] ||
-        CREATE_GENERATION_FALLBACK_PREVIEWS[index % CREATE_GENERATION_FALLBACK_PREVIEWS.length];
+      const previewUrl = CREATE_GENERATION_FALLBACK_PREVIEWS[index % CREATE_GENERATION_FALLBACK_PREVIEWS.length];
 
       return {
         id: "result-" + String(Date.now()) + "-" + String(variantNumber),
@@ -2274,10 +3302,10 @@
         totalVariants,
         previewUrl,
         title: "Вариант " + String(variantNumber),
-        marketplace: payload.marketplace || "Marketplace",
-        style: payload.insight?.recommendedStyle || "Clean marketplace layout",
-        focus: payload.insight?.conversionAccent || "Подсветить ключевую выгоду товара в first frame",
-        format: payload.insight?.marketplaceFormat || "Hero + выгоды + CTA",
+        marketplace: payload.marketplace || "Маркетплейс",
+        style: payload.insight?.recommendedStyle || "Чистая композиция под маркетплейс",
+        focus: payload.insight?.conversionAccent || "Подсветить ключевую выгоду товара на первом экране",
+        format: payload.insight?.marketplaceFormat || "Hero-блок + выгоды + CTA",
         promptPreview,
         downloadName: "kartochka-variant-" + String(variantNumber) + ".png",
       };
@@ -2303,7 +3331,12 @@
     if (!totalResults) {
       createResultsCaption.textContent = "После генерации здесь появятся варианты карточек.";
       createResultsSection.classList.add("hidden");
+      renderCreatePreviewPanel();
       return;
+    }
+
+    if (!createGeneratedResults.some((item) => item.id === createActivePreviewResultId)) {
+      createActivePreviewResultId = createGeneratedResults[0]?.id || "";
     }
 
     const marketplace = createMarketplace?.value || "маркетплейс";
@@ -2312,7 +3345,8 @@
 
     createGeneratedResults.forEach((result) => {
       const card = document.createElement("article");
-      card.className = "create-result-card";
+      card.className = "create-result-card create-result-card-compact";
+      card.classList.toggle("is-active", result.id === createActivePreviewResultId);
 
       const media = document.createElement("div");
       media.className = "create-result-media";
@@ -2335,10 +3369,16 @@
       title.textContent = result.title;
 
       const subtitle = document.createElement("p");
-      subtitle.textContent = result.marketplace + " • " + result.style;
+      subtitle.textContent = [result.marketplace, result.style].filter(Boolean).join(" • ");
 
       const actions = document.createElement("div");
       actions.className = "create-result-actions";
+
+      const selectBtn = document.createElement("button");
+      selectBtn.className = "create-result-action";
+      selectBtn.type = "button";
+      selectBtn.dataset.resultPreviewId = result.id;
+      selectBtn.textContent = result.id === createActivePreviewResultId ? "Активное превью" : "Выбрать";
 
       const downloadLink = document.createElement("a");
       downloadLink.className = "create-result-action";
@@ -2346,17 +3386,10 @@
       downloadLink.download = result.downloadName;
       downloadLink.textContent = "Скачать";
 
-      const detailsBtn = document.createElement("button");
-      detailsBtn.className = "create-result-action";
-      detailsBtn.type = "button";
-      detailsBtn.dataset.resultDetailsId = result.id;
-      detailsBtn.textContent = createResultExpandedId === result.id ? "Скрыть детали" : "Открыть подробнее";
-
-      actions.append(downloadLink, detailsBtn);
+      actions.append(selectBtn, downloadLink);
 
       const details = document.createElement("div");
       details.className = "create-result-details";
-      details.classList.toggle("hidden", createResultExpandedId !== result.id);
 
       const focus = document.createElement("p");
       focus.textContent = "Акцент: " + result.focus;
@@ -2364,10 +3397,7 @@
       const format = document.createElement("p");
       format.textContent = "Формат: " + result.format;
 
-      const prompt = document.createElement("p");
-      prompt.textContent = "Prompt: " + (result.promptPreview || "Использован стандартный prompt.");
-
-      details.append(focus, format, prompt);
+      details.append(focus, format);
 
       body.append(title, subtitle, actions, details);
       card.append(media, body);
@@ -2375,6 +3405,7 @@
     });
 
     createResultsSection.classList.remove("hidden");
+    renderCreatePreviewPanel();
   };
 
   const getImproveFileKey = (file) => {
@@ -2915,11 +3946,7 @@
     });
 
     const totalVariants = Math.max(1, Math.min(CREATE_UPLOAD_MAX_FILES, Number(payload.variantsCount) || 1));
-    const previewPool = [
-      improveImagePreview,
-      improveReferencePreviewUrl,
-      ...IMPROVE_RESULT_FALLBACK_PREVIEWS,
-    ].filter(Boolean);
+    const previewPool = IMPROVE_RESULT_FALLBACK_PREVIEWS;
     const promptPreview = (payload.prompt || "").trim().slice(0, 220);
 
     return Array.from({ length: totalVariants }, (_, index) => {
@@ -2937,7 +3964,7 @@
         styleLabel: referenceStyle ? "Improved with reference style" : "",
         referenceStyle,
         changes: payload.analysis?.recommendations?.[0] || "Оптимизирована структура и усилен ключевой оффер.",
-        format: payload.analysis?.marketplaceFormat || "Marketplace-ready формат с чистым CTA.",
+        format: payload.analysis?.marketplaceFormat || "Готовый формат для маркетплейса с чистым CTA.",
         promptPreview,
         downloadName: "kartochka-improved-" + String(variantNumber) + ".png",
       };
@@ -3051,6 +4078,7 @@
     const analysisIsStale = Boolean(improveAnalysisData) && improveAnalysisFingerprint !== getImproveAnalysisFingerprint();
     const { hasReference, referenceStyleActive } = getImproveReferenceUiState();
     const hasSource = hasImproveSourceInput();
+    const referenceModeSelected = improveMode === "reference";
 
     if (improveRunBtn) {
       improveRunBtn.toggleAttribute("disabled", isDisabled);
@@ -3061,6 +4089,9 @@
     improveReferenceUploadZone?.classList.toggle("is-filled", hasReference);
     improveReferenceUploadZone?.classList.toggle("is-reference-active", referenceStyleActive);
     improveAnalysisCard?.classList.toggle("is-reference-active", referenceStyleActive);
+    improveReferencePanel?.classList.toggle("is-filled", hasReference);
+    improveReferencePanel?.classList.toggle("is-reference-mode", referenceModeSelected);
+    improveReferencePanel?.classList.toggle("is-reference-active", referenceStyleActive);
 
     if (improveImageInput) improveImageInput.toggleAttribute("disabled", isBusy);
     if (improveReferenceInput) improveReferenceInput.toggleAttribute("disabled", isBusy);
@@ -3076,49 +4107,107 @@
     improvePrimaryUploadZone?.setAttribute("aria-disabled", isBusy ? "true" : "false");
     improveReferenceUploadZone?.setAttribute("aria-disabled", isBusy ? "true" : "false");
 
-    if (improveReferenceNote) {
-      if (improveMode === "reference" && !hasReference) {
-        improveReferenceNote.textContent = "Для режима «в стиле референса» загрузите референс.";
-      } else if (improveMode === "reference" && hasReference) {
-        improveReferenceNote.textContent = "Референс загружен. Стиль будет учтен при улучшении.";
+    if (improveModeSummary) {
+      if (referenceStyleActive) {
+        improveModeSummary.textContent = "AI улучшит карточку по стилю референса.";
+      } else if (referenceModeSelected) {
+        improveModeSummary.textContent = "Добавьте референс для style match.";
+      } else if (hasReference) {
+        improveModeSummary.textContent = "Референс загружен и готов.";
       } else {
-        improveReferenceNote.textContent = "Можно пропустить, если выбран обычный AI режим.";
+        improveModeSummary.textContent = "AI улучшит карточку без style match.";
+      }
+    }
+
+    if (improveModeBadge) {
+      if (referenceStyleActive) {
+        setCreateSecondaryBadge(improveModeBadge, "Стиль референса", "is-active");
+      } else if (referenceModeSelected) {
+        setCreateSecondaryBadge(improveModeBadge, "Нужен референс", "is-warning");
+      } else {
+        setCreateSecondaryBadge(improveModeBadge, "AI режим", "is-neutral");
+      }
+    }
+
+    if (improveModeSignal) {
+      improveModeSignal.textContent = referenceStyleActive
+        ? "По референсу"
+        : referenceModeSelected
+          ? "Ждёт ref"
+          : "AI режим";
+    }
+
+    if (improveReferenceSignal) {
+      improveReferenceSignal.textContent = referenceStyleActive
+        ? "Подключен"
+        : referenceModeSelected
+          ? "Нужен"
+          : hasReference
+            ? "Загружен"
+            : "Не нужен";
+    }
+
+    if (improveVariantsSignal) {
+      const selectedOption = improveVariantsCount?.options?.[improveVariantsCount.selectedIndex];
+      improveVariantsSignal.textContent = (selectedOption?.textContent || "1 вариант").trim();
+    }
+
+    if (improveReferenceNote) {
+      if (referenceModeSelected && !hasReference) {
+        improveReferenceNote.textContent = "Добавьте пример нужного визуального стиля.";
+      } else if (referenceModeSelected && hasReference) {
+        improveReferenceNote.textContent = "Стиль референса будет использован при улучшении.";
+      } else {
+        improveReferenceNote.textContent = "Опционально, если нужен style match.";
       }
     }
 
     if (improveReferenceState) {
       improveReferenceState.classList.remove("is-active", "is-ready", "is-empty");
       if (referenceStyleActive) {
-        improveReferenceState.textContent = "Активен reference style: AI ориентируется на стиль референса.";
+        improveReferenceState.textContent = "Референс будет учтен при улучшении.";
         improveReferenceState.classList.add("is-active");
+      } else if (referenceModeSelected) {
+        improveReferenceState.textContent = "Для запуска нужен референс.";
+        improveReferenceState.classList.add("is-ready");
       } else if (hasReference) {
-        improveReferenceState.textContent = "Референс загружен. Включите режим «В стиле референса», чтобы применить стиль.";
+        improveReferenceState.textContent = "Можно переключиться на improve по референсу.";
         improveReferenceState.classList.add("is-ready");
       } else {
-        improveReferenceState.textContent = "Референс не загружен. Используется стандартное AI-улучшение.";
+        improveReferenceState.textContent = "Референс не обязателен.";
         improveReferenceState.classList.add("is-empty");
       }
     }
 
-    if (improveAnalysisContext && analysisIsStale) {
+    if (improveAnalysisContext) {
       improveAnalysisContext.textContent = referenceStyleActive
-        ? "Режим изменился: перед генерацией анализ будет обновлен под reference style."
-        : hasReference
-          ? "Режим изменился: сейчас используется стандартный AI-режим, без прямой стилизации по референсу."
+        ? "Режим: улучшение с учетом референса."
+        : referenceModeSelected
+          ? "Режим: ожидается референс для style match."
           : "Режим: стандартное AI-улучшение.";
+
+      if (analysisIsStale) {
+        improveAnalysisContext.textContent += " Перед генерацией анализ будет обновлен.";
+      }
     }
 
     if (improveCtaHint) {
       if (improveIsGenerating) {
-        improveCtaHint.textContent = "Улучшение карточки в процессе...";
+        improveCtaHint.textContent = "Улучшение...";
       } else if (validationError) {
         improveCtaHint.textContent = validationError;
+      } else if (improveAnalysisPhase === "loading") {
+        improveCtaHint.textContent = "Подготовка...";
       } else if (analysisIsStale) {
-        improveCtaHint.textContent = "Данные изменились. Анализ будет обновлен перед запуском улучшения.";
+        improveCtaHint.textContent = "Данные обновлены.";
       } else if (improveAnalysisPhase === "success") {
         improveCtaHint.textContent = referenceStyleActive
-          ? "Анализ готов с учетом референса. Можно запускать улучшение."
-          : "Анализ готов. Можно запускать улучшение.";
+          ? "Можно запускать improve по референсу."
+          : "Можно запускать AI improve.";
+      } else if (hasSource) {
+        improveCtaHint.textContent = referenceModeSelected
+          ? "Нужен референс для запуска."
+          : "Можно запускать.";
       } else {
         improveCtaHint.textContent = "Загрузите исходную карточку, чтобы начать.";
       }
@@ -3193,7 +4282,7 @@
     const acceptedPrompt = (createAiPromptOutput?.value || "").trim();
     if (acceptedPrompt.length < CREATE_AI_PROMPT_MIN_ACCEPT_LEN) {
       createAiPromptPhase = "error";
-      setStatusMessage(createAiPromptStatus, "Prompt слишком короткий. Добавьте больше деталей.", "error");
+      setStatusMessage(createAiPromptStatus, "Prompt слишком короткий.", "error");
       syncCreateFormState();
       return;
     }
@@ -3206,10 +4295,10 @@
     setDoneState(createDoneBadge, false);
     setStatusMessage(
       createAiPromptStatus,
-      "Prompt принят. При необходимости отредактируйте его в поле «Свой prompt».",
+      "Prompt применен. При необходимости скорректируйте его.",
       "success"
     );
-    setRequestMeta(createMeta, "Статус запроса:", "AI prompt принят");
+    setRequestMeta(createMeta, "Статус запроса:", "AI-промпт применен");
     syncCreateFormState();
     createCustomPrompt?.focus();
   });
@@ -3219,7 +4308,7 @@
     const promptText = (createAiPromptOutput.value || "").trim();
     createAiPromptPhase = promptText ? "success" : "empty";
     if (promptText) {
-      setStatusMessage(createAiPromptStatus, "Prompt обновлен. Можно принять или сгенерировать заново.", "success");
+      setStatusMessage(createAiPromptStatus, "Prompt обновлен.", "success");
     }
     setDoneState(createDoneBadge, false);
     syncCreateFormState();
@@ -3228,13 +4317,13 @@
   createResultsGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const detailsButton = target.closest("[data-result-details-id]");
-    if (!(detailsButton instanceof HTMLElement)) return;
+    const previewButton = target.closest("[data-result-preview-id]");
+    if (!(previewButton instanceof HTMLElement)) return;
 
-    const resultId = detailsButton.dataset.resultDetailsId || "";
+    const resultId = previewButton.dataset.resultPreviewId || "";
     if (!resultId) return;
 
-    createResultExpandedId = createResultExpandedId === resultId ? "" : resultId;
+    createActivePreviewResultId = resultId;
     renderCreateResults();
   });
 
@@ -3263,6 +4352,7 @@
 
     resetCreateTransientErrorState();
 
+    clearCreateResultsData();
     setDoneState(createDoneBadge, false);
     renderCreateFiles();
     syncCreateFormState();
@@ -3310,8 +4400,10 @@
   });
 
   const handleCreateInputMutation = () => {
+    syncCreateLegacyFields();
     const cancelled = cancelPendingCreateRequests();
     resetCreateTransientErrorState();
+    clearCreateResultsData();
     if (cancelled) {
       setStatusMessage(createStatus, "Входные данные обновлены. Предыдущий AI-запрос отменён.", "");
     }
@@ -3319,9 +4411,82 @@
     syncCreateFormState();
   };
 
-  [createDescription, createHighlights, createCustomPrompt, createMarketplace, createCardsCount].forEach((field) => {
+  [
+    createProductTitle,
+    createProductShortDescription,
+    createCustomPrompt,
+    createMarketplace,
+    createCardsCount,
+  ].forEach((field) => {
     field?.addEventListener("input", handleCreateInputMutation);
     field?.addEventListener("change", handleCreateInputMutation);
+  });
+
+  [
+    createSettingAccentColor,
+    createSettingReferenceStrength,
+    createSettingVisualStyle,
+    createSettingInfoDensity,
+    createSettingReadabilityPriority,
+    createSettingConversionPriority,
+    createSettingAccentFormat,
+    createSettingBackgroundMode,
+    createSettingPreserveLayout,
+    createSettingAutoMarketplace,
+  ].forEach((field) => {
+    field?.addEventListener("input", handleCreateInputMutation);
+    field?.addEventListener("change", handleCreateInputMutation);
+  });
+
+  createTemplateSearchInput?.addEventListener("input", () => {
+    createTemplateSearchQuery = (createTemplateSearchInput.value || "").trim().toLowerCase();
+    renderCreateTemplateLibrary();
+  });
+
+  createTemplateTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      createActiveTemplateTab = normalizeCreateTemplateTab(button.dataset.createTemplateTab);
+      renderCreateTemplateLibrary();
+    });
+  });
+
+  createTemplateGrid?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const templateButton = target.closest("[data-template-id]");
+    if (!(templateButton instanceof HTMLElement)) return;
+
+    const templateId = String(templateButton.dataset.templateId || "").trim();
+    if (!templateId || templateId === createSelectedTemplateId) return;
+
+    createSelectedTemplateId = templateId;
+    handleCreateInputMutation();
+  });
+
+  createAutofillBtn?.addEventListener("click", async () => {
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+
+    cancelPendingCreateRequests();
+    await runCreateAutofill();
+  });
+
+  createEditImageBtn?.addEventListener("click", () => {
+    if (!createSelectedFiles.length) {
+      setStatusMessage(createStatus, "Сначала загрузите изображение товара.", "error");
+      return;
+    }
+
+    setStatusMessage(createStatus, "Редактор изображения будет подключен на следующем этапе.", "");
+  });
+
+  createExportBtn?.addEventListener("click", (event) => {
+    if (createExportBtn.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+      setStatusMessage(createStatus, "Сначала сгенерируйте карточку, чтобы экспортировать превью.", "");
+    }
   });
 
   createGenerateBtn?.addEventListener("click", async () => {
@@ -3336,6 +4501,7 @@
     createIsGenerating = true;
     createGeneratedResults = [];
     createResultExpandedId = "";
+    createActivePreviewResultId = "";
     setCreateResultsProcessing(true);
     setDoneState(createDoneBadge, false);
     setStatusMessage(createStatus, "Генерируем карточки и подготавливаем results...", "");
@@ -3353,7 +4519,7 @@
       if (insightNeedsRefresh) {
         const insightReady = await runCreateInsightAnalysis({ source: "generation" });
         if (!insightReady) {
-          throw new Error("Не удалось получить AI insight для генерации карточек.");
+          throw new Error("Не удалось получить AI-анализ для генерации карточек.");
         }
       }
 
@@ -3362,6 +4528,7 @@
       if (requestId !== createGenerationRequestId) return;
 
       createGeneratedResults = Array.isArray(results) ? results : [];
+      createActivePreviewResultId = createGeneratedResults[0]?.id || "";
       setCreateResultsProcessing(false);
       renderCreateResults();
 
@@ -3374,7 +4541,7 @@
       setStatusMessage(createStatus, "Готово. Сгенерировано " + String(total) + " " + formatCardsWord(total) + ".", "success");
       setRequestMeta(createMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
 
-      const marketplace = createMarketplace?.value || "Marketplace";
+      const marketplace = createMarketplace?.value || "Маркетплейс";
       const historyPayload = await buildCreateHistoryPayload(payload, createGeneratedResults);
       pushHistory({
         mode: "create",
@@ -3401,6 +4568,7 @@
     } catch (error) {
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];
+      createActivePreviewResultId = "";
       setCreateResultsProcessing(false);
       renderCreateResults();
       setDoneState(createDoneBadge, false);
@@ -3747,6 +4915,10 @@
   historyModeClearBtn?.addEventListener("click", clearHistory);
 
   syncCreatePromptMode("ai");
+  syncCreateUsefulSettings();
+  initCreateCharacteristicsComponent();
+  syncCreateLegacyFields();
+  renderCreateTemplateLibrary();
   renderCreateFiles();
   renderCreateResults();
   setRequestMeta(createMeta, "Статус запроса:", "Ожидание данных");

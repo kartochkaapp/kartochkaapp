@@ -178,7 +178,7 @@
       variantNumber,
       totalVariants,
       previewUrl,
-      title: toText(objectValue.title) || "Variant " + String(index + 1),
+      title: toText(objectValue.title) || "Вариант " + String(index + 1),
       marketplace: toText(objectValue.marketplace),
       style: toText(objectValue.style),
       focus: toText(objectValue.focus),
@@ -261,7 +261,7 @@
           if (!isPlainObject(issue)) return null;
           return {
             key: toText(issue.key) || "issue-" + String(index + 1),
-            title: toText(issue.title) || "Issue " + String(index + 1),
+            title: toText(issue.title) || "Проблема " + String(index + 1),
             severity: normalizeSeverity(issue.severity),
             note: toText(issue.note),
           };
@@ -479,11 +479,11 @@
     const sourceText = [payload?.description, payload?.highlights].map(toLowerText).join(" ");
     const fileCount = Array.isArray(payload?.files) ? payload.files.length : 0;
 
-    if (/cream|serum|beauty|cosmetic|skincare/.test(sourceText)) return "Beauty / Care";
-    if (/cable|charger|headphone|gadget|tech|electronics/.test(sourceText)) return "Electronics / Accessories";
-    if (/coffee|tea|food|snack|drink/.test(sourceText)) return "Food / FMCG";
-    if (fileCount >= 3) return "Lifestyle product";
-    return "General marketplace product";
+    if (/cream|serum|beauty|cosmetic|skincare|крем|сыворот|космет|уход/.test(sourceText)) return "Косметика и уход";
+    if (/cable|charger|headphone|gadget|tech|electronics|кабель|заряд|наушник|электрон|гаджет/.test(sourceText)) return "Электроника и аксессуары";
+    if (/coffee|tea|food|snack|drink|кофе|чай|еда|снек|напит/.test(sourceText)) return "Еда и FMCG";
+    if (fileCount >= 3) return "Лайфстайл-товар";
+    return "Товар для маркетплейса";
   };
 
   const buildInsight = (payload, detectedCategory) => {
@@ -491,22 +491,22 @@
     const marketplace = toText(payload?.marketplace);
 
     const recommendedStyle = /premium|lux|minimal|clean/.test(sourceText)
-      ? "Premium clean: bright base, one visual anchor, calm typography"
+      ? "Премиальная чистая подача: светлая база, один визуальный акцент, спокойная типографика"
       : /discount|sale|promo|deal/.test(sourceText)
-        ? "Promo-first: contrast offer block + direct hierarchy"
-        : "Catalog-first: clear product focus + structured benefits";
+        ? "Промо-подача: контрастный оффер и прямая иерархия"
+        : "Каталожная подача: четкий фокус на товаре и структурированные преимущества";
 
     const conversionAccent = /delivery|fast|today|shipping/.test(sourceText)
-      ? "Highlight fast delivery and stock availability"
+      ? "Подсветить быструю доставку и наличие"
       : /guarantee|quality|cert/.test(sourceText)
-        ? "Increase trust markers: quality proof and guarantee"
-        : "Make the main customer benefit dominant in the first frame";
+        ? "Усилить доверие: гарантия, подтверждение качества и сертификаты"
+        : "Сделать главную выгоду товара доминирующей в первом экране";
 
     const marketplaceFormat = marketplace === "Wildberries"
-      ? "Hero + 3 quick benefit bullets + short CTA, mobile readable"
+      ? "Первый экран + 3 короткие выгоды + короткий CTA, удобно для мобильного"
       : marketplace === "Yandex Market"
-        ? "Rational format: facts, benefits, proof, calm visual tone"
-        : "Ozon-ready: bright first frame, value block, clean CTA";
+        ? "Рациональный формат: факты, выгоды, доказательства, спокойный визуальный тон"
+        : "Под Ozon: яркий первый экран, блок выгод и чистый CTA";
 
     return {
       category: toText(detectedCategory) || getDetectedCategory(payload),
@@ -517,30 +517,30 @@
   };
 
   const buildPrompt = (payload, insight) => {
-    const headlineSource = toText(payload?.description) || "product from uploaded visuals";
-    const focusLine = toText(payload?.highlights) || "keep hierarchy clean and focus on conversion value";
+    const headlineSource = toText(payload?.description) || "товар по загруженным изображениям";
+    const focusLine = toText(payload?.highlights) || "сохранить чистую иерархию и фокус на конверсионной ценности";
     const hasFiles = Array.isArray(payload?.files) && payload.files.length > 0;
     const visualLine = hasFiles
-      ? "Use uploaded product visuals as the base for layout and color rhythm."
-      : "Build visual concept from text description only.";
-    const targetMarketplace = toText(payload?.marketplace) || "marketplace";
+      ? "Используй загруженные изображения товара как основу композиции и цветового ритма."
+      : "Собери визуальную концепцию только по текстовому описанию.";
+    const targetMarketplace = toText(payload?.marketplace) || "маркетплейс";
     const variants = toText(payload?.cardsCount) || "1";
 
     const resolvedInsight = insight && isPlainObject(insight) ? insight : null;
 
     return [
-      "You are a senior e-commerce designer for marketplace sellers.",
-      "Build a conversion-focused generation prompt for a product card.",
-      'Product: \"' + headlineSource + '\".',
-      "Marketplace: " + targetMarketplace + ".",
-      "Variants required: " + variants + ".",
-      "Highlights: " + focusLine + ".",
-      resolvedInsight ? "Detected category: " + toText(resolvedInsight.category) + "." : "",
-      resolvedInsight ? "Recommended style: " + toText(resolvedInsight.recommendedStyle) + "." : "",
-      resolvedInsight ? "Conversion accent: " + toText(resolvedInsight.conversionAccent) + "." : "",
-      resolvedInsight ? "Marketplace format: " + toText(resolvedInsight.marketplaceFormat) + "." : "",
+      "Ты senior e-commerce designer для продавцов маркетплейсов.",
+      "Собери продакшен-промпт для генерации карточки товара с фокусом на конверсию.",
+      'Товар: \"' + headlineSource + '\".',
+      "Маркетплейс: " + targetMarketplace + ".",
+      "Нужно вариантов: " + variants + ".",
+      "Ключевые акценты: " + focusLine + ".",
+      resolvedInsight ? "Определенная категория: " + toText(resolvedInsight.category) + "." : "",
+      resolvedInsight ? "Рекомендуемый стиль: " + toText(resolvedInsight.recommendedStyle) + "." : "",
+      resolvedInsight ? "Конверсионный акцент: " + toText(resolvedInsight.conversionAccent) + "." : "",
+      resolvedInsight ? "Формат маркетплейса: " + toText(resolvedInsight.marketplaceFormat) + "." : "",
       visualLine,
-      "Return structure: 1) Hero headline 2) 3-5 value bullets 3) CTA 4) visual guidance.",
+      "Верни структуру: 1) первый экран 2) 3-5 выгод 3) CTA 4) визуальные указания.",
     ]
       .filter(Boolean)
       .join("\\n");
@@ -561,10 +561,7 @@
 
   const buildCreateResults = (payload, config) => {
     const totalVariants = clampVariants(payload?.cardsCount, 5);
-    const uploadedPreviews = Array.isArray(payload?.imagePreviewUrls)
-      ? payload.imagePreviewUrls.filter(Boolean)
-      : [];
-    const previewPool = uploadedPreviews.length ? uploadedPreviews : config.previewPools.create;
+    const previewPool = config.previewPools.create;
     const promptPreview = toText(payload?.prompt).slice(0, 240);
 
     return Array.from({ length: totalVariants }, (_, index) => {
@@ -576,11 +573,11 @@
         variantNumber,
         totalVariants,
         previewUrl,
-        title: "Variant " + String(variantNumber),
-        marketplace: toText(payload?.marketplace) || "Marketplace",
-        style: payload?.insight?.recommendedStyle || "Clean marketplace layout",
-        focus: payload?.insight?.conversionAccent || "Focus on main value in first frame",
-        format: payload?.insight?.marketplaceFormat || "Hero + benefits + CTA",
+        title: "Вариант " + String(variantNumber),
+        marketplace: toText(payload?.marketplace) || "Маркетплейс",
+        style: payload?.insight?.recommendedStyle || "Чистая композиция под маркетплейс",
+        focus: payload?.insight?.conversionAccent || "Подсветить главную выгоду товара в первом экране",
+        format: payload?.insight?.marketplaceFormat || "Первый экран + преимущества + CTA",
         promptPreview,
         downloadName: "kartochka-variant-" + String(variantNumber) + ".png",
       };
@@ -606,59 +603,59 @@
     const issues = [
       {
         key: "design",
-        title: "Design weaknesses",
+        title: "Слабые стороны дизайна",
         severity: referenceStyleActive ? "medium" : "high",
         note: referenceStyleActive
-          ? "Base is acceptable, but visual language is still inconsistent."
-          : "Visual hierarchy and style rhythm are not consistent.",
+          ? "База приемлемая, но визуальный язык все еще не собран."
+          : "Визуальная иерархия и ритм стиля выглядят несобранно.",
       },
       {
         key: "readability",
-        title: "Readability",
+        title: "Читаемость",
         severity: hasStructureIntent ? "medium" : "high",
         note: hasStructureIntent
-          ? "Readable, but key message contrast can be improved."
-          : "Main offer and key message are not scanned quickly on mobile.",
+          ? "Читается нормально, но контраст ключевого сообщения можно усилить."
+          : "Главный оффер и ключевая мысль плохо считываются с мобильного.",
       },
       {
         key: "composition",
-        title: "Composition",
+        title: "Композиция",
         severity: hasStructureIntent ? "medium" : "high",
         note: hasStructureIntent
-          ? "Composition works, but focus priorities are equalized."
-          : "Focus is fragmented across competing elements.",
+          ? "Композиция работает, но приоритеты фокуса выровнены слишком равномерно."
+          : "Фокус размыт между конкурирующими элементами.",
       },
       {
         key: "accent",
-        title: "Weak accent",
+        title: "Слабый акцент",
         severity: hasCtaIntent ? "medium" : "high",
         note: hasCtaIntent
-          ? "Accent exists, but does not dominate enough."
-          : "Primary customer value is not dominant in first frame.",
+          ? "Акцент есть, но он недостаточно доминирует."
+          : "Главная выгода для клиента не доминирует в первом экране.",
       },
       {
         key: "cta",
-        title: "Weak CTA",
+        title: "Слабый CTA",
         severity: hasCtaIntent ? "medium" : "high",
         note: hasCtaIntent
-          ? "CTA is visible, but wording is not specific."
-          : "CTA does not define a clear next action.",
+          ? "CTA заметен, но формулировка недостаточно конкретна."
+          : "CTA не задает понятное следующее действие.",
       },
       {
         key: "overload",
-        title: "Overload",
+        title: "Перегруз",
         severity: hasMinimalIntent ? "medium" : "high",
         note: hasMinimalIntent
-          ? "Moderate overload remains in secondary blocks."
-          : "Text and details overload reduce scan speed.",
+          ? "Умеренный перегруз во вторичных блоках все еще остается."
+          : "Перегруз текстом и деталями снижает скорость считывания.",
       },
       {
         key: "categoryFit",
-        title: "Category fit",
+        title: "Соответствие категории",
         severity: referenceStyleActive ? "medium" : "high",
         note: referenceStyleActive
-          ? "Category markers exist, but still need adaptation."
-          : "Category signals are weak for marketplace context.",
+          ? "Маркер категории есть, но его еще нужно адаптировать."
+          : "Сигналы категории слишком слабые для контекста маркетплейса.",
       },
     ];
 
@@ -667,42 +664,38 @@
     const score = Math.max(38, Math.min(96, 100 - riskScore * 2));
 
     const recommendations = [
-      "Rebuild first frame around one dominant customer benefit.",
-      "Strengthen CTA contrast and make the action explicit.",
+      "Пересобрать первый экран вокруг одной доминирующей выгоды.",
+      "Усилить контраст CTA и сделать действие более явным.",
       referenceStyleActive
-        ? "Apply reference style while preserving marketplace clarity."
-        : "Reduce visual noise and keep only core blocks.",
+        ? "Применить стиль референса, сохранив ясность под маркетплейс."
+        : "Снизить визуальный шум и оставить только ключевые блоки.",
     ];
 
     return {
       score,
       summary: referenceStyleActive
-        ? "Analysis ready with reference style context."
-        : "Analysis ready: key conversion and hierarchy risks found.",
+        ? "Анализ готов с учетом стиля референса."
+        : "Анализ готов: найдены ключевые риски по конверсии и иерархии.",
       issues,
       recommendations,
       marketplaceFormat: referenceStyleActive
-        ? "Reference-style marketplace format with clean CTA"
-        : "Conversion-focused marketplace format with explicit CTA",
+        ? "Формат маркетплейса в стиле референса с чистым CTA"
+        : "Конверсионный формат маркетплейса с явным CTA",
       reference: {
         uploaded: hasReference,
         active: referenceStyleActive,
         note: referenceStyleActive
-          ? "Reference style is active for improvement output."
+          ? "Стиль референса активен для результатов улучшения."
           : hasReference
-            ? "Reference uploaded but standard improve mode is active."
-            : "No reference uploaded: standard improve mode is active.",
+            ? "Референс загружен, но активен стандартный режим улучшения."
+            : "Референс не загружен: активен стандартный режим улучшения.",
       },
     };
   };
 
   const buildImproveResults = (payload, config) => {
     const totalVariants = clampVariants(payload?.variantsCount, 5);
-    const previewPool = [
-      toText(payload?.sourcePreviewUrl),
-      toText(payload?.referencePreviewUrl),
-      ...config.previewPools.improve,
-    ].filter(Boolean);
+    const previewPool = config.previewPools.improve;
 
     const promptPreview = toText(payload?.prompt).slice(0, 220);
     const referenceStyle = Boolean(payload?.referenceStyle);
@@ -716,12 +709,12 @@
         variantNumber,
         totalVariants,
         previewUrl,
-        title: "Improved variant " + String(variantNumber),
-        strategy: referenceStyle ? "Reference style improvement" : "Standard AI improvement",
-        styleLabel: referenceStyle ? "Improved with reference style" : "",
+        title: "Улучшенный вариант " + String(variantNumber),
+        strategy: referenceStyle ? "Улучшение в стиле референса" : "Обычное AI-улучшение",
+        styleLabel: referenceStyle ? "Улучшено по стилю референса" : "",
         referenceStyle,
-        changes: payload?.analysis?.recommendations?.[0] || "Improved structure and stronger offer hierarchy.",
-        format: payload?.analysis?.marketplaceFormat || "Marketplace-ready format with clean CTA.",
+        changes: payload?.analysis?.recommendations?.[0] || "Улучшена структура и усилена иерархия оффера.",
+        format: payload?.analysis?.marketplaceFormat || "Готовый формат для маркетплейса с чистым CTA.",
         promptPreview,
         downloadName: "kartochka-improved-" + String(variantNumber) + ".png",
       };

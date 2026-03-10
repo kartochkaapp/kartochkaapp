@@ -388,170 +388,294 @@
               <div>
                 <h2>Создать карточку</h2>
                 <p class="section-subtitle">
-                  Заполните данные товара, загрузите фото и запустите генерацию карточек под маркетплейс.
+                  Загрузите фото, добавьте описание и запустите генерацию карточек под marketplace.
                 </p>
               </div>
               <span class="step-done" id="createDoneBadge" aria-hidden="true">✓</span>
             </div>
 
-            <div class="create-form-grid">
-              <section class="create-form-card">
-                <div class="create-card-head">
-                  <h3>Фото товара</h3>
-                  <span id="createImagesCounter">0 / 5 фото</span>
-                </div>
-                <label class="create-upload-dropzone" for="createImagesInput" id="createUploadZone">
-                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                  <strong>Перетащите фото товара сюда</strong>
-                  <small id="createUploadHint">PNG, JPG, WEBP • можно добавить еще 5</small>
-                </label>
-                <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
-
-                <p class="create-upload-empty" id="createImagesEmpty">Добавьте первые фото товара, чтобы увидеть превью.</p>
-                <div class="create-upload-list" id="createImagesList"></div>
-              </section>
-
-              <section class="create-form-card">
-                <div class="create-card-head">
-                  <h3>Контент карточки</h3>
-                  <span>Текстовые данные</span>
-                </div>
-
-                <label class="field-label" for="createDescription">Описание товара</label>
-                <textarea
-                  id="createDescription"
-                  placeholder="Что это за товар, его ключевые характеристики и ценность для покупателя."
-                ></textarea>
-
-                <label class="field-label" for="createHighlights">Дополнительные пожелания / акценты</label>
-                <textarea
-                  id="createHighlights"
-                  placeholder="Например: сделать акцент на выгоде, визуально выделить скидку, добавить premium-настроение."
-                ></textarea>
-              </section>
-
-              <section class="create-form-card create-insight-card is-empty" id="createInsightCard">
-                <div class="create-card-head create-insight-head">
-                  <div>
-                    <h3>AI insight по товару</h3>
-                    <span>Copilot-анализ для seller</span>
+            <div class="create-single-flow">
+              <aside class="create-column create-column-left">
+                <section class="create-form-card create-source-card">
+                  <div class="create-card-head">
+                    <h3>Изображение товара</h3>
+                    <span id="createImagesCounter">0 / 5 фото</span>
                   </div>
-                  <button class="create-insight-run-btn" id="createInsightRunBtn" type="button">Собрать insight</button>
-                </div>
 
-                <p class="create-insight-status" id="createInsightStatus" aria-live="polite">
-                  Загрузите фото и/или заполните описание, чтобы получить AI insight.
-                </p>
+                  <label class="create-upload-dropzone create-upload-dropzone-hero" for="createImagesInput" id="createUploadZone">
+                    <span class="create-upload-stage">
+                      <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                      <span class="create-upload-preview-frame" id="createSourcePreviewFrame">
+                        <img class="hidden" id="createSourcePreviewImage" alt="Превью изображения товара" />
+                        <span id="createSourcePreviewEmpty">Превью 3:4</span>
+                      </span>
+                      <strong>Загрузите изображение товара</strong>
+                      <small id="createUploadHint">PNG, JPG, WEBP • можно добавить еще 5</small>
+                    </span>
+                  </label>
+                  <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
 
-                <div class="create-insight-grid" id="createInsightGrid">
-                  <article class="create-insight-item">
-                    <span>Категория товара</span>
-                    <p id="createInsightCategory">-</p>
-                  </article>
-                  <article class="create-insight-item">
-                    <span>Рекомендуемый стиль</span>
-                    <p id="createInsightStyle">-</p>
-                  </article>
-                  <article class="create-insight-item">
-                    <span>Сильный акцент для конверсии</span>
-                    <p id="createInsightAccent">-</p>
-                  </article>
-                  <article class="create-insight-item">
-                    <span>Формат подачи под marketplace</span>
-                    <p id="createInsightFormat">-</p>
-                  </article>
-                </div>
-              </section>
-
-              <section class="create-form-card">
-                <div class="create-card-head">
-                  <h3>Режим prompt</h3>
-                  <span>Выберите источник prompt</span>
-                </div>
-
-                <div class="create-prompt-mode-switch" id="createPromptModeSwitch">
-                  <button class="create-prompt-mode-btn active" type="button" data-prompt-mode="ai">Использовать AI prompt</button>
-                  <button class="create-prompt-mode-btn" type="button" data-prompt-mode="custom">Использовать свой prompt</button>
-                </div>
-
-                <div class="create-ai-assist is-empty" id="createAiPromptCard">
-                  <div class="create-ai-assist-head">
-                    <p>AI prompt assistance</p>
-                    <button class="create-ai-generate-btn" id="createAiPromptGenerateBtn" type="button">
-                      Сгенерировать prompt с AI
+                  <div class="create-source-actions">
+                    <button class="btn btn-outline create-edit-image-btn" id="createEditImageBtn" type="button" disabled>
+                      Редактировать изображение
                     </button>
                   </div>
+
+                  <p class="create-upload-empty" id="createImagesEmpty">Добавьте 1-5 фото товара. Первое изображение станет основным.</p>
+                  <div class="create-upload-list create-upload-list-compact" id="createImagesList"></div>
+                </section>
+
+                <section class="create-form-card create-settings-card">
+                  <div class="create-card-head">
+                    <h3>Полезные настройки</h3>
+                    <span>Локальный черновик</span>
+                  </div>
+
+                  <div class="create-settings-grid">
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createMarketplace">Маркетплейс</label>
+                      <select id="createMarketplace">
+                        <option value="Ozon">Ozon</option>
+                        <option value="Wildberries">Wildberries</option>
+                        <option value="Яндекс Маркет">Яндекс Маркет</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createCardsCount">Количество вариантов</label>
+                      <select id="createCardsCount">
+                        <option value="1">1 карточка</option>
+                        <option value="2">2 карточки</option>
+                        <option value="3">3 карточки</option>
+                        <option value="5">5 карточек</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingAccentColor">Акцентный цвет</label>
+                      <select id="createSettingAccentColor">
+                        <option value="emerald">Изумрудный</option>
+                        <option value="mint">Мятный</option>
+                        <option value="sky">Небесный</option>
+                        <option value="gold">Золотой</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingReferenceStrength">Сила референса</label>
+                      <select id="createSettingReferenceStrength">
+                        <option value="medium">Средняя</option>
+                        <option value="soft">Мягкая</option>
+                        <option value="strong">Сильная</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingVisualStyle">Визуальный стиль</label>
+                      <select id="createSettingVisualStyle">
+                        <option value="clean-market">Чистый маркетплейс</option>
+                        <option value="premium">Премиальный</option>
+                        <option value="promo">Промо</option>
+                        <option value="editorial">Редакционный</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingInfoDensity">Плотность информации</label>
+                      <select id="createSettingInfoDensity">
+                        <option value="balanced">Сбалансированная</option>
+                        <option value="light">Лёгкая</option>
+                        <option value="dense">Плотная</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingReadabilityPriority">Приоритет читаемости</label>
+                      <select id="createSettingReadabilityPriority">
+                        <option value="high">Высокий</option>
+                        <option value="medium">Средний</option>
+                        <option value="max">Максимальный</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingConversionPriority">Приоритет конверсии</label>
+                      <select id="createSettingConversionPriority">
+                        <option value="balanced">Сбалансированный</option>
+                        <option value="aggressive">Агрессивный</option>
+                        <option value="soft">Мягкий</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingAccentFormat">Формат акцента</label>
+                      <select id="createSettingAccentFormat">
+                        <option value="benefit">Бейдж выгоды</option>
+                        <option value="price">Акцент на цене</option>
+                        <option value="cta">Акцент на CTA</option>
+                        <option value="proof">Доверительный блок</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field">
+                      <label class="field-label" for="createSettingBackgroundMode">Режим фона</label>
+                      <select id="createSettingBackgroundMode">
+                        <option value="clean">Чистый</option>
+                        <option value="soft-gradient">Мягкий градиент</option>
+                        <option value="studio">Студийный</option>
+                        <option value="contextual">Контекстный</option>
+                      </select>
+                    </div>
+
+                    <div class="create-setting-field create-setting-toggle">
+                      <label class="field-label" for="createSettingPreserveLayout">Сохранить компоновку референса</label>
+                      <label class="create-switch">
+                        <input id="createSettingPreserveLayout" type="checkbox" />
+                        <span>Сохранить базовую композицию референса</span>
+                      </label>
+                    </div>
+
+                    <div class="create-setting-field create-setting-toggle">
+                      <label class="field-label" for="createSettingAutoMarketplace">Автоадаптация под маркетплейс</label>
+                      <label class="create-switch">
+                        <input id="createSettingAutoMarketplace" type="checkbox" checked />
+                        <span>Автоматически адаптировать под marketplace</span>
+                      </label>
+                    </div>
+                  </div>
+                </section>
+              </aside>
+
+              <section class="create-column create-column-center">
+                <section class="create-form-card create-template-panel">
+                  <div class="create-card-head">
+                    <h3>Шаблоны и референсы</h3>
+                    <span>Временный каталог</span>
+                  </div>
+
+                  <div class="create-template-toolbar">
+                    <label class="field-label sr-only" for="createTemplateSearchInput">Поиск шаблонов</label>
+                    <input
+                      id="createTemplateSearchInput"
+                      type="search"
+                      placeholder="Поиск шаблонов, референсов и визуальных направлений"
+                    />
+                  </div>
+
+                  <div class="create-template-tabs">
+                    <button class="create-template-tab active" type="button" data-create-template-tab="all">Все</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="marketplace">Маркетплейс</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="clean">Чистые</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="promo">Промо</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="reference">Референсы</button>
+                  </div>
+
+                  <div class="create-template-grid" id="createTemplateGrid"></div>
+                </section>
+
+                <section class="create-form-card create-product-card">
+                  <div class="create-card-head create-product-card-head">
+                    <div>
+                      <h3>Контент карточки</h3>
+                      <span>Основная структура запроса</span>
+                    </div>
+                    <button class="btn btn-outline create-autofill-btn" id="createAutofillBtn" type="button">
+                      Автозаполнить AI
+                    </button>
+                  </div>
+
+                  <label class="field-label" for="createProductTitle">Название товара</label>
+                  <input
+                    id="createProductTitle"
+                    type="text"
+                    placeholder="Например: Сыворотка с пептидами для сияния кожи"
+                  />
+
+                  <label class="field-label" for="createProductShortDescription">Краткое описание</label>
                   <textarea
-                    id="createAiPromptOutput"
-                    placeholder="Здесь появится auto-generated prompt."
-                    disabled
+                    id="createProductShortDescription"
+                    placeholder="Коротко опишите продукт, пользу и контекст использования."
                   ></textarea>
-                  <div class="create-ai-assist-actions">
-                    <button type="button" id="createAiPromptAcceptBtn" disabled>Принять prompt</button>
-                    <button type="button" id="createAiPromptRegenerateBtn" disabled>Сгенерировать заново</button>
-                  </div>
-                  <p class="create-ai-assist-status" id="createAiPromptStatus" aria-live="polite">
-                    Добавьте фото или описание, чтобы AI собрал prompt.
-                  </p>
-                </div>
 
-                <label class="field-label" for="createCustomPrompt">Свой prompt (optional)</label>
-                <textarea
-                  id="createCustomPrompt"
-                  placeholder="Опционально: свой детальный prompt для генерации."
-                ></textarea>
+                  <div class="create-characteristics-head">
+                    <div>
+                      <label class="field-label">Характеристики товара</label>
+                      <p>Добавляйте характеристики inline, меняйте порядок и быстро подставляйте готовые пресеты.</p>
+                    </div>
+                    <button class="create-add-characteristic-btn" id="createAddCharacteristicBtn" type="button" aria-label="Добавить характеристику">
+                      +
+                    </button>
+                  </div>
+
+                  <div class="create-characteristics-presets-block">
+                    <span class="create-characteristics-presets-label">Быстрые пресеты</span>
+                    <div class="create-characteristics-presets" id="createCharacteristicPresets"></div>
+                  </div>
+
+                  <div class="create-characteristics-list" id="createCharacteristicsList"></div>
+                  <p class="create-characteristics-empty" id="createCharacteristicsEmpty">Добавьте характеристики, если нужно показать состав, размеры, комплектацию или ключевые параметры товара.</p>
+
+                  <div class="hidden" aria-hidden="true">
+                    <textarea id="createDescription"></textarea>
+                    <textarea id="createHighlights"></textarea>
+                    <textarea id="createCustomPrompt"></textarea>
+                    <textarea id="createAiPromptOutput"></textarea>
+                  </div>
+                </section>
               </section>
 
-              <section class="create-form-card create-form-card-compact">
-                <div class="create-card-head">
-                  <h3>Параметры генерации</h3>
-                  <span>Маркетплейс и количество</span>
-                </div>
-
-                <div class="create-inline-grid">
-                  <div>
-                    <label class="field-label" for="createMarketplace">Маркетплейс</label>
-                    <select id="createMarketplace">
-                      <option value="Ozon">Ozon</option>
-                      <option value="Wildberries">Wildberries</option>
-                      <option value="Яндекс Маркет">Яндекс Маркет</option>
-                    </select>
+              <aside class="create-column create-column-right">
+                <section class="create-form-card create-preview-card" id="createPreviewCard">
+                  <div class="create-card-head">
+                    <h3>Превью карточки</h3>
+                    <span>Живое превью</span>
                   </div>
-                  <div>
-                    <label class="field-label" for="createCardsCount">Количество карточек</label>
-                    <select id="createCardsCount">
-                      <option value="1">1 карточка</option>
-                      <option value="2">2 карточки</option>
-                      <option value="3">3 карточки</option>
-                      <option value="5">5 карточек</option>
-                    </select>
+
+                  <div class="create-preview-stage">
+                    <img class="hidden" id="createPreviewImage" alt="Итоговое превью карточки" />
+                    <div class="create-preview-empty" id="createPreviewEmpty">
+                      <strong>Карточка появится здесь</strong>
+                      <p>Выберите шаблон, заполните данные и запустите генерацию.</p>
+                    </div>
+                    <div class="create-preview-overlay">
+                      <span class="create-preview-badge" id="createPreviewBadge">Черновик</span>
+                      <div class="create-preview-copy">
+                        <strong id="createPreviewTitle">Готовим структуру карточки</strong>
+                        <p id="createPreviewMeta">Здесь будет итоговое превью 3:4.</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
-                  Сгенерировать карточки
-                </button>
-                <p class="create-cta-hint" id="createCtaHint">Заполните форму, чтобы активировать генерацию</p>
-                <p id="createStatus" class="status-message" aria-live="polite"></p>
-              </section>
+                  <div class="create-preview-actions">
+                    <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
+                      Сгенерировать карточку
+                    </button>
+                    <a class="btn btn-outline create-export-btn is-disabled" id="createExportBtn" href="#" aria-disabled="true">
+                      Экспортировать
+                    </a>
+                  </div>
+
+                  <p class="create-cta-hint" id="createCtaHint">Заполните форму, чтобы активировать генерацию</p>
+                  <p id="createStatus" class="status-message" aria-live="polite"></p>
+                  <div class="request-meta" id="createMeta">
+                    <span>Статус запроса:</span>
+                    <strong>Ожидание данных</strong>
+                  </div>
+                </section>
+
+                <section class="create-results-section hidden" id="createResultsSection" aria-live="polite">
+                  <div class="create-results-head">
+                    <h3>Варианты карточки</h3>
+                    <p id="createResultsCaption">После генерации здесь появятся варианты карточек.</p>
+                  </div>
+                  <div class="create-results-processing hidden" id="createResultsProcessing">
+                    <span class="create-results-spinner" aria-hidden="true"></span>
+                    <p>AI готовит варианты карточек...</p>
+                  </div>
+                  <div class="create-results-grid create-results-grid-compact" id="createResultsGrid"></div>
+                </section>
+              </aside>
             </div>
-
-            <div class="request-meta" id="createMeta">
-              <span>Статус запроса:</span>
-              <strong>Ожидание данных</strong>
-            </div>
-
-            <section class="create-results-section hidden" id="createResultsSection" aria-live="polite">
-              <div class="create-results-head">
-                <h3>Сгенерированные карточки</h3>
-                <p id="createResultsCaption">После генерации здесь появятся варианты карточек.</p>
-              </div>
-              <div class="create-results-processing hidden" id="createResultsProcessing">
-                <span class="create-results-spinner" aria-hidden="true"></span>
-                <p>AI готовит варианты карточек...</p>
-              </div>
-              <div class="create-results-grid" id="createResultsGrid"></div>
-            </section>
           </article>
 
           <article class="step-card step2-mode hidden improve-mode-screen" data-app-mode-panel="improve">
@@ -560,129 +684,172 @@
               <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
             </div>
             <p class="section-subtitle">
-              Загрузите текущую карточку, получите AI-анализ слабых сторон и запустите улучшение в один клик.
+              Загрузите карточку, выберите режим и запустите улучшение.
             </p>
 
             <div class="improve-form-grid">
-              <section class="create-form-card improve-upload-card">
+              <div class="improve-main-column">
+                <section class="create-form-card improve-main-input-card">
+                  <div class="create-card-head">
+                    <h3>Материалы для улучшения</h3>
+                    <span>Основной сценарий</span>
+                  </div>
+
+                  <div class="improve-upload-grid">
+                    <section class="improve-main-block improve-source-block">
+                      <div class="create-card-head">
+                        <h3>Исходная карточка</h3>
+                        <span>Обязательно</span>
+                      </div>
+
+                      <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
+                        <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                        <strong>Загрузите существующую карточку</strong>
+                        <small>PNG, JPG, WEBP • до 10 МБ</small>
+                      </label>
+                      <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                      <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
+                        <p>Исходная карточка</p>
+                        <div class="selected-image-wrap">
+                          <img id="improveSelectedImage" alt="Исходная карточка товара" />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="improve-main-block improve-reference-block" id="improveReferencePanel">
+                      <div class="create-card-head">
+                        <h3>Референс</h3>
+                        <span>Если нужен стиль</span>
+                      </div>
+
+                      <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
+                        <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                        <strong>Добавьте style reference</strong>
+                        <small>Нужен только для режима «в стиле референса»</small>
+                      </label>
+                      <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                      <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
+                        <p>Референс</p>
+                        <div class="selected-image-wrap">
+                          <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
+                        </div>
+                      </div>
+
+                      <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
+                        Опционально, если нужен style match.
+                      </p>
+                    </section>
+                  </div>
+
+                  <section class="improve-main-block improve-comment-block">
+                    <div class="create-card-head">
+                      <h3>Что улучшить</h3>
+                      <span>Optional</span>
+                    </div>
+                    <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
+                    <textarea
+                      id="improvePrompt"
+                      placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
+                    ></textarea>
+                  </section>
+                </section>
+              </div>
+
+              <aside class="create-form-card create-form-card-compact improve-control-panel">
                 <div class="create-card-head">
-                  <h3>Исходная карточка</h3>
-                  <span>Обязательно</span>
+                  <h3>Панель улучшения</h3>
+                  <span>Режим и запуск</span>
                 </div>
 
-                <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
-                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                  <strong>Загрузите существующую карточку</strong>
-                  <small>PNG, JPG, WEBP • до 10 МБ</small>
-                </label>
-                <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+                <div class="improve-panel-mode">
+                  <label class="field-label">Режим улучшения</label>
+                  <div class="improve-mode-switch" id="improveModeSwitch">
+                    <button class="improve-mode-btn active" type="button" data-improve-mode="ai">AI режим</button>
+                    <button class="improve-mode-btn" type="button" data-improve-mode="reference">По референсу</button>
+                  </div>
+                  <p class="improve-mode-summary" id="improveModeSummary">
+                    AI улучшит карточку без style match.
+                  </p>
+                </div>
 
-                <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
-                  <p>Исходная карточка</p>
-                  <div class="selected-image-wrap">
-                    <img id="improveSelectedImage" alt="Исходная карточка товара" />
+                <div class="create-inline-grid improve-controls-grid">
+                  <div>
+                    <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
+                    <select id="improveVariantsCount">
+                      <option value="1">1 вариант</option>
+                      <option value="2">2 варианта</option>
+                      <option value="3">3 варианта</option>
+                      <option value="4">4 варианта</option>
+                      <option value="5">5 вариантов</option>
+                    </select>
                   </div>
                 </div>
-              </section>
 
-              <section class="create-form-card">
-                <div class="create-card-head">
-                  <h3>Что хочется улучшить</h3>
-                  <span>Optional</span>
-                </div>
-                <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
-                <textarea
-                  id="improvePrompt"
-                  placeholder="Например: усилить читаемость оффера, структурировать выгоды, сделать визуал более premium."
-                ></textarea>
-              </section>
-
-              <section class="create-form-card">
-                <div class="create-card-head">
-                  <h3>Референс</h3>
-                  <span>Optional</span>
-                </div>
-
-                <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
-                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                  <strong>Загрузите референс (опционально)</strong>
-                  <small>Используется в режиме «в стиле референса»</small>
-                </label>
-                <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
-
-                <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
-                  <p>Референс</p>
-                  <div class="selected-image-wrap">
-                    <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
+                <div class="improve-readiness-panel">
+                  <div class="improve-readiness-head">
+                    <strong>Готовность</strong>
+                    <span class="create-secondary-badge is-neutral" id="improveModeBadge">AI режим</span>
+                  </div>
+                  <div class="improve-signal-grid">
+                    <article class="improve-signal-item">
+                      <span>Режим</span>
+                      <strong id="improveModeSignal">AI режим</strong>
+                    </article>
+                    <article class="improve-signal-item">
+                      <span>Референс</span>
+                      <strong id="improveReferenceSignal">Не нужен</strong>
+                    </article>
+                    <article class="improve-signal-item">
+                      <span>Варианты</span>
+                      <strong id="improveVariantsSignal">1 вариант</strong>
+                    </article>
+                  </div>
+                  <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
+                    Референс не обязателен.
+                  </p>
+                  <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
+                  <p id="improveStatus" class="status-message" aria-live="polite"></p>
+                  <div class="request-meta" id="improveMeta">
+                    <span>Статус запроса:</span>
+                    <strong>Ожидание исходной карточки</strong>
                   </div>
                 </div>
-
-                <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
-                  Можно пропустить, если выбран обычный AI режим.
-                </p>
-                <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
-                  Референс не загружен. Используется стандартное AI-улучшение.
-                </p>
-              </section>
-
-              <section class="create-form-card improve-controls-card">
-                <div class="create-card-head">
-                  <h3>Параметры улучшения</h3>
-                  <span>Режим и количество</span>
-                </div>
-
-                <div class="improve-mode-switch" id="improveModeSwitch">
-                  <button class="improve-mode-btn active" type="button" data-improve-mode="ai">Обычное AI улучшение</button>
-                  <button class="improve-mode-btn" type="button" data-improve-mode="reference">В стиле референса</button>
-                </div>
-
-                <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
-                <select id="improveVariantsCount">
-                  <option value="1">1 вариант</option>
-                  <option value="2">2 варианта</option>
-                  <option value="3">3 варианта</option>
-                  <option value="4">4 варианта</option>
-                  <option value="5">5 вариантов</option>
-                </select>
 
                 <button class="btn btn-primary improve-run-btn" id="improveRunBtn" type="button" disabled>
                   Запустить улучшение
                 </button>
-                <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
-                <p id="improveStatus" class="status-message" aria-live="polite"></p>
-              </section>
+              </aside>
             </div>
 
-            <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
-              <div class="create-card-head">
-                <h3>AI анализ слабых сторон</h3>
-                <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
-              </div>
-              <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
-                После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
-              </p>
-              <div class="improve-analysis-overview">
-                <div class="improve-analysis-score-wrap">
-                  <span>Оценка текущей карточки</span>
-                  <strong id="improveAnalysisScore">--</strong>
+            <div class="improve-analysis-technical-layer hidden" aria-hidden="true">
+              <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
+                <div class="create-card-head">
+                  <h3>AI анализ слабых сторон</h3>
+                  <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
                 </div>
-                <p id="improveAnalysisSummary">
-                  Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
+                <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
+                  После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
                 </p>
-                <p class="improve-analysis-context" id="improveAnalysisContext">
-                  Режим: стандартное AI-улучшение.
-                </p>
-              </div>
-              <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
-              <div class="improve-analysis-next">
-                <span>Что AI усилит дальше</span>
-                <ul id="improveAnalysisRecommendations"></ul>
-              </div>
-            </section>
-
-            <div class="request-meta" id="improveMeta">
-              <span>Статус запроса:</span>
-              <strong>Ожидание исходной карточки</strong>
+                <div class="improve-analysis-overview">
+                  <div class="improve-analysis-score-wrap">
+                    <span>Оценка текущей карточки</span>
+                    <strong id="improveAnalysisScore">--</strong>
+                  </div>
+                  <p id="improveAnalysisSummary">
+                    Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
+                  </p>
+                  <p class="improve-analysis-context" id="improveAnalysisContext">
+                    Режим: стандартное AI-улучшение.
+                  </p>
+                </div>
+                <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
+                <div class="improve-analysis-next">
+                  <span>Что AI усилит дальше</span>
+                  <ul id="improveAnalysisRecommendations"></ul>
+                </div>
+              </section>
             </div>
 
             <section class="create-results-section improve-results-section hidden" id="improveResultsSection" aria-live="polite">
@@ -744,10 +911,10 @@
               <div>
                 <h2>История генераций</h2>
                 <p class="section-subtitle">
-                  Сохраненные сессии create/improve с превью, датой и prompt summary.
+                  Сохраненные сессии создания и улучшения с превью, датой и кратким описанием промпта.
                 </p>
               </div>
-              <span class="preview-badge">Saved</span>
+              <span class="preview-badge">Сохранено</span>
             </div>
 
             <section class="create-form-card history-mode-list-card">
@@ -835,6 +1002,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js"></script>
+    <script src="./create-characteristics-component.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
