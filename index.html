@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
@@ -355,9 +355,487 @@
       </div>
     </main>
 
+    <main class="workspace section-wrap hidden" id="workspace" aria-hidden="true">
+      <div class="workspace-layout">
+        <aside class="workspace-tools">
+          <div class="workspace-tools-head">
+            <a class="workspace-app-brand" href="#app/create" aria-label="KARTOCHKA app">
+              <span class="logo-mark" aria-hidden="true"><span class="logo-k">K</span></span>
+              <span class="logo-text">KARTOCHKA</span>
+            </a>
+          </div>
+
+          <nav class="workspace-screen-tabs tab-switch" aria-label="Режимы app">
+            <button class="tab-btn active" type="button" data-app-mode-btn="create">Создать</button>
+            <button class="tab-btn" type="button" data-app-mode-btn="improve">Улучшить</button>
+            <button class="tab-btn" type="button" data-app-mode-btn="animate">Анимировать</button>
+            <button class="tab-btn" type="button" data-app-mode-btn="history">История</button>
+          </nav>
+
+          <div class="workspace-user-area" id="workspaceUserArea">
+            <div class="workspace-user-avatar" id="workspaceUserAvatar" aria-hidden="true">K</div>
+            <div class="workspace-user-meta">
+              <strong id="workspaceUserName">Гость</strong>
+              <small id="workspaceUserCaption">Личный кабинет KARTOCHKA</small>
+            </div>
+            <button class="btn btn-outline workspace-signout" id="appSignOutBtn" type="button">Выйти</button>
+          </div>
+        </aside>
+
+        <section class="workspace-main">
+                    <article class="step-card step2-mode active create-mode-screen" data-app-mode-panel="create">
+            <div class="step-title-row create-screen-head">
+              <div>
+                <h2>Создать карточку</h2>
+                <p class="section-subtitle">
+                  Заполните данные товара, загрузите фото и запустите генерацию карточек под маркетплейс.
+                </p>
+              </div>
+              <span class="step-done" id="createDoneBadge" aria-hidden="true">✓</span>
+            </div>
+
+            <div class="create-form-grid">
+              <section class="create-form-card">
+                <div class="create-card-head">
+                  <h3>Фото товара</h3>
+                  <span id="createImagesCounter">0 / 5 фото</span>
+                </div>
+                <label class="create-upload-dropzone" for="createImagesInput" id="createUploadZone">
+                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                  <strong>Перетащите фото товара сюда</strong>
+                  <small id="createUploadHint">PNG, JPG, WEBP • можно добавить еще 5</small>
+                </label>
+                <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+
+                <p class="create-upload-empty" id="createImagesEmpty">Добавьте первые фото товара, чтобы увидеть превью.</p>
+                <div class="create-upload-list" id="createImagesList"></div>
+              </section>
+
+              <section class="create-form-card">
+                <div class="create-card-head">
+                  <h3>Контент карточки</h3>
+                  <span>Текстовые данные</span>
+                </div>
+
+                <label class="field-label" for="createDescription">Описание товара</label>
+                <textarea
+                  id="createDescription"
+                  placeholder="Что это за товар, его ключевые характеристики и ценность для покупателя."
+                ></textarea>
+
+                <label class="field-label" for="createHighlights">Дополнительные пожелания / акценты</label>
+                <textarea
+                  id="createHighlights"
+                  placeholder="Например: сделать акцент на выгоде, визуально выделить скидку, добавить premium-настроение."
+                ></textarea>
+              </section>
+
+              <section class="create-form-card create-insight-card is-empty" id="createInsightCard">
+                <div class="create-card-head create-insight-head">
+                  <div>
+                    <h3>AI insight по товару</h3>
+                    <span>Copilot-анализ для seller</span>
+                  </div>
+                  <button class="create-insight-run-btn" id="createInsightRunBtn" type="button">Собрать insight</button>
+                </div>
+
+                <p class="create-insight-status" id="createInsightStatus" aria-live="polite">
+                  Загрузите фото и/или заполните описание, чтобы получить AI insight.
+                </p>
+
+                <div class="create-insight-grid" id="createInsightGrid">
+                  <article class="create-insight-item">
+                    <span>Категория товара</span>
+                    <p id="createInsightCategory">-</p>
+                  </article>
+                  <article class="create-insight-item">
+                    <span>Рекомендуемый стиль</span>
+                    <p id="createInsightStyle">-</p>
+                  </article>
+                  <article class="create-insight-item">
+                    <span>Сильный акцент для конверсии</span>
+                    <p id="createInsightAccent">-</p>
+                  </article>
+                  <article class="create-insight-item">
+                    <span>Формат подачи под marketplace</span>
+                    <p id="createInsightFormat">-</p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="create-form-card">
+                <div class="create-card-head">
+                  <h3>Режим prompt</h3>
+                  <span>Выберите источник prompt</span>
+                </div>
+
+                <div class="create-prompt-mode-switch" id="createPromptModeSwitch">
+                  <button class="create-prompt-mode-btn active" type="button" data-prompt-mode="ai">Использовать AI prompt</button>
+                  <button class="create-prompt-mode-btn" type="button" data-prompt-mode="custom">Использовать свой prompt</button>
+                </div>
+
+                <div class="create-ai-assist is-empty" id="createAiPromptCard">
+                  <div class="create-ai-assist-head">
+                    <p>AI prompt assistance</p>
+                    <button class="create-ai-generate-btn" id="createAiPromptGenerateBtn" type="button">
+                      Сгенерировать prompt с AI
+                    </button>
+                  </div>
+                  <textarea
+                    id="createAiPromptOutput"
+                    placeholder="Здесь появится auto-generated prompt."
+                    disabled
+                  ></textarea>
+                  <div class="create-ai-assist-actions">
+                    <button type="button" id="createAiPromptAcceptBtn" disabled>Принять prompt</button>
+                    <button type="button" id="createAiPromptRegenerateBtn" disabled>Сгенерировать заново</button>
+                  </div>
+                  <p class="create-ai-assist-status" id="createAiPromptStatus" aria-live="polite">
+                    Добавьте фото или описание, чтобы AI собрал prompt.
+                  </p>
+                </div>
+
+                <label class="field-label" for="createCustomPrompt">Свой prompt (optional)</label>
+                <textarea
+                  id="createCustomPrompt"
+                  placeholder="Опционально: свой детальный prompt для генерации."
+                ></textarea>
+              </section>
+
+              <section class="create-form-card create-form-card-compact">
+                <div class="create-card-head">
+                  <h3>Параметры генерации</h3>
+                  <span>Маркетплейс и количество</span>
+                </div>
+
+                <div class="create-inline-grid">
+                  <div>
+                    <label class="field-label" for="createMarketplace">Маркетплейс</label>
+                    <select id="createMarketplace">
+                      <option value="Ozon">Ozon</option>
+                      <option value="Wildberries">Wildberries</option>
+                      <option value="Яндекс Маркет">Яндекс Маркет</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label" for="createCardsCount">Количество карточек</label>
+                    <select id="createCardsCount">
+                      <option value="1">1 карточка</option>
+                      <option value="2">2 карточки</option>
+                      <option value="3">3 карточки</option>
+                      <option value="5">5 карточек</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
+                  Сгенерировать карточки
+                </button>
+                <p class="create-cta-hint" id="createCtaHint">Заполните форму, чтобы активировать генерацию</p>
+                <p id="createStatus" class="status-message" aria-live="polite"></p>
+              </section>
+            </div>
+
+            <div class="request-meta" id="createMeta">
+              <span>Статус запроса:</span>
+              <strong>Ожидание данных</strong>
+            </div>
+
+            <section class="create-results-section hidden" id="createResultsSection" aria-live="polite">
+              <div class="create-results-head">
+                <h3>Сгенерированные карточки</h3>
+                <p id="createResultsCaption">После генерации здесь появятся варианты карточек.</p>
+              </div>
+              <div class="create-results-processing hidden" id="createResultsProcessing">
+                <span class="create-results-spinner" aria-hidden="true"></span>
+                <p>AI готовит варианты карточек...</p>
+              </div>
+              <div class="create-results-grid" id="createResultsGrid"></div>
+            </section>
+          </article>
+
+          <article class="step-card step2-mode hidden improve-mode-screen" data-app-mode-panel="improve">
+            <div class="step-title-row">
+              <h2>Улучшить карточку</h2>
+              <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
+            </div>
+            <p class="section-subtitle">
+              Загрузите текущую карточку, получите AI-анализ слабых сторон и запустите улучшение в один клик.
+            </p>
+
+            <div class="improve-form-grid">
+              <section class="create-form-card improve-upload-card">
+                <div class="create-card-head">
+                  <h3>Исходная карточка</h3>
+                  <span>Обязательно</span>
+                </div>
+
+                <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
+                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                  <strong>Загрузите существующую карточку</strong>
+                  <small>PNG, JPG, WEBP • до 10 МБ</small>
+                </label>
+                <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
+                  <p>Исходная карточка</p>
+                  <div class="selected-image-wrap">
+                    <img id="improveSelectedImage" alt="Исходная карточка товара" />
+                  </div>
+                </div>
+              </section>
+
+              <section class="create-form-card">
+                <div class="create-card-head">
+                  <h3>Что хочется улучшить</h3>
+                  <span>Optional</span>
+                </div>
+                <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
+                <textarea
+                  id="improvePrompt"
+                  placeholder="Например: усилить читаемость оффера, структурировать выгоды, сделать визуал более premium."
+                ></textarea>
+              </section>
+
+              <section class="create-form-card">
+                <div class="create-card-head">
+                  <h3>Референс</h3>
+                  <span>Optional</span>
+                </div>
+
+                <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
+                  <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                  <strong>Загрузите референс (опционально)</strong>
+                  <small>Используется в режиме «в стиле референса»</small>
+                </label>
+                <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
+                  <p>Референс</p>
+                  <div class="selected-image-wrap">
+                    <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
+                  </div>
+                </div>
+
+                <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
+                  Можно пропустить, если выбран обычный AI режим.
+                </p>
+                <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
+                  Референс не загружен. Используется стандартное AI-улучшение.
+                </p>
+              </section>
+
+              <section class="create-form-card improve-controls-card">
+                <div class="create-card-head">
+                  <h3>Параметры улучшения</h3>
+                  <span>Режим и количество</span>
+                </div>
+
+                <div class="improve-mode-switch" id="improveModeSwitch">
+                  <button class="improve-mode-btn active" type="button" data-improve-mode="ai">Обычное AI улучшение</button>
+                  <button class="improve-mode-btn" type="button" data-improve-mode="reference">В стиле референса</button>
+                </div>
+
+                <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
+                <select id="improveVariantsCount">
+                  <option value="1">1 вариант</option>
+                  <option value="2">2 варианта</option>
+                  <option value="3">3 варианта</option>
+                  <option value="4">4 варианта</option>
+                  <option value="5">5 вариантов</option>
+                </select>
+
+                <button class="btn btn-primary improve-run-btn" id="improveRunBtn" type="button" disabled>
+                  Запустить улучшение
+                </button>
+                <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
+                <p id="improveStatus" class="status-message" aria-live="polite"></p>
+              </section>
+            </div>
+
+            <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
+              <div class="create-card-head">
+                <h3>AI анализ слабых сторон</h3>
+                <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
+              </div>
+              <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
+                После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
+              </p>
+              <div class="improve-analysis-overview">
+                <div class="improve-analysis-score-wrap">
+                  <span>Оценка текущей карточки</span>
+                  <strong id="improveAnalysisScore">--</strong>
+                </div>
+                <p id="improveAnalysisSummary">
+                  Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
+                </p>
+                <p class="improve-analysis-context" id="improveAnalysisContext">
+                  Режим: стандартное AI-улучшение.
+                </p>
+              </div>
+              <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
+              <div class="improve-analysis-next">
+                <span>Что AI усилит дальше</span>
+                <ul id="improveAnalysisRecommendations"></ul>
+              </div>
+            </section>
+
+            <div class="request-meta" id="improveMeta">
+              <span>Статус запроса:</span>
+              <strong>Ожидание исходной карточки</strong>
+            </div>
+
+            <section class="create-results-section improve-results-section hidden" id="improveResultsSection" aria-live="polite">
+              <div class="create-results-head">
+                <h3>Улучшенные варианты</h3>
+                <p id="improveResultsCaption">После улучшения здесь появятся варианты карточек.</p>
+              </div>
+              <div class="create-results-processing hidden" id="improveResultsProcessing">
+                <span class="create-results-spinner" aria-hidden="true"></span>
+                <p>AI улучшает карточку и подготавливает варианты...</p>
+              </div>
+              <div class="create-results-grid" id="improveResultsGrid"></div>
+            </section>
+          </article>
+
+          <article class="step-card step2-mode hidden animate-mode-screen" data-app-mode-panel="animate">
+            <div class="animate-screen-head">
+              <div class="step-title-row">
+                <h2>Анимировать</h2>
+                <span class="preview-badge">Скоро</span>
+              </div>
+              <p class="section-subtitle">
+                Motion-режим уже в roadmap KARTOCHKA. Здесь появится быстрый AI workflow для анимированных маркетплейс-креативов.
+              </p>
+            </div>
+
+            <section class="workspace-soon-card animate-roadmap-card">
+              <div class="animate-roadmap-head">
+                <h3>Ближайшие use case</h3>
+                <span class="animate-roadmap-badge">Roadmap</span>
+              </div>
+
+              <div class="animate-usecase-grid">
+                <article class="animate-usecase-item">
+                  <strong>Анимация карточек</strong>
+                  <p>Динамическая подача ключевых выгод и оффера на базе готовой карточки.</p>
+                </article>
+                <article class="animate-usecase-item">
+                  <strong>Motion для marketplace creatives</strong>
+                  <p>Короткие motion-сцены для marketplace creatives с фокусом на конверсию.</p>
+                </article>
+                <article class="animate-usecase-item">
+                  <strong>Short promo loops</strong>
+                  <p>Зацикленные промо-ролики для быстрых запусков в рекламе и соцплощадках.</p>
+                </article>
+              </div>
+
+              <p class="animate-roadmap-note">Раздел в активной разработке. Интерфейс и экспорт появятся в ближайшем релизе.</p>
+            </section>
+
+            <div class="workspace-panel-actions animate-soon-actions">
+              <button class="btn btn-primary" type="button" disabled>Скоро</button>
+              <span class="animate-soon-meta">Пока можно работать в режимах «Создать» и «Улучшить».</span>
+            </div>
+          </article>
+
+          <article class="step-card step2-mode hidden history-mode-screen" data-app-mode-panel="history">
+            <div class="step-title-row history-mode-head">
+              <div>
+                <h2>История генераций</h2>
+                <p class="section-subtitle">
+                  Сохраненные сессии create/improve с превью, датой и prompt summary.
+                </p>
+              </div>
+              <span class="preview-badge">Saved</span>
+            </div>
+
+            <section class="create-form-card history-mode-list-card">
+              <div class="history-mode-toolbar">
+                <p class="history-mode-stats" id="historyModeStats">0 записей</p>
+                <button class="btn btn-ghost history-mode-clear" id="historyModeClearBtn" type="button">
+                  Очистить историю
+                </button>
+              </div>
+
+              <p class="history-empty" id="historyModeEmpty">Пока нет выполненных генераций.</p>
+              <div class="history-mode-list" id="historyModeList"></div>
+            </section>
+
+            <section class="history-mode-modal hidden" id="historyModeDetails" aria-hidden="true">
+              <button class="history-mode-modal-backdrop" type="button" data-history-modal-close aria-label="Закрыть"></button>
+              <div class="create-form-card history-mode-details" role="dialog" aria-modal="true" aria-labelledby="historyDetailsTitle">
+                <div class="history-mode-details-head">
+                  <div>
+                    <h3 id="historyDetailsTitle">Детали записи</h3>
+                    <p class="history-mode-details-date" id="historyDetailsDate">-</p>
+                  </div>
+                  <div class="history-mode-details-top-actions">
+                    <span class="history-mode-tag" id="historyDetailsMode">create</span>
+                    <button
+                      class="history-mode-modal-close"
+                      id="historyModeDetailsCloseBtn"
+                      type="button"
+                      aria-label="Закрыть детали истории"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div class="history-mode-details-meta">
+                  <p class="history-mode-details-count" id="historyDetailsCount">Результатов: 0</p>
+                  <p class="history-mode-details-summary" id="historyDetailsSummary">-</p>
+                </div>
+
+                <div class="history-mode-details-actions">
+                  <button class="btn btn-primary history-reuse-btn" id="historyReuseBtn" type="button">
+                    Использовать как основу снова
+                  </button>
+                </div>
+
+                <section class="history-mode-block">
+                  <h4>Исходные входные данные</h4>
+                  <div class="history-mode-kv-grid" id="historyDetailsInputs"></div>
+                </section>
+
+                <section class="history-mode-block">
+                  <h4>Изображения пользователя</h4>
+                  <div class="history-mode-upload-grid" id="historyDetailsUploads"></div>
+                </section>
+
+                <section class="history-mode-block">
+                  <h4>Prompt</h4>
+                  <p class="history-mode-details-prompt" id="historyDetailsPrompt">-</p>
+                </section>
+
+                <section class="history-mode-block">
+                  <h4>Дополнительные пожелания</h4>
+                  <p class="history-mode-details-prompt" id="historyDetailsHighlights">-</p>
+                </section>
+
+                <section class="history-mode-block">
+                  <h4>AI summary / analysis</h4>
+                  <div class="history-mode-ai" id="historyDetailsAi"></div>
+                </section>
+
+                <section class="history-mode-block">
+                  <h4>Итоговые результаты</h4>
+                  <div class="history-mode-details-previews" id="historyDetailsResults"></div>
+                </section>
+              </div>
+            </section>
+          </article>
+        </section>
+
+      </div>
+    </main>
+
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="./services/kartochka-services.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
+
