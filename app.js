@@ -176,6 +176,8 @@
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
   const HISTORY_IMAGE_MAX_DIMENSION = 960;
   const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
+  const API_IMAGE_MAX_DIMENSION = 1600;
+  const API_IMAGE_JPEG_QUALITY = 0.84;
   const CREATE_UPLOAD_MAX_FILES = 5;
   const CREATE_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
   const CREATE_ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -992,14 +994,62 @@
     });
   };
 
-  const loadImageElement = (sourceUrl) => {
+  const loadImageElement = (sourceUrl, errorMessage) => {
     return new Promise((resolve, reject) => {
       const image = new Image();
       image.decoding = "async";
       image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("Не удалось загрузить изображение для истории."));
+      image.onerror = () => reject(new Error(errorMessage || "Не удалось загрузить изображение."));
       image.src = sourceUrl;
     });
+  };
+
+  const buildOptimizedImageDataUrl = async (sourceUrl, options) => {
+    const safeUrl = String(sourceUrl || "").trim();
+    if (!safeUrl) return "";
+
+    const fallbackUrl = String(options?.fallbackUrl || safeUrl).trim();
+    const maxDimension = Number(options?.maxDimension) > 0 ? Number(options.maxDimension) : API_IMAGE_MAX_DIMENSION;
+    const quality = Number(options?.quality) > 0 ? Number(options.quality) : API_IMAGE_JPEG_QUALITY;
+
+    try {
+      const image = await loadImageElement(safeUrl, options?.errorMessage || "Не удалось подготовить изображение.");
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      if (!width || !height) return fallbackUrl;
+
+      const scale = Math.min(1, maxDimension / Math.max(width, height));
+      const targetWidth = Math.max(1, Math.round(width * scale));
+      const targetHeight = Math.max(1, Math.round(height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const context = canvas.getContext("2d");
+      if (!context) return fallbackUrl;
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      return canvas.toDataURL("image/jpeg", quality);
+    } catch (error) {
+      return fallbackUrl;
+    }
+  };
+
+  const buildOptimizedFileDataUrl = async (file, errorMessage) => {
+    if (!file) return "";
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const optimized = await buildOptimizedImageDataUrl(objectUrl, {
+        errorMessage,
+        fallbackUrl: "",
+      });
+      if (optimized) return optimized;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    return readFileAsDataUrl(file);
   };
 
   const buildHistoryImageSnapshot = async (sourceUrl) => {
@@ -1035,7 +1085,7 @@
     if (createFileDataUrls.has(key)) {
       return createFileDataUrls.get(key) || "";
     }
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await buildOptimizedFileDataUrl(file, "Не удалось подготовить изображение товара.");
     createFileDataUrls.set(key, dataUrl);
     return dataUrl;
   };
@@ -1057,7 +1107,21 @@
       const response = await fetch(source, { credentials: "same-origin" });
       if (!response.ok) throw new Error("Template preview request failed");
       const blob = await response.blob();
-      const dataUrl = await readBlobAsDataUrl(blob);
+      const blobUrl = URL.createObjectURL(blob);
+      let dataUrl = "";
+      try {
+        dataUrl = await buildOptimizedImageDataUrl(blobUrl, {
+          errorMessage: "Не удалось подготовить изображение референса.",
+          fallbackUrl: "",
+          maxDimension: 1400,
+          quality: 0.82,
+        });
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+      if (!dataUrl) {
+        dataUrl = await readBlobAsDataUrl(blob);
+      }
       createTemplatePreviewDataUrls.set(source, dataUrl);
       return dataUrl;
     } catch (error) {
@@ -4295,7 +4359,7 @@
     }
 
     improveImageFile = file;
-    improveImagePreview = await readFileAsDataUrl(file);
+    improveImagePreview = await buildOptimizedFileDataUrl(file, "Не удалось подготовить исходную карточку.");
     if (improveSelectedImage) {
       improveSelectedImage.src = improveImagePreview;
     }
@@ -4326,7 +4390,7 @@
     }
 
     improveReferenceFile = file;
-    improveReferencePreviewUrl = await readFileAsDataUrl(file);
+    improveReferencePreviewUrl = await buildOptimizedFileDataUrl(file, "Не удалось подготовить референс.");
     if (improveReferenceImage) {
       improveReferenceImage.src = improveReferencePreviewUrl;
     }
