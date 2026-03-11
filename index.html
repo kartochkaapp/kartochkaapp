@@ -253,7 +253,7 @@
               <p class="plan-price">1 490 ₽<span>/мес</span></p>
               <p class="plan-subtitle">Оптимальный план для активных продаж</p>
               <ul>
-                <li>300 генераций в месяц</li>
+                <li>100 генераций в месяц</li>
                 <li>Свои промпты и стили</li>
                 <li>Приоритетная очередь</li>
               </ul>
@@ -264,7 +264,7 @@
               <p class="plan-price">4 990 ₽<span>/мес</span></p>
               <p class="plan-subtitle">Для команд, агентств и масштабирования</p>
               <ul>
-                <li>От 1 500 генераций</li>
+                <li>От 300 генераций</li>
                 <li>До 5 пользователей</li>
                 <li>История проектов и шаблоны</li>
               </ul>
@@ -388,7 +388,7 @@
               <div>
                 <h2>Создать карточку</h2>
                 <p class="section-subtitle">
-                  Загрузите фото, добавьте описание и запустите генерацию карточек под marketplace.
+                  Загрузите фото, добавьте данные о товаре и запустите генерацию карточки.
                 </p>
               </div>
               <span class="step-done" id="createDoneBadge" aria-hidden="true">✓</span>
@@ -402,27 +402,35 @@
                     <span id="createImagesCounter">0 / 5 фото</span>
                   </div>
 
-                  <label class="create-upload-dropzone create-upload-dropzone-hero" for="createImagesInput" id="createUploadZone">
+                  <button class="create-upload-dropzone create-upload-dropzone-hero" id="createUploadZone" type="button" aria-haspopup="dialog">
                     <span class="create-upload-stage">
                       <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
                       <span class="create-upload-preview-frame" id="createSourcePreviewFrame">
                         <img class="hidden" id="createSourcePreviewImage" alt="Превью изображения товара" />
                         <span id="createSourcePreviewEmpty">Превью 3:4</span>
                       </span>
-                      <strong>Загрузите изображение товара</strong>
+                      <strong>Добавить изображение товара</strong>
                       <small id="createUploadHint">PNG, JPG, WEBP • можно добавить еще 5</small>
                     </span>
-                  </label>
+                  </button>
                   <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
 
                   <div class="create-source-actions">
-                    <button class="btn btn-outline create-edit-image-btn" id="createEditImageBtn" type="button" disabled>
-                      Редактировать изображение
+                    <button class="btn btn-outline create-edit-image-btn" id="createEditImageBtn" type="button">
+                      Управлять изображениями
                     </button>
                   </div>
 
-                  <p class="create-upload-empty" id="createImagesEmpty">Добавьте 1-5 фото товара. Первое изображение станет основным.</p>
-                  <div class="create-upload-list create-upload-list-compact" id="createImagesList"></div>
+                  <section class="create-arrangement-panel" aria-label="Варианты расположения предметов">
+                    <div class="create-arrangement-panel-head">
+                      <strong>Варианты расположения предметов</strong>
+                      <span>Это место зарезервировано под будущие композиции и раскладки предмета.</span>
+                    </div>
+                    <div class="create-arrangement-placeholder">
+                      <strong>Скоро здесь появятся варианты композиции</strong>
+                      <p>Блок вложений убран из основного экрана. Добавление и удаление фото теперь работает через отдельное модальное окно.</p>
+                    </div>
+                  </section>
                 </section>
 
                 <section class="create-form-card create-settings-card">
@@ -432,25 +440,6 @@
                   </div>
 
                   <div class="create-settings-grid">
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createMarketplace">Маркетплейс</label>
-                      <select id="createMarketplace">
-                        <option value="Ozon">Ozon</option>
-                        <option value="Wildberries">Wildberries</option>
-                        <option value="Яндекс Маркет">Яндекс Маркет</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createCardsCount">Количество вариантов</label>
-                      <select id="createCardsCount">
-                        <option value="1">1 карточка</option>
-                        <option value="2">2 карточки</option>
-                        <option value="3">3 карточки</option>
-                        <option value="5">5 карточек</option>
-                      </select>
-                    </div>
-
                     <div class="create-setting-field">
                       <label class="field-label" for="createSettingAccentColor">Акцентный цвет</label>
                       <select id="createSettingAccentColor">
@@ -535,49 +524,51 @@
                       </label>
                     </div>
 
-                    <div class="create-setting-field create-setting-toggle">
-                      <label class="field-label" for="createSettingAutoMarketplace">Автоадаптация под маркетплейс</label>
-                      <label class="create-switch">
-                        <input id="createSettingAutoMarketplace" type="checkbox" checked />
-                        <span>Автоматически адаптировать под marketplace</span>
-                      </label>
-                    </div>
+                  </div>
+
+                  <div class="hidden" aria-hidden="true">
+                    <select id="createMarketplace">
+                      <option value="Маркетплейс" selected>Маркетплейс</option>
+                    </select>
+                    <select id="createCardsCount">
+                      <option value="1" selected>1 карточка</option>
+                    </select>
                   </div>
                 </section>
               </aside>
 
               <section class="create-column create-column-center">
-                <section class="create-form-card create-template-panel">
-                  <div class="create-card-head">
-                    <h3>Шаблоны и референсы</h3>
-                    <span>Временный каталог</span>
+                <section class="create-form-card create-template-panel create-reference-summary-panel">
+                  <div class="create-card-head create-reference-summary-head">
+                    <div>
+                      <h3>Шаблон и референс</h3>
+                      <span>Компактный доступ к каталогу шаблонов и визуальных референсов</span>
+                    </div>
+                    <button class="btn btn-outline create-reference-open-btn" id="createReferenceLibraryBtn" type="button">
+                      Открыть библиотеку
+                    </button>
                   </div>
 
-                  <div class="create-template-toolbar">
-                    <label class="field-label sr-only" for="createTemplateSearchInput">Поиск шаблонов</label>
-                    <input
-                      id="createTemplateSearchInput"
-                      type="search"
-                      placeholder="Поиск шаблонов, референсов и визуальных направлений"
-                    />
-                  </div>
+                  <button class="create-selected-template-card" id="createSelectedTemplateCard" type="button">
+                    <span class="create-selected-template-thumb" id="createSelectedTemplateThumb">
+                      <img class="hidden" id="createSelectedTemplateThumbImage" alt="Выбранный референс" />
+                      <span class="create-selected-template-thumb-placeholder" id="createSelectedTemplateThumbPlaceholder">REF</span>
+                    </span>
 
-                  <div class="create-template-tabs">
-                    <button class="create-template-tab active" type="button" data-create-template-tab="all">Все</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="marketplace">Маркетплейс</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="clean">Чистые</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="promo">Промо</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="reference">Референсы</button>
-                  </div>
-
-                  <div class="create-template-grid" id="createTemplateGrid"></div>
+                    <span class="create-selected-template-body">
+                      <strong id="createSelectedTemplateTitle">Выберите шаблон или референс</strong>
+                      <span id="createSelectedTemplateDescription">Откройте библиотеку и выберите визуальное направление для карточки.</span>
+                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Каталог KARTOCHKA</span>
+                      <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
+                    </span>
+                  </button>
                 </section>
 
                 <section class="create-form-card create-product-card">
                   <div class="create-card-head create-product-card-head">
                     <div>
                       <h3>Контент карточки</h3>
-                      <span>Основная структура запроса</span>
+                      <span>Данные о товаре для заполнения карточки</span>
                     </div>
                     <button class="btn btn-outline create-autofill-btn" id="createAutofillBtn" type="button">
                       Автозаполнить AI
@@ -591,11 +582,12 @@
                     placeholder="Например: Сыворотка с пептидами для сияния кожи"
                   />
 
-                  <label class="field-label" for="createProductShortDescription">Краткое описание</label>
+                  <label class="field-label" for="createProductShortDescription">Краткое описание товара</label>
                   <textarea
                     id="createProductShortDescription"
-                    placeholder="Коротко опишите продукт, пользу и контекст использования."
+                    placeholder="Опишите сам товар: материал, назначение, особенности, пользу и сценарий использования."
                   ></textarea>
+                  <p class="create-field-hint">Только про товар: материал, назначение, особенности и пользу. Не описывайте макет карточки, маркетплейс или визуальный стиль.</p>
 
                   <div class="create-characteristics-head">
                     <div>
@@ -675,6 +667,67 @@
                   <div class="create-results-grid create-results-grid-compact" id="createResultsGrid"></div>
                 </section>
               </aside>
+
+              <div class="create-reference-modal hidden" id="createReferenceModal" aria-hidden="true">
+                <div class="create-reference-modal-backdrop" data-create-reference-close></div>
+
+                <div class="create-reference-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="createReferenceModalTitle">
+                  <div class="create-reference-modal-head">
+                    <div>
+                      <h3 id="createReferenceModalTitle">Библиотека шаблонов и референсов</h3>
+                      <span>Открывайте каталог отдельно от формы и выбирайте визуальное направление без длинной ленты в основном flow</span>
+                    </div>
+                    <button class="create-reference-modal-close" id="createReferenceModalClose" type="button" aria-label="Закрыть библиотеку">
+                      ×
+                    </button>
+                  </div>
+
+                  <div class="create-template-toolbar create-template-toolbar-modal">
+                    <label class="field-label sr-only" for="createTemplateSearchInput">Поиск шаблонов</label>
+                    <input
+                      id="createTemplateSearchInput"
+                      type="search"
+                      placeholder="Поиск шаблонов, референсов и визуальных направлений"
+                    />
+                  </div>
+
+                  <div class="create-template-tabs">
+                    <button class="create-template-tab active" type="button" data-create-template-tab="all">Все</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="marketplace">Маркетплейс</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="clean">Чистые</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="promo">Промо</button>
+                    <button class="create-template-tab" type="button" data-create-template-tab="reference">Референсы</button>
+                  </div>
+
+                  <div class="create-template-grid create-template-grid-modal" id="createTemplateGrid"></div>
+                </div>
+              </div>
+
+              <div class="create-reference-modal create-image-manager-modal hidden" id="createImageManagerModal" aria-hidden="true">
+                <div class="create-reference-modal-backdrop" data-create-image-manager-close></div>
+
+                <div class="create-reference-modal-dialog create-image-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="createImageManagerTitle">
+                  <div class="create-reference-modal-head">
+                    <div>
+                      <h3 id="createImageManagerTitle">Изображения товара</h3>
+                      <span id="createImageManagerCounter">0 / 5 фото • добавляйте и удаляйте вложения внутри этого окна</span>
+                    </div>
+                    <button class="create-reference-modal-close" id="createImageManagerClose" type="button" aria-label="Закрыть менеджер изображений">
+                      ×
+                    </button>
+                  </div>
+
+                  <div class="create-image-manager-toolbar">
+                    <button class="btn btn-primary" id="createImageManagerAddBtn" type="button">
+                      Добавить изображения
+                    </button>
+                    <p>Поддерживаются PNG, JPG и WEBP. Первое фото остаётся основным для генерации.</p>
+                  </div>
+
+                  <p class="create-upload-empty" id="createImagesEmpty">Добавьте 1-5 фото товара. Первое изображение станет основным.</p>
+                  <div class="create-upload-list create-image-manager-list" id="createImagesList"></div>
+                </div>
+              </div>
             </div>
           </article>
 

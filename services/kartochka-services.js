@@ -163,6 +163,60 @@
     };
   };
 
+  const normalizeCreateAnalyzeSubject = (value) => {
+    if (!isPlainObject(value)) return null;
+
+    const subject = {
+      summary: toText(value.summary),
+      productType: toText(value.productType),
+      productIdentity: toText(value.productIdentity),
+      visualEvidence: toText(value.visualEvidence),
+      referenceRelation: toText(value.referenceRelation),
+    };
+
+    if (!Object.values(subject).some(Boolean)) {
+      return null;
+    }
+
+    return subject;
+  };
+
+  const normalizeCreateAnalyzeAutofill = (value) => {
+    if (!isPlainObject(value)) return null;
+
+    const characteristics = Array.isArray(value.characteristics)
+      ? value.characteristics
+          .map((item, index) => {
+            if (!isPlainObject(item)) return null;
+            return {
+              label: toText(item.label),
+              value: toText(item.value),
+              order: clampInt(item.order, 1, 12, index + 1),
+            };
+          })
+          .filter((item) => item && (item.label || item.value))
+          .slice(0, 8)
+      : [];
+
+    const benefits = Array.isArray(value.benefits)
+      ? value.benefits.map((item) => toText(item)).filter(Boolean).slice(0, 6)
+      : [];
+
+    const autofill = {
+      title: toText(value.title),
+      shortDescription: toText(value.shortDescription),
+      subtitle: toText(value.subtitle),
+      characteristics,
+      benefits,
+    };
+
+    if (!autofill.title && !autofill.shortDescription && !autofill.subtitle && !characteristics.length && !benefits.length) {
+      return null;
+    }
+
+    return autofill;
+  };
+
   const normalizeResultItem = (value, index, prefix) => {
     const objectValue = ensureObject(value, "Result item must be an object");
     const variantNumber = clampInt(objectValue.variantNumber || index + 1, 1, 50, index + 1);
@@ -205,6 +259,8 @@
 
     const objectValue = ensureObject(data, "createAnalyze must return an object response");
     const insight = normalizeInsight(objectValue.insight || objectValue.productInsight || null);
+    const subjectOnScreen = normalizeCreateAnalyzeSubject(objectValue.subjectOnScreen);
+    const autofill = normalizeCreateAnalyzeAutofill(objectValue.autofill);
     const prompt = toText(objectValue.prompt || objectValue.generatedPrompt);
     const detectedCategory = toText(objectValue.detectedCategory || insight?.category || "");
     const headlineIdeas = Array.isArray(objectValue.headlineIdeas)
@@ -218,6 +274,8 @@
     return {
       detectedCategory,
       insight,
+      subjectOnScreen,
+      autofill,
       prompt,
       headlineIdeas,
     };
@@ -770,11 +828,21 @@
 
     const writeEntries = (scopeId, entries) => {
       const normalized = sortEntries(Array.isArray(entries) ? entries : []).slice(0, config.historyMaxItems);
-      const savedToStorage = writeToLocalStorage(scopeId, normalized);
+      let persistedEntries = normalized.slice();
+      let savedToStorage = writeToLocalStorage(scopeId, persistedEntries);
+
+      while (!savedToStorage && persistedEntries.length > 1) {
+        persistedEntries = persistedEntries.slice(0, persistedEntries.length - 1);
+        savedToStorage = writeToLocalStorage(scopeId, persistedEntries);
+      }
+
       if (!savedToStorage) {
         inMemoryMap.set(scopeId, normalized);
+        return normalized;
       }
-      return normalized;
+
+      inMemoryMap.set(scopeId, persistedEntries);
+      return persistedEntries;
     };
 
     return Object.freeze({

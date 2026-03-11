@@ -1,5 +1,6 @@
 "use strict";
 
+
 const { HttpClientError, requestJson } = require("../http-client");
 const { toText, extractJsonObject, clamp } = require("../utils");
 
@@ -42,6 +43,225 @@ const extractMessageText = (response) => {
   }
 
   return "";
+};
+
+const normalizeCreateAnalyzeCharacteristicsV2 = (value) => {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((item, index) => ({
+      label: toText(item?.label),
+      value: toText(item?.value),
+      order: clamp(item?.order, 1, 12, index + 1),
+    }))
+    .filter((item) => item.label || item.value)
+    .slice(0, 8);
+};
+
+const normalizeCreateAnalyzeAutofillV2 = (value) => {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const benefits = Array.isArray(source?.benefits)
+    ? source.benefits.map((item) => toText(item)).filter(Boolean).slice(0, 6)
+    : [];
+
+  return {
+    title: toText(source?.title),
+    shortDescription: toText(source?.shortDescription),
+    subtitle: toText(source?.subtitle),
+    characteristics: normalizeCreateAnalyzeCharacteristicsV2(source?.characteristics),
+    benefits,
+  };
+};
+
+const normalizeCreateAnalyzeSubjectV2 = (value) => {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    summary: toText(source?.summary),
+    productType: toText(source?.productType),
+    productIdentity: toText(source?.productIdentity),
+    visualEvidence: toText(source?.visualEvidence),
+    referenceRelation: toText(source?.referenceRelation),
+  };
+};
+
+const formatCreateAnalyzeCharacteristicsV2 = (payload) => {
+  const items = Array.isArray(payload?.characteristics) ? payload.characteristics : [];
+  const normalizedItems = items
+    .map((item) => ({
+      label: toText(item?.label),
+      value: toText(item?.value),
+    }))
+    .filter((item) => item.label || item.value)
+    .slice(0, 8);
+
+  if (!normalizedItems.length) return "(нет)";
+  return normalizedItems
+    .map((item, index) => {
+      const suffix = item.value ? ": " + item.value : "";
+      return String(index + 1) + ". " + (item.label || "Характеристика") + suffix;
+    })
+    .join("\n");
+};
+
+const formatCreateAnalyzeReferenceV2 = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  if (!reference || typeof reference !== "object") return "(нет)";
+
+  const tags = Array.isArray(reference.tags)
+    ? reference.tags.map((item) => toText(item)).filter(Boolean).slice(0, 8)
+    : [];
+
+  return [
+    "- title: " + (toText(reference.title) || "(нет)"),
+    "- description: " + (toText(reference.description) || "(нет)"),
+    "- group: " + (toText(reference.tab) || "(нет)"),
+    "- kind: " + (toText(reference.kind) || "(нет)"),
+    "- sourceLabel: " + (toText(reference.sourceLabel) || "(нет)"),
+    "- sourceUrl: " + (toText(reference.sourceUrl) || "(нет)"),
+    "- tags: " + (tags.length ? tags.join(", ") : "(нет)"),
+  ].join("\n");
+};
+
+const formatCreateTemplateInstructionTextV2 = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  const instructionPrompt = toText(reference?.instructionPrompt);
+  if (!instructionPrompt) return "";
+
+  const userText = toText(payload?.userText) || "(пусто)";
+  return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
+};
+
+const formatCreateAnalyzeSettingsV2 = (payload) => {
+  const settings = payload?.settings || {};
+  const lines = [
+    ["accentColor", toText(settings.accentColorLabel || settings.accentColor)],
+    ["referenceStrength", toText(settings.referenceStrengthLabel || settings.referenceStrength)],
+    ["visualStyle", toText(settings.visualStyleLabel || settings.visualStyle)],
+    ["infoDensity", toText(settings.infoDensityLabel || settings.infoDensity)],
+    ["readabilityPriority", toText(settings.readabilityPriorityLabel || settings.readabilityPriority)],
+    ["conversionPriority", toText(settings.conversionPriorityLabel || settings.conversionPriority)],
+    ["accentFormat", toText(settings.accentFormatLabel || settings.accentFormat)],
+    ["backgroundMode", toText(settings.backgroundModeLabel || settings.backgroundMode)],
+    ["preserveReferenceLayout", settings.preserveReferenceLayout ? "да" : "нет"],
+  ].filter((entry) => toText(entry[1]));
+
+  if (!lines.length) return "(нет)";
+  return lines.map((entry) => "- " + entry[0] + ": " + entry[1]).join("\n");
+};
+
+const buildCreateAnalyzeUserTextV2 = (payload) => {
+  const description = toText(payload?.description) || "(пусто)";
+  const highlights = toText(payload?.highlights) || "(пусто)";
+  const marketplace = toText(payload?.marketplace) || "не указан";
+  const cardsCount = clamp(payload?.cardsCount, 1, 5, 1);
+  const promptMode = toText(payload?.promptMode) || "ai";
+  const customPrompt = toText(payload?.prompt) || toText(payload?.customPrompt) || "";
+  const title = toText(payload?.title) || "(пусто)";
+  const shortDescription = toText(payload?.shortDescription || payload?.subtitle) || "(пусто)";
+  const userText = toText(payload?.userText) || "(пусто)";
+  const categoryHint = toText(payload?.productCategory || payload?.insight?.category) || "(нет)";
+  const referenceAttached = Boolean(toText(payload?.referencePreviewUrl));
+  const templateInstructionText = formatCreateTemplateInstructionTextV2(payload);
+
+  return [
+    "Задача: проанализировать товар на загруженных фото, понять кто или что изображено, учесть выбранный визуальный референс и подготовить структурированные данные для заполнения карточки товара.",
+    "Анализируй входы в таком порядке: 1) фото товара 2) изображение референса 3) структурированные поля формы 4) характеристики и настройки.",
+    "Фото товара — главный источник правды. Нельзя подменять товар другим объектом или выдумывать иную сущность.",
+    "Если референс приложен, используй его как источник композиции, плотности, иерархии и визуального ритма, но не путай референс с самим товаром.",
+    "Верни только валидный JSON со следующими полями:",
+    "{",
+    '  "detectedCategory": string,',
+    '  "subjectOnScreen": { "summary": string, "productType": string, "productIdentity": string, "visualEvidence": string, "referenceRelation": string },',
+    '  "insight": { "category": string, "recommendedStyle": string, "conversionAccent": string, "conversionAngle": string, "marketplaceFormat": string },',
+    '  "headlineIdeas": string[],',
+    '  "autofill": { "title": string, "shortDescription": string, "subtitle": string, "characteristics": [{ "label": string, "value": string, "order": number }], "benefits": string[] },',
+    '  "prompt": string',
+    "}",
+    "Требования:",
+    "- все строковые поля должны быть только на русском языке",
+    "- subjectOnScreen.summary должен кратко и ясно объяснять, что именно на фото товара",
+    "- productIdentity должен быть конкретным и не generic, если это можно понять по фото и контексту",
+    "- visualEvidence должен опираться только на реально видимые признаки товара",
+    "- referenceRelation должен объяснять, как адаптировать стиль референса под этот товар",
+    "- category должна быть конкретной для карточки маркетплейса",
+    "- autofill.title должен быть коротким, коммерчески понятным названием товара, а не названием шаблона",
+    "- autofill.shortDescription должен быть кратким описанием самого товара, его особенностей, материала, назначения или пользы для покупателя",
+    "- autofill.title, autofill.shortDescription и autofill.subtitle не должны описывать дизайн карточки, стиль, макет, marketplace, CTA или бейджи",
+    "- если в autofill.shortDescription или autofill.subtitle появляются слова вроде карточка, маркетплейс, макет, CTA, бейдж, шаблон или референс, это считается ошибкой: перепиши текст как описание товара и его особенностей",
+    "- autofill.characteristics должны включать только поддерживаемые фото или контекстом параметры; не выдумывай характеристики",
+    "- headlineIdeas должны содержать 3-5 коротких вариантов в логике товара, а не шаблона",
+    "- marketplaceFormat должен соответствовать особенностям маркетплейса",
+    "- prompt должен быть готов для production-генерации карточки и учитывать товар, референс и structured inputs",
+    "",
+    "Структурированные данные формы:",
+    "- title: " + title,
+    "- shortDescription: " + shortDescription,
+    "- description: " + description,
+    "- highlights: " + highlights,
+    "- marketplace: " + marketplace,
+    "- cardsCount: " + String(cardsCount),
+    "- promptMode: " + promptMode,
+    "- customPrompt: " + (customPrompt || "(нет)"),
+    "- userText: " + userText,
+    "- productCategoryHint: " + categoryHint,
+    "",
+    "Характеристики:",
+    formatCreateAnalyzeCharacteristicsV2(payload),
+    "",
+    "Референс:",
+    referenceAttached ? "- referenceImageAttached: да" : "- referenceImageAttached: нет",
+    formatCreateAnalyzeReferenceV2(payload),
+    ...(templateInstructionText ? ["", "Template preset instructions:", templateInstructionText] : []),
+    "",
+    "Настройки:",
+    formatCreateAnalyzeSettingsV2(payload),
+  ].join("\n");
+};
+
+const normalizeCreateAnalyzeResultV2 = (parsed, payload) => {
+  const fallbackCategory = "Товар для маркетплейса";
+  const detectedCategory = toText(parsed?.detectedCategory || parsed?.insight?.category) || fallbackCategory;
+
+  const insight = {
+    category: toText(parsed?.insight?.category) || detectedCategory,
+    recommendedStyle:
+      toText(parsed?.insight?.recommendedStyle) || "Чистая иерархия, один сильный блок ценности, читаемая мобильная типографика",
+    conversionAccent:
+      toText(parsed?.insight?.conversionAccent) || "Подсветить главную выгоду и ясный CTA в первом экране",
+    conversionAngle:
+      toText(parsed?.insight?.conversionAngle)
+      || toText(parsed?.insight?.conversionAccent)
+      || "Подсветить главную выгоду и ясный CTA в первом экране",
+    marketplaceFormat:
+      toText(parsed?.insight?.marketplaceFormat) || "Первый экран + преимущества + CTA с безопасной читаемостью для маркетплейса",
+  };
+
+  const headlineIdeas = Array.isArray(parsed?.headlineIdeas)
+    ? parsed.headlineIdeas.map((item) => toText(item)).filter(Boolean).slice(0, 5)
+    : [];
+  const subjectOnScreen = normalizeCreateAnalyzeSubjectV2(parsed?.subjectOnScreen);
+  const autofill = normalizeCreateAnalyzeAutofillV2(parsed?.autofill);
+
+  const prompt = toText(parsed?.prompt) || [
+    "Создай готовую карточку товара для маркетплейса.",
+    "Категория: " + insight.category + ".",
+    "Стиль: " + insight.recommendedStyle + ".",
+    "Конверсионный акцент: " + insight.conversionAccent + ".",
+    "Формат: " + insight.marketplaceFormat + ".",
+    "Описание товара: " + (toText(payload?.description) || "(не указано)") + ".",
+    "Акценты: " + (toText(payload?.highlights) || "(не указаны)") + ".",
+    subjectOnScreen.summary ? "Что на фото: " + subjectOnScreen.summary + "." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    detectedCategory,
+    subjectOnScreen,
+    insight,
+    headlineIdeas,
+    autofill,
+    prompt,
+  };
 };
 
 const buildCreateAnalyzeUserText = (payload) => {
@@ -282,6 +502,55 @@ const createOpenAIProvider = (config) => {
   };
 
   const createAnalyze = async (payload) => {
+    {
+      const messages = [
+        {
+          role: "system",
+          content:
+            "Ты AI-ассистент для продавцов маркетплейсов. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
+        },
+      ];
+
+      const userContent = [
+        {
+          type: "text",
+          text: buildCreateAnalyzeUserTextV2(payload),
+        },
+      ];
+
+      const imageDataUrls = Array.isArray(payload?.imageDataUrls)
+        ? payload.imageDataUrls.filter((value) => toText(value))
+        : [];
+      for (const imageUrl of imageDataUrls.slice(0, 3)) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: "low",
+          },
+        });
+      }
+
+      const referencePreviewUrl = toText(payload?.referencePreviewUrl);
+      if (referencePreviewUrl) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: referencePreviewUrl,
+            detail: "low",
+          },
+        });
+      }
+
+      messages.push({
+        role: "user",
+        content: userContent,
+      });
+
+      const parsed = await callChatJson(messages);
+      return normalizeCreateAnalyzeResultV2(parsed, payload);
+    }
+
     const messages = [
       {
         role: "system",

@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 const { toText } = require("../utils");
 
@@ -44,6 +44,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight: safeResult.insight || null,
       prompt: "",
       headlineIdeas,
+      subjectOnScreen: safeResult.subjectOnScreen || null,
+      autofill: safeResult.autofill || null,
     };
   }
 
@@ -53,6 +55,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight: safeResult.insight || null,
       prompt: "",
       headlineIdeas,
+      subjectOnScreen: safeResult.subjectOnScreen || null,
+      autofill: safeResult.autofill || null,
     };
   }
 
@@ -62,6 +66,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight: safeResult.insight || null,
       prompt: toText(safeResult.prompt),
       headlineIdeas,
+      subjectOnScreen: safeResult.subjectOnScreen || null,
+      autofill: safeResult.autofill || null,
     };
   }
 
@@ -70,6 +76,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
     insight: safeResult.insight || null,
     prompt: toText(safeResult.prompt),
     headlineIdeas,
+    subjectOnScreen: safeResult.subjectOnScreen || null,
+    autofill: safeResult.autofill || null,
   };
 };
 

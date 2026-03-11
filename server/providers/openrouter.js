@@ -124,6 +124,219 @@ const buildImageMessageContent = (text, imageUrls) => {
   return content;
 };
 
+const CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 = [
+  "You are a senior marketplace product card art director, conversion-focused visual designer, and product image generation system.",
+  "Analyze inputs in this order: uploaded product images first, selected reference image second, structured flow inputs third, characteristics and offer logic fourth.",
+  "Preserve the real product identity. Do not redesign the product into something else. Keep recognizability, proportions, silhouette, materials, palette, and key functional parts.",
+  "Follow the reference in composition logic, hierarchy, spacing, density, badge placement, background treatment, and premium feel, but do not copy it literally.",
+  "Create a premium, clean, readable, conversion-oriented marketplace card where the product is the hero.",
+  "Convert raw features into short consumer-facing value statements whenever appropriate.",
+  "Protect readability, spacing, safe padding, and visual hierarchy. Remove low-priority content before sacrificing clarity.",
+  "Do not overload the card with too many badges or text blocks. Do not cover important product parts. Do not add random decoration that weakens conversion.",
+  "Priority order: 1) product recognizability 2) readability 3) conversion logic 4) similarity to reference style 5) visual polish.",
+  "All visible text on the final card must be in Russian.",
+  "All JSON string values returned for planning must be in Russian.",
+].join("\n");
+
+const formatBooleanInstructionV2 = (value) => (value ? "yes" : "no");
+
+const formatCreateCharacteristicsTextV2 = (payload) => {
+  const items = Array.isArray(payload?.characteristics) ? payload.characteristics : [];
+  const normalizedItems = items
+    .map((item) => ({
+      label: toText(item?.label),
+      value: toText(item?.value),
+    }))
+    .filter((item) => item.label || item.value);
+
+  if (!normalizedItems.length) return "(none)";
+  return normalizedItems
+    .map((item, index) => {
+      const value = item.value ? ": " + item.value : "";
+      return String(index + 1) + ". " + (item.label || "Characteristic") + value;
+    })
+    .join("\n");
+};
+
+const formatCreateSettingsTextV2 = (payload) => {
+  const settings = payload?.settings || {};
+  const lines = [
+    ["accentColor", toText(settings.accentColorLabel || settings.accentColor)],
+    ["referenceStrength", toText(settings.referenceStrengthLabel || settings.referenceStrength)],
+    ["visualStyle", toText(settings.visualStyleLabel || settings.visualStyle)],
+    ["infoDensity", toText(settings.infoDensityLabel || settings.infoDensity)],
+    ["readabilityPriority", toText(settings.readabilityPriorityLabel || settings.readabilityPriority)],
+    ["conversionPriority", toText(settings.conversionPriorityLabel || settings.conversionPriority)],
+    ["accentFormat", toText(settings.accentFormatLabel || settings.accentFormat)],
+    ["backgroundMode", toText(settings.backgroundModeLabel || settings.backgroundMode)],
+    ["preserveReferenceLayout", formatBooleanInstructionV2(Boolean(settings.preserveReferenceLayout))],
+  ].filter((entry) => toText(entry[1]));
+
+  if (!lines.length) return "(none)";
+  return lines.map((entry) => "- " + entry[0] + ": " + entry[1]).join("\n");
+};
+
+const formatCreateReferenceTextV2 = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  if (!reference) return "(none)";
+
+  const tags = Array.isArray(reference.tags)
+    ? reference.tags.map((item) => toText(item)).filter(Boolean).slice(0, 8)
+    : [];
+
+  return [
+    "- referenceTitle: " + (toText(reference.title) || "(none)"),
+    "- referenceDescription: " + (toText(reference.description) || "(none)"),
+    "- referenceGroup: " + (toText(reference.tab) || "(none)"),
+    "- referenceTags: " + (tags.length ? tags.join(", ") : "(none)"),
+  ].join("\n");
+};
+
+const formatCreateTemplateInstructionTextV2 = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  const instructionPrompt = toText(reference?.instructionPrompt);
+  if (!instructionPrompt) return "";
+
+  const userText = toText(payload?.userText) || "(none)";
+  return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
+};
+
+const resolveCreatePreviewCandidatesV2 = (payload) => {
+  return [
+    ...(Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls : []),
+    ...(Array.isArray(payload?.imagePreviewUrls) ? payload.imagePreviewUrls : []),
+    toText(payload?.referencePreviewUrl),
+  ]
+    .map((item) => toText(item))
+    .filter(Boolean);
+};
+
+const buildCreateGenerateUserTextV2 = (payload) => {
+  const title = toText(payload?.title) || "(none)";
+  const subtitle = toText(payload?.subtitle || payload?.shortDescription) || "(none)";
+  const description = toText(payload?.description) || "(none)";
+  const highlights = toText(payload?.highlights) || "(none)";
+  const marketplace = toText(payload?.marketplace) || "(none)";
+  const cardsCount = clamp(payload?.cardsCount, 1, 5, 1);
+  const prompt = toText(payload?.prompt) || "(none)";
+  const userText = toText(payload?.userText) || "(none)";
+  const category = toText(payload?.productCategory || payload?.insight?.category) || "(none)";
+  const style = toText(payload?.insight?.recommendedStyle) || "(none)";
+  const accent = toText(payload?.insight?.conversionAccent) || "(none)";
+  const format = toText(payload?.insight?.marketplaceFormat) || "(none)";
+  const cardGoal = toText(payload?.cardGoal) || "Marketplace-ready conversion cover";
+  const generationMode = toText(payload?.generationMode) || "(none)";
+  const densityMode = toText(payload?.densityMode) || "(none)";
+  const userNotes = toText(payload?.userNotes) || "(none)";
+  const referenceAttached = Boolean(toText(payload?.referencePreviewUrl));
+  const templateInstructionText = formatCreateTemplateInstructionTextV2(payload);
+
+  return [
+    "Plan high-converting marketplace product card variants for the provided product.",
+    "Return strict JSON only with this structure:",
+    "{",
+    '  "variants": [',
+    '    { "title": string, "style": string, "focus": string, "format": string, "changes": string }',
+    "  ]",
+    "}",
+    "Planner rules:",
+    "- all returned string values must be in Russian",
+    "- variants length must be at least the requested count",
+    "- use the attached product images as the primary source of truth",
+    referenceAttached
+      ? "- the selected reference image is attached after the product images and must be used as a secondary style and layout guide"
+      : "- no visual reference image is attached; rely on the reference metadata only",
+    "- plan for premium, clean, readable, commercially strong marketplace cards",
+    "- keep copy concise and suitable for on-card placement",
+    "- convert dry features into consumer-facing value statements whenever appropriate",
+    "- subtitle and shortDescription describe the product itself and its features, not the card layout or marketplace formatting",
+    "- no markdown",
+    "",
+    "Structured flow inputs:",
+    "- title: " + title,
+    "- subtitle: " + subtitle,
+    "- marketplace: " + marketplace,
+    "- cardGoal: " + cardGoal,
+    "- generationMode: " + generationMode,
+    "- densityMode: " + densityMode,
+    "- cardsCount: " + String(cardsCount),
+    "- productCategory: " + category,
+    "- userText: " + userText,
+    "- description: " + description,
+    "- highlights: " + highlights,
+    "- userNotes: " + userNotes,
+    "- additionalPromptModifiers: " + prompt,
+    "- insight.recommendedStyle: " + style,
+    "- insight.conversionAccent: " + accent,
+    "- insight.marketplaceFormat: " + format,
+    "",
+    "Reference metadata:",
+    formatCreateReferenceTextV2(payload),
+    ...(templateInstructionText ? ["", "Selected template preset instructions:", templateInstructionText] : []),
+    "",
+    "Settings:",
+    formatCreateSettingsTextV2(payload),
+    "",
+    "Characteristics / benefits:",
+    formatCreateCharacteristicsTextV2(payload),
+  ].join("\n");
+};
+
+const buildCreateVariantImagePromptV2 = (payload, variant, variantNumber) => {
+  const marketplace = toText(payload?.marketplace) || "маркетплейс";
+  const title = toText(payload?.title) || toText(payload?.description) || "товар";
+  const subtitle = toText(payload?.subtitle || payload?.shortDescription) || "";
+  const userText = toText(payload?.userText) || "(none)";
+  const description = toText(payload?.description) || "товар";
+  const highlights = toText(payload?.highlights) || "";
+  const prompt = toText(payload?.prompt) || "";
+  const style = toText(variant?.style) || toText(payload?.insight?.recommendedStyle) || "чистая композиция под маркетплейс";
+  const focus = toText(variant?.focus) || toText(payload?.insight?.conversionAccent) || "ясная ценность товара";
+  const format = toText(variant?.format) || toText(payload?.insight?.marketplaceFormat) || "первый экран с преимуществами и CTA";
+  const changes = toText(variant?.changes) || "новая композиция карточки";
+  const referenceAttached = Boolean(toText(payload?.referencePreviewUrl));
+  const templateInstructionText = formatCreateTemplateInstructionTextV2(payload);
+
+  return [
+    "Create one final polished marketplace product card image.",
+    "Analyze the attached inputs in this order:",
+    "1. Uploaded product images come first and define the real product identity.",
+    referenceAttached
+      ? "2. The selected reference image comes after the product images and defines style, layout rhythm, density, spacing, and premium feel."
+      : "2. No visual reference image is attached, so use only the provided reference metadata.",
+    "3. Then use the structured flow inputs and planned variant direction below.",
+    "Return one image only.",
+    "",
+    "Structured flow inputs:",
+    "- marketplace: " + marketplace,
+    "- title: " + title,
+    "- subtitle: " + (subtitle || "(none)"),
+    "- subtitle describes the product itself, not the card layout",
+    "- userText: " + userText,
+    "- description: " + description,
+    "- highlights: " + (highlights || "(none)"),
+    "- prompt modifiers: " + (prompt || "(none)"),
+    "",
+    "Reference metadata:",
+    formatCreateReferenceTextV2(payload),
+    ...(templateInstructionText ? ["", "Selected template preset instructions:", templateInstructionText] : []),
+    "",
+    "Settings:",
+    formatCreateSettingsTextV2(payload),
+    "",
+    "Characteristics / benefits:",
+    formatCreateCharacteristicsTextV2(payload),
+    "",
+    "Planned variant direction:",
+    "- variantNumber: " + String(variantNumber),
+    "- plannedTitle: " + (toText(variant?.title) || "Вариант " + String(variantNumber)),
+    "- plannedStyle: " + style,
+    "- plannedFocus: " + focus,
+    "- plannedFormat: " + format,
+    "- plannedChanges: " + changes,
+  ].join("\n");
+};
+
 const buildCreateGenerateUserText = (payload) => {
   const description = toText(payload?.description) || "(пусто)";
   const highlights = toText(payload?.highlights) || "(пусто)";
@@ -419,18 +632,20 @@ const createOpenRouterProvider = (config) => {
     const payload = params?.payload || {};
     const variant = params?.variant || {};
     const variantNumber = clamp(params?.variantNumber, 1, 5, 1);
-    const inputImages = resolvePreviewCandidates(payload, mode);
+    const inputImages = mode === "create"
+      ? resolveCreatePreviewCandidatesV2(payload)
+      : resolvePreviewCandidates(payload, mode);
 
     const userPrompt = mode === "improve"
       ? buildImproveVariantImagePrompt(payload, variant, variantNumber)
-      : buildCreateVariantImagePrompt(payload, variant, variantNumber);
+      : buildCreateVariantImagePromptV2(payload, variant, variantNumber);
 
     const responseImages = await callImageGeneration([
       {
         role: "system",
         content: mode === "improve"
           ? "Ты AI-редактор изображений для карточек маркетплейсов. Верни новое улучшенное изображение, а не исходник. Весь видимый текст должен быть на русском языке."
-          : "Ты AI-генератор изображений для карточек товаров маркетплейсов. Верни новую сгенерированную карточку. Весь видимый текст должен быть на русском языке.",
+          : CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2,
       },
       {
         role: "user",
@@ -446,11 +661,11 @@ const createOpenRouterProvider = (config) => {
     const parsed = await callChatJson([
       {
         role: "system",
-        content: "Ты planner генерации карточек товаров для маркетплейсов. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
+        content: CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 + "\nReturn only strict JSON with the requested planning structure.",
       },
       {
         role: "user",
-        content: buildCreateGenerateUserText(payload),
+        content: buildImageMessageContent(buildCreateGenerateUserTextV2(payload), resolveCreatePreviewCandidatesV2(payload)),
       },
     ]);
 

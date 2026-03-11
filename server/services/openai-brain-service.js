@@ -52,6 +52,12 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       || toText(safeResult?.insight?.conversionAccent),
     headlineIdeas,
   };
+  const subjectOnScreen = safeResult.subjectOnScreen && typeof safeResult.subjectOnScreen === "object"
+    ? safeResult.subjectOnScreen
+    : null;
+  const autofill = safeResult.autofill && typeof safeResult.autofill === "object"
+    ? safeResult.autofill
+    : null;
 
   if (normalizedIntent === "category") {
     return {
@@ -59,6 +65,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight,
       prompt: "",
       headlineIdeas,
+      subjectOnScreen,
+      autofill,
     };
   }
 
@@ -68,6 +76,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight,
       prompt: "",
       headlineIdeas,
+      subjectOnScreen,
+      autofill,
     };
   }
 
@@ -77,6 +87,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       insight,
       prompt: toText(safeResult.prompt),
       headlineIdeas,
+      subjectOnScreen,
+      autofill,
     };
   }
 
@@ -85,6 +97,8 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
     insight,
     prompt: toText(safeResult.prompt),
     headlineIdeas,
+    subjectOnScreen,
+    autofill,
   };
 };
 

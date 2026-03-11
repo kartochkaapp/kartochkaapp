@@ -69,9 +69,23 @@
   const createSourcePreviewImage = document.getElementById("createSourcePreviewImage");
   const createSourcePreviewEmpty = document.getElementById("createSourcePreviewEmpty");
   const createEditImageBtn = document.getElementById("createEditImageBtn");
+  const createImageManagerModal = document.getElementById("createImageManagerModal");
+  const createImageManagerClose = document.getElementById("createImageManagerClose");
+  const createImageManagerAddBtn = document.getElementById("createImageManagerAddBtn");
+  const createImageManagerCounter = document.getElementById("createImageManagerCounter");
   const createTemplateSearchInput = document.getElementById("createTemplateSearchInput");
   const createTemplateTabButtons = Array.from(document.querySelectorAll("[data-create-template-tab]"));
   const createTemplateGrid = document.getElementById("createTemplateGrid");
+  const createReferenceLibraryBtn = document.getElementById("createReferenceLibraryBtn");
+  const createReferenceModal = document.getElementById("createReferenceModal");
+  const createReferenceModalClose = document.getElementById("createReferenceModalClose");
+  const createSelectedTemplateCard = document.getElementById("createSelectedTemplateCard");
+  const createSelectedTemplateThumbImage = document.getElementById("createSelectedTemplateThumbImage");
+  const createSelectedTemplateThumbPlaceholder = document.getElementById("createSelectedTemplateThumbPlaceholder");
+  const createSelectedTemplateTitle = document.getElementById("createSelectedTemplateTitle");
+  const createSelectedTemplateDescription = document.getElementById("createSelectedTemplateDescription");
+  const createSelectedTemplateMeta = document.getElementById("createSelectedTemplateMeta");
+  const createSelectedTemplateTags = document.getElementById("createSelectedTemplateTags");
   const createProductTitle = document.getElementById("createProductTitle");
   const createProductShortDescription = document.getElementById("createProductShortDescription");
   const createAutofillBtn = document.getElementById("createAutofillBtn");
@@ -95,7 +109,6 @@
   const createSettingAccentFormat = document.getElementById("createSettingAccentFormat");
   const createSettingBackgroundMode = document.getElementById("createSettingBackgroundMode");
   const createSettingPreserveLayout = document.getElementById("createSettingPreserveLayout");
-  const createSettingAutoMarketplace = document.getElementById("createSettingAutoMarketplace");
 
   const improveImageInput = document.getElementById("improveImageInput");
   const improvePrimaryUploadZone = document.getElementById("improvePrimaryUploadZone");
@@ -161,6 +174,8 @@
   const APP_MODES = ["create", "improve", "animate", "history"];
   const HISTORY_MAX_ITEMS = 30;
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
+  const HISTORY_IMAGE_MAX_DIMENSION = 960;
+  const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
   const CREATE_UPLOAD_MAX_FILES = 5;
   const CREATE_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
   const CREATE_ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -194,6 +209,233 @@
     "./assets/examples/example-home.png",
     "./assets/examples/example-beauty.png",
   ];
+  const CREATE_TEMPLATE_PROMPT_PRESETS = Object.freeze({
+    marketplaceHero: `
+Сгенерируй продающую обложку карточки товара в стиле маркетплейса: товар очень крупно + универсальный светлый фон + акцентные графические элементы + 2–3 текстовые зоны (верх слева, круглый бейдж верх справа, плашка низ справа).
+
+Формат:
+- Вертикальное 3:4, высокое качество.
+- Товар максимально резкий, фон слегка мягкий.
+
+Товар:
+- Масштаб товара: 85–95% высоты кадра.
+- Положение: центр или слегка правее.
+- Под товаром: реалистичная мягкая тень контакта + лёгкая студийная подложка-овал (подиум), чтобы предмет стоял в кадре.
+
+Универсальный фон:
+- Светлый нейтральный градиент.
+- Лёгкий бумажный микрошум 2–4%.
+- 3–5 абстрактных форм с мягким контрастом.
+- Мягкое свечение позади товара.
+- Один дополнительный акцентный цвет в элементах фона.
+
+Текст:
+- Возьми текст строго как {USER_TEXT} и используй пустые строки как разделители блоков.
+- Раздели {USER_TEXT} на 3 блока по пустой строке.
+
+Верстка текста:
+- Блок 1 (верх слева): очень крупный заголовок в 1–3 строки, жирный современный гротеск.
+- Блок 2 (верх справа): круглый белый бейдж с тёмным текстом.
+- Блок 3 (низ справа): большая прямоугольная плашка с мягким градиентом и скруглением.
+- Внутри Блока 3 сделай визуальную иерархию: короткую или числовую строку крупнее остальных.
+
+Дополнительные визуальные акценты:
+- 2–4 минималистичные иконки рядом с нижней плашкой или под ней.
+- 1 декор-стикер без текста.
+- 1–2 тонкие линии или стрелки без подписи.
+- Одинаковая толщина линий, единая палитра, единый стиль иконок.
+
+Итог:
+- Карточка должна выглядеть маркетплейсно: товар главный и очень крупный, фон универсальный, текст читается с первого взгляда.
+    `.trim(),
+    liquidGlass: `
+[GOAL]
+Создать фотореалистичную вертикальную карточку товара (3:4). Эстетика: Apple Keynote, Liquid Glass, Premium UI.
+
+[INPUTS]
+- Исходное фото товара (reference).
+- Текст: {USER_TEXT}
+
+[BLOCK A: ТОВАР]
+Товар остается на 100% неизменным. Масштаб — не менее 60% площади кадра. Допустим bleeding edge и частичный кроп.
+
+[BLOCK B: ФОН]
+Абстрактные, текучие 3D-волны из полупрозрачного матового стекла и акрила, студийный свет, smooth gradients, мягкое свечение и красивое боке.
+
+[BLOCK C: ТЕКСТ И UI]
+Выводить только {USER_TEXT} дословно. Текст располагается на полупрозрачной интерфейсной панели с тонким светящимся краем. Выключка строго по левому краю.
+- Заголовок: Mirador, очень крупный, белый.
+- Остальные строки: Amoret, заметно мельче, полупрозрачные.
+
+[BLOCK D: СПИСКИ]
+Если в {USER_TEXT} есть ; — удали символ, сделай перенос строки. Маркеры: тонкие светящиеся микро-точки или короткие линии.
+
+[BLOCK E: ОГРАНИЧЕНИЯ]
+Не менять сам товар. Никаких текстур дерева, бетона, пластика или грязи — только премиальное стекло и интерфейсный минимализм.
+    `.trim(),
+    cleanGirl: `
+Сгенерируй премиальную clean girl / aesthetic карточку товара для маркетплейса по референс-фото товара.
+
+Формат и качество:
+- Вертикальное 3:4, high-res, коммерческое качество.
+- Реалистичная продуктовая фотография, мягкий студийный свет, естественная контактная тень.
+- Товар сохранить максимально похожим на фото.
+
+Композиция:
+- Товар 80–90% высоты кадра, расположен слева.
+- Справа оставить 30–40% воздуха под текст и инфографику.
+- Допустим лёгкий кроп товара на 2–6% за левый или нижний край.
+- Запрещено: подиум, платформа, постамент, подложка-овал и любые подставки.
+
+Фон:
+- Один спокойный пастельный двухцветный градиент.
+- Лёгкий световой haze за товаром.
+- Едва заметная бумажная фактура + микрошум 1–2%.
+- Максимум 1–2 очень мягкие размытые формы.
+
+Типографика:
+- Один шрифт: Inter.
+- Только Inter Bold 700 и Inter Medium 500.
+- Без эффектов текста.
+
+Текст:
+- Очисти входной текст от повторяющейся пунктуации и двойных пробелов.
+- Раздели текст на 3 блока по пустой строке.
+
+Инфографика:
+- Добавь 3–6 инфо-элементов.
+- Иконки только outline, одинаковая толщина линии 2px.
+- Тематика иконок строго по товару.
+
+Итог:
+- Чисто, премиально, консистентно.
+- Товар очень крупный слева, справа воздух под текст.
+- Один шрифт, один акцентный цвет, фактурные мазки и аккуратная инфографика без визуального шума.
+    `.trim(),
+    stoneLuxury: `
+[GOAL]
+Создать фотореалистичную вертикальную карточку товара 3:4 на основе reference-фото.
+Стиль: elemental luxury / organic minimalism (weathered stone + cool concrete), чисто и дорого.
+
+[INPUTS]
+1) Исходное фото товара (reference).
+2) Текст: {USER_TEXT}
+
+[BLOCK A — ТОВАР]
+- Товар 100% неизменен.
+- Масштаб: не менее 60% площади кадра.
+- Допустим bleeding edge и частичный кроп.
+- Товар стоит на крупном фактурном выветренном сером камне.
+
+[BLOCK B — ОКРУЖЕНИЕ]
+- Weathered grey stone.
+- Smooth cool gray concrete walls.
+- Нейтральные серые, белые и каменные тона.
+
+[BLOCK C — СВЕТ]
+- Мягкий рассеянный естественный свет.
+- Товар и камень — максимально резкие; фон — слегка размыт.
+
+[BLOCK D — ТЕКСТ]
+- На изображении должен быть только текст {USER_TEXT}, строго дословно.
+- Размер: большой, читабельный на телефоне.
+- Выравнивание: строго по левому краю.
+- Первая строка: Telegraf, ExtraBold/Black.
+- Остальные строки: Montserrat, Regular/Medium.
+- 1–3 минимальных UI-акцента: hairline rule, outline circle или мягкая капсула.
+
+[BLOCK E — СПИСКИ]
+- Если в {USER_TEXT} есть ;, не печатай ;, вместо него сделай перенос строки.
+- Перед каждой строкой добавь тонкое кольцо или короткую вертикальную микро-линию.
+
+[OUTPUT]
+Один итоговый кадр 3:4: товар неизменен, стоит на фактурном сером камне, фон — прохладный бетон, сверху — крупная премиальная типографика с минималистичными UI-акцентами.
+    `.trim(),
+    barbieSwiss: `
+[GOAL]
+Сгенерируй фотореалистичную вертикальную карточку товара (3:4) на основе загруженного фото.
+Помести неизменный товар в детализированную кукольную диораму (Barbiecore) и добавь поверх стильную, массивную и графичную типографику в стиле Premium Editorial / Swiss Design.
+
+[INPUTS]
+- Исходное фото товара (reference).
+- Текст: {USER_TEXT}
+
+[BLOCK A — ТОВАР]
+- Товар остается на 100% как на оригинале.
+- Запрещено менять стиль самого товара.
+
+[BLOCK B — ОКРУЖЕНИЕ]
+- Премиальная Barbie-диорама.
+- Ярко выраженный эффект миниатюры.
+- Глянцевый пластик, прозрачный акрил, крошечная мебель.
+- На фоне или сбоку — фрагмент глянцевой пластиковой куклы, не перекрывая товар и текст.
+- Палитра: пудровый / насыщенный розовый + белые акценты.
+
+[BLOCK C — ОПТИКА]
+- Мягкий high-key свет.
+- Товар самый резкий.
+- Фон с легким tilt-shift.
+
+[BLOCK D — КОМПОЗИЦИЯ]
+- Товар слева или по центру слева.
+- Справа — чистое негативное пространство под текст.
+
+[BLOCK E — ТЕКСТ]
+- Выводить только {USER_TEXT} дословно.
+- Огромная типографика.
+- Заголовок экстра-жирный, описание значительно мельче.
+- Выключка строго по левому краю.
+- Графические элементы: hairline rules, микро-капсулы, круги или полупрозрачные плашки.
+- Никаких мультяшных стикеров в графике.
+
+[BLOCK F — СПИСКИ]
+- Если в {USER_TEXT} есть ;, удали символ и начни новый пункт с новой строки.
+- Маркеры: тонкое векторное кольцо, минималистичный плюсик или строгая вертикальная микро-линия.
+
+[OUTPUT]
+Один вертикальный кадр 3:4. Слева — неизменный товар в премиальной Barbie-диораме. Справа — гигантская, контрастная и стильная типографика с тонкой UI-графикой.
+    `.trim(),
+    frostedGlass: `
+[GOAL]
+Создать фотореалистичную вертикальную карточку товара (3:4). Эстетика: high-end skincare, macro realism, съемка сквозь влажное матовое стекло.
+
+[INPUTS]
+- Исходное фото товара (reference).
+- Текст: {USER_TEXT}
+
+[BLOCK A — ТОВАР]
+- Товар остается на 100% неизменным.
+- Масштаб: не менее 50% площади кадра, может выходить за границы кадра.
+- Товар бережно поддерживается снизу гиперреалистичной рукой.
+
+[BLOCK B — СРЕДА]
+- Сцена снимается сквозь матовое стекло, покрытое конденсатом.
+- Капли разного размера, вертикальные дорожки, следы протирания.
+- Фон: бесшовный студийный переход от белого к мягкому светло-серому.
+
+[BLOCK C — ОПТИКА И СВЕТ]
+- Straight-on macro close-up, 100 mm prime, f/8.
+- Товар и рука в фокусе, капли на стекле тоже резкие.
+- Холодный контровой свет создает halo glow вокруг товара.
+- Мягкий контурный свет справа отделяет руку от фона.
+
+[BLOCK D — ТЕКСТ]
+- Выводить только {USER_TEXT} дословно.
+- Шрифт: премиальный геометрический гротеск.
+- Заголовок — крупный и жирный, описание — тоньше и мельче.
+- Выключка строго по левому краю.
+- Цвет текста: графитовый, мягкий серый или белый.
+
+[BLOCK E — СПИСКИ]
+- Если в {USER_TEXT} есть ; — удали символ, сделай перенос строки.
+- Маркеры: минималистичные тонкие линии или микро-точки.
+
+[BLOCK F — ОГРАНИЧЕНИЯ]
+- Не менять сам товар.
+- Логотипы и текст на самом товаре должны читаться чисто сквозь капли.
+- Сохранять нейтральную, чистую палитру без грязи и лишних предметов.
+    `.trim(),
+  });
   const CREATE_TEMPLATE_LIBRARY = Object.freeze([
     {
       id: "tpl-ozon-clean",
@@ -243,6 +485,78 @@
       previewUrl: "./assets/examples/example-beauty.png",
       tags: ["референс", "косметика", "настроение", "визуальный ритм", "beauty"],
     },
+    {
+      id: "tpl-preset-marketplace-hero",
+      title: "Marketplace Hero",
+      description: "Крупный товар, светлый универсальный фон, бейджи, плашка и графические акценты в логике маркетплейса.",
+      tab: "marketplace",
+      previewUrl: "./assets/generated/accessories-card.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.marketplaceHero,
+      tags: ["preset", "marketplace", "hero", "badge", "graphic", "cover"],
+    },
+    {
+      id: "tpl-preset-liquid-glass",
+      title: "Liquid Glass UI",
+      description: "Apple Keynote / Liquid Glass эстетика с огромным товаром, стеклянной UI-плашкой и премиальной типографикой.",
+      tab: "clean",
+      previewUrl: "./assets/generated/beauty-sale.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.liquidGlass,
+      tags: ["preset", "liquid glass", "glassmorphism", "premium ui", "apple", "clean"],
+    },
+    {
+      id: "tpl-preset-clean-girl",
+      title: "Clean Girl Aesthetic",
+      description: "Пастельный фон, крупный товар слева, clean girl эстетика и аккуратная инфографика.",
+      tab: "clean",
+      previewUrl: "./assets/examples/example-beauty.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.cleanGirl,
+      tags: ["preset", "clean girl", "aesthetic", "pastel", "inter", "paint swash"],
+    },
+    {
+      id: "tpl-preset-stone-luxury",
+      title: "Stone Luxury",
+      description: "Elemental luxury с фактурным камнем, прохладным бетоном и крупной editorial-типографикой.",
+      tab: "reference",
+      previewUrl: "./assets/examples/example-home.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.stoneLuxury,
+      tags: ["preset", "stone", "concrete", "luxury", "editorial", "telegraf"],
+    },
+    {
+      id: "tpl-preset-barbie-swiss",
+      title: "Barbiecore Swiss",
+      description: "Премиальная Barbie-диорама слева и гигантская Swiss / editorial типографика справа.",
+      tab: "promo",
+      previewUrl: "./assets/generated/beauty-sale.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.barbieSwiss,
+      tags: ["preset", "barbiecore", "swiss", "editorial", "toy scale", "pink"],
+    },
+    {
+      id: "tpl-preset-frosted-glass",
+      title: "Frosted Glass Macro",
+      description: "High-end skincare эстетика: макро-съёмка сквозь влажное матовое стекло с конденсатом и рукой.",
+      tab: "clean",
+      previewUrl: "./assets/examples/example-tech.png",
+      sourceLabel: "KARTOCHKA",
+      kind: "preset",
+      usePreviewAsReference: false,
+      instructionPrompt: CREATE_TEMPLATE_PROMPT_PRESETS.frostedGlass,
+      tags: ["preset", "frosted glass", "skincare", "macro", "condensation", "studio"],
+    },
   ]);
   const CREATE_TEMPLATE_TABS = new Set(["all", "marketplace", "clean", "promo", "reference"]);
   const CREATE_USEFUL_SETTINGS_DEFAULTS = Object.freeze({
@@ -255,7 +569,6 @@
     accentFormat: "benefit",
     backgroundMode: "clean",
     preserveReferenceLayout: false,
-    autoMarketplaceAdaptation: true,
   });
   const CREATE_ACCENT_COLOR_MAP = Object.freeze({
     emerald: "#10b981",
@@ -307,6 +620,29 @@
     "алюминий",
     "нержавеющая сталь",
     "керамика",
+  ]);
+  const CREATE_PRODUCT_DESCRIPTION_BLOCKLIST = Object.freeze([
+    "карточк",
+    "маркетплейс",
+    "marketplace",
+    "макет",
+    "обложк",
+    "cta",
+    "бейдж",
+    "плашк",
+    "референс",
+    "шаблон",
+    "дизайн",
+    "инфограф",
+    "композици",
+    "типограф",
+    "оффер",
+    "hero",
+    "wildberries",
+    "вайлдберриз",
+    "ozon",
+    "озон",
+    "яндекс маркет",
   ]);
 
   const modeLabelMap = {
@@ -374,10 +710,11 @@
   let createActiveTemplateTab = "all";
   let createTemplateSearchQuery = "";
   let createSelectedTemplateId = CREATE_TEMPLATE_LIBRARY[0]?.id || "";
+  let createReferenceLibraryOpen = false;
+  let createImageManagerOpen = false;
   const createCharacteristics = [];
   let createCharacteristicsComponent = null;
   const createUsefulSettings = { ...CREATE_USEFUL_SETTINGS_DEFAULTS };
-  let createUploadDragDepth = 0;
   let improveMode = "ai";
   let improveImageFile = null;
   let improveReferenceFile = null;
@@ -440,7 +777,17 @@
   };
 
   const setDoneState = (badge, isDone) => {
-    badge?.classList.toggle("active", Boolean(isDone));
+    if (!badge) return;
+
+    if (!isDone) {
+      badge.classList.remove("active", "is-pop");
+      return;
+    }
+
+    badge.classList.remove("is-pop");
+    badge.classList.add("active");
+    void badge.offsetWidth;
+    badge.classList.add("is-pop");
   };
 
   const toText = (value) => {
@@ -527,6 +874,8 @@
     if (!workspace || !publicView) return;
 
     closeHistoryDetailsModal();
+    closeCreateReferenceLibrary();
+    closeCreateImageManagerModal();
 
     workspace.classList.add("hidden");
     workspace.setAttribute("aria-hidden", "true");
@@ -541,6 +890,10 @@
 
     if (activeMode !== "history") {
       closeHistoryDetailsModal();
+    }
+    if (activeMode !== "create") {
+      closeCreateReferenceLibrary();
+      closeCreateImageManagerModal();
     }
 
     workspaceModeButtons.forEach((button) => {
@@ -601,6 +954,7 @@
 
   const createFilePreviewUrls = new Map();
   const createFileDataUrls = new Map();
+  const createTemplatePreviewDataUrls = new Map();
 
   const getCreateFilePreviewUrl = (file) => {
     const key = getCreateFileKey(file);
@@ -629,6 +983,53 @@
     });
   };
 
+  const readBlobAsDataUrl = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Не удалось подготовить изображение референса."));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const loadImageElement = (sourceUrl) => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Не удалось загрузить изображение для истории."));
+      image.src = sourceUrl;
+    });
+  };
+
+  const buildHistoryImageSnapshot = async (sourceUrl) => {
+    const safeUrl = String(sourceUrl || "").trim();
+    if (!safeUrl) return "";
+    if (!/^data:image\//i.test(safeUrl) && !/^blob:/i.test(safeUrl)) return safeUrl;
+
+    try {
+      const image = await loadImageElement(safeUrl);
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      if (!width || !height) return safeUrl;
+
+      const scale = Math.min(1, HISTORY_IMAGE_MAX_DIMENSION / Math.max(width, height));
+      const targetWidth = Math.max(1, Math.round(width * scale));
+      const targetHeight = Math.max(1, Math.round(height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const context = canvas.getContext("2d");
+      if (!context) return safeUrl;
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      return canvas.toDataURL("image/jpeg", HISTORY_IMAGE_JPEG_QUALITY);
+    } catch (error) {
+      return safeUrl;
+    }
+  };
+
   const getCreateFileDataUrl = async (file) => {
     const key = getCreateFileKey(file);
     if (createFileDataUrls.has(key)) {
@@ -644,13 +1045,79 @@
     return urls.filter(Boolean);
   };
 
+  const getCreateTemplatePreviewDataUrl = async (previewUrl) => {
+    const source = String(previewUrl || "").trim();
+    if (!source) return "";
+    if (/^data:image\//i.test(source)) return source;
+    if (createTemplatePreviewDataUrls.has(source)) {
+      return createTemplatePreviewDataUrls.get(source) || "";
+    }
+
+    try {
+      const response = await fetch(source, { credentials: "same-origin" });
+      if (!response.ok) throw new Error("Template preview request failed");
+      const blob = await response.blob();
+      const dataUrl = await readBlobAsDataUrl(blob);
+      createTemplatePreviewDataUrls.set(source, dataUrl);
+      return dataUrl;
+    } catch (error) {
+      createTemplatePreviewDataUrls.set(source, "");
+      return "";
+    }
+  };
+
   const normalizeCreateTemplateTab = (value) => {
     const tab = String(value || "").trim().toLowerCase();
     return CREATE_TEMPLATE_TABS.has(tab) ? tab : "all";
   };
 
+  const getCreateTemplateLibrary = () => {
+    return CREATE_TEMPLATE_LIBRARY;
+  };
+
   const getCreateSelectedTemplate = () => {
-    return CREATE_TEMPLATE_LIBRARY.find((item) => item.id === createSelectedTemplateId) || CREATE_TEMPLATE_LIBRARY[0] || null;
+    const library = getCreateTemplateLibrary();
+    return library.find((item) => item.id === createSelectedTemplateId) || CREATE_TEMPLATE_LIBRARY[0] || library[0] || null;
+  };
+
+  const shouldUseCreateTemplatePreviewAsReference = (template) => {
+    return Boolean(template) && template.usePreviewAsReference !== false;
+  };
+
+  const serializeCreateTemplate = (template) => {
+    if (!template) return null;
+
+    return {
+      id: template.id,
+      title: template.title,
+      description: template.description,
+      tab: template.tab,
+      tags: Array.isArray(template.tags) ? template.tags.slice(0, 8) : [],
+      sourceUrl: template.sourceUrl || "",
+      sourceLabel: template.sourceLabel || "",
+      kind: template.kind || "",
+      instructionPrompt: toText(template.instructionPrompt),
+      usePreviewAsReference: shouldUseCreateTemplatePreviewAsReference(template),
+    };
+  };
+
+  const getCreateTemplateReferencePreviewUrl = async (template) => {
+    if (!shouldUseCreateTemplatePreviewAsReference(template)) return "";
+    return getCreateTemplatePreviewDataUrl(template?.previewUrl || "");
+  };
+
+  const getCreateTemplateKindLabel = (template) => {
+    if (template?.kind === "preset") return "Пресет";
+    if (template?.tab === "reference") return "Референс";
+    if (template?.tab === "promo") return "Промо";
+    if (template?.tab === "clean") return "Чистый";
+    return "Шаблон";
+  };
+
+  const getCreateTemplatePlaceholderText = (template) => {
+    const sourceLabel = String(template?.sourceLabel || "").trim();
+    if (sourceLabel) return sourceLabel.slice(0, 3).toUpperCase();
+    return "REF";
   };
 
   const getCreateProductTitleValue = () => {
@@ -659,6 +1126,34 @@
 
   const getCreateProductShortDescriptionValue = () => {
     return (createProductShortDescription?.value || "").trim();
+  };
+
+  const buildCreateUserText = () => {
+    const title = getCreateProductTitleValue();
+    const shortDescription = getCreateProductShortDescriptionValue();
+    const characteristicBlock = getCreateCharacteristicRows()
+      .map((item) => [String(item.label || "").trim(), String(item.value || "").trim()].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .slice(0, 6)
+      .join("; ");
+
+    return [title, shortDescription, characteristicBlock].filter(Boolean).join("\n\n");
+  };
+
+  const buildCreateSettingsPayload = () => {
+    const getSelectedLabel = (selectElement) => String(selectElement?.selectedOptions?.[0]?.textContent || "").trim();
+
+    return {
+      ...createUsefulSettings,
+      accentColorLabel: getSelectedLabel(createSettingAccentColor),
+      referenceStrengthLabel: getSelectedLabel(createSettingReferenceStrength),
+      visualStyleLabel: getSelectedLabel(createSettingVisualStyle),
+      infoDensityLabel: getSelectedLabel(createSettingInfoDensity),
+      readabilityPriorityLabel: getSelectedLabel(createSettingReadabilityPriority),
+      conversionPriorityLabel: getSelectedLabel(createSettingConversionPriority),
+      accentFormatLabel: getSelectedLabel(createSettingAccentFormat),
+      backgroundModeLabel: getSelectedLabel(createSettingBackgroundMode),
+    };
   };
 
   const normalizeCreateCharacteristicRows = (items) => {
@@ -738,15 +1233,21 @@
     return [
       toText(createProductTitle?.value),
       toText(createProductShortDescription?.value),
-      toText(payload?.description),
-      toText(payload?.highlights),
+      toText(payload?.title),
+      toText(payload?.shortDescription || payload?.subtitle),
+      toText(analysis?.subjectOnScreen?.summary),
+      toText(analysis?.subjectOnScreen?.productIdentity),
+      toText(analysis?.subjectOnScreen?.productType),
+      toText(analysis?.subjectOnScreen?.visualEvidence),
       toText(analysis?.detectedCategory),
       toText(analysis?.insight?.category),
-      toText(analysis?.insight?.recommendedStyle),
-      toText(analysis?.insight?.conversionAccent),
-      toText(analysis?.insight?.marketplaceFormat),
-      toText(analysis?.prompt),
-      ...(Array.isArray(analysis?.headlineIdeas) ? analysis.headlineIdeas.map((item) => toText(item)) : []),
+      ...(Array.isArray(analysis?.autofill?.benefits) ? analysis.autofill.benefits.map((item) => toText(item)) : []),
+      ...(Array.isArray(payload?.characteristics)
+        ? payload.characteristics.flatMap((item) => [toText(item?.label), toText(item?.value)])
+        : []),
+      ...(Array.isArray(analysis?.autofill?.characteristics)
+        ? analysis.autofill.characteristics.flatMap((item) => [toText(item?.label), toText(item?.value)])
+        : []),
       ...createSelectedFiles.map((file) => toText(file?.name)),
     ]
       .filter(Boolean)
@@ -798,7 +1299,40 @@
     return "";
   };
 
+  const containsCreateCardDescriptionLanguage = (value) => {
+    const normalizedValue = toLowerText(value);
+    if (!normalizedValue) return false;
+    return CREATE_PRODUCT_DESCRIPTION_BLOCKLIST.some((token) => normalizedValue.includes(token));
+  };
+
+  const sanitizeCreateProductDescriptionText = (value) => {
+    const normalizedValue = toText(value).replace(/\s+/g, " ").trim();
+    if (!normalizedValue) return "";
+
+    const fragments = normalizedValue
+      .split(/[.!?\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .filter((item) => !containsCreateCardDescriptionLanguage(item));
+
+    if (!fragments.length) return "";
+
+    const result = fragments.join(". ");
+    return result.endsWith(".") ? result : result + ".";
+  };
+
+  const resolveCreateProductDescriptionCandidate = (...values) => {
+    for (const value of values) {
+      const sanitized = sanitizeCreateProductDescriptionText(value);
+      if (sanitized) return sanitized;
+    }
+    return "";
+  };
+
   const buildCreateAutofillTitle = (analysis, payload) => {
+    const aiTitle = toText(analysis?.autofill?.title);
+    if (aiTitle) return aiTitle;
+
     const headlineCandidates = Array.isArray(analysis?.headlineIdeas)
       ? analysis.headlineIdeas.map((item) => toText(item)).filter(Boolean)
       : [];
@@ -808,18 +1342,45 @@
     const descriptionText = toText(payload?.description);
     if (descriptionText) return descriptionText.split(/[.!?]/)[0].trim();
 
-    return toText(analysis?.detectedCategory || analysis?.insight?.category || "Карточка товара");
+    return toText(analysis?.detectedCategory || analysis?.insight?.category || "Товар");
   };
 
-  const buildCreateAutofillDescription = (analysis) => {
-    const category = toText(analysis?.detectedCategory || analysis?.insight?.category);
-    const accent = toText(analysis?.insight?.conversionAccent);
-    const format = toText(analysis?.insight?.marketplaceFormat);
-    const parts = [category, accent, format].filter(Boolean);
-    const text = parts.join(". ");
+  const buildCreateAutofillDescription = (analysis, payload) => {
+    const aiDescription = resolveCreateProductDescriptionCandidate(
+      analysis?.autofill?.shortDescription,
+      analysis?.autofill?.subtitle
+    );
+    if (aiDescription) {
+      return aiDescription;
+    }
 
-    if (!text) return "";
-    return text.endsWith(".") ? text : text + ".";
+    const subjectSummary = resolveCreateProductDescriptionCandidate(
+      analysis?.subjectOnScreen?.summary,
+      analysis?.subjectOnScreen?.productIdentity,
+      analysis?.subjectOnScreen?.productType
+    );
+    const characteristicItems = Array.isArray(analysis?.autofill?.characteristics) && analysis.autofill.characteristics.length
+      ? analysis.autofill.characteristics
+      : (Array.isArray(payload?.characteristics) ? payload.characteristics : []);
+    const characteristicSummary = characteristicItems
+      .map((item) => [toText(item?.label), toText(item?.value)].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(", ");
+    const benefitSummary = Array.isArray(analysis?.autofill?.benefits)
+      ? analysis.autofill.benefits.map((item) => toText(item)).filter(Boolean).slice(0, 2).join(". ")
+      : "";
+    const category = sanitizeCreateProductDescriptionText(analysis?.detectedCategory || analysis?.insight?.category);
+    const text = resolveCreateProductDescriptionCandidate(
+      [subjectSummary, benefitSummary, characteristicSummary, category].filter(Boolean).join(". "),
+      [subjectSummary, characteristicSummary, category].filter(Boolean).join(". "),
+      [subjectSummary, benefitSummary, category].filter(Boolean).join(". "),
+      subjectSummary,
+      characteristicSummary,
+      category
+    );
+
+    return text;
   };
 
   const mergeCreateAutofillCharacteristics = (suggestedItems) => {
@@ -857,6 +1418,21 @@
   };
 
   const buildCreateAutofillCharacteristics = (analysis, payload) => {
+    const aiCharacteristics = Array.isArray(analysis?.autofill?.characteristics)
+      ? analysis.autofill.characteristics
+          .map((item) => ({
+            id: "",
+            label: toText(item?.label),
+            value: toText(item?.value),
+            order: Number(item?.order) || 0,
+          }))
+          .filter((item) => item.label || item.value)
+      : [];
+
+    if (aiCharacteristics.length) {
+      return mergeCreateAutofillCharacteristics(aiCharacteristics);
+    }
+
     const sourceText = getCreateAutofillSourceText(payload, analysis);
     const priorityLabels = getCreateAutofillPresetPriority(analysis?.detectedCategory || analysis?.insight?.category);
     const suggestions = [];
@@ -924,8 +1500,6 @@
     if (backgroundModeLabel) flags.push("фон " + backgroundModeLabel.trim());
     if (referenceStrengthLabel) flags.push("сила референса " + referenceStrengthLabel.trim());
     if (createUsefulSettings.preserveReferenceLayout) flags.push("сохранить компоновку референса");
-    if (createUsefulSettings.autoMarketplaceAdaptation) flags.push("автоадаптация под маркетплейс");
-
     return flags.length ? "Настройки: " + flags.join(", ") : "";
   };
 
@@ -949,7 +1523,6 @@
     createUsefulSettings.accentFormat = String(createSettingAccentFormat?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.accentFormat);
     createUsefulSettings.backgroundMode = String(createSettingBackgroundMode?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.backgroundMode);
     createUsefulSettings.preserveReferenceLayout = Boolean(createSettingPreserveLayout?.checked);
-    createUsefulSettings.autoMarketplaceAdaptation = Boolean(createSettingAutoMarketplace?.checked);
   };
 
   const syncCreateLegacyFields = () => {
@@ -1053,7 +1626,7 @@
     const query = createTemplateSearchQuery;
     const activeTab = normalizeCreateTemplateTab(createActiveTemplateTab);
 
-    return CREATE_TEMPLATE_LIBRARY.filter((item) => {
+    return getCreateTemplateLibrary().filter((item) => {
       if (activeTab !== "all" && item.tab !== activeTab) return false;
       if (!query) return true;
       const haystack = [item.title, item.description, ...(Array.isArray(item.tags) ? item.tags : [])]
@@ -1063,7 +1636,154 @@
     });
   };
 
+  const appendCreateTemplateThumb = (container, template, imageElement, placeholderElement) => {
+    if (!container) return;
+
+    const previewUrl = String(template?.previewUrl || "").trim();
+    const placeholderText = getCreateTemplatePlaceholderText(template);
+    container.classList.toggle("is-placeholder", !previewUrl);
+
+    if (imageElement && placeholderElement) {
+      imageElement.classList.toggle("hidden", !previewUrl);
+      placeholderElement.textContent = placeholderText;
+      placeholderElement.classList.toggle("hidden", Boolean(previewUrl));
+
+      if (previewUrl) {
+        imageElement.src = previewUrl;
+        imageElement.alt = template?.title || "Референс";
+      } else {
+        imageElement.removeAttribute("src");
+      }
+
+      imageElement.onerror = () => {
+        imageElement.classList.add("hidden");
+        imageElement.removeAttribute("src");
+        placeholderElement.classList.remove("hidden");
+      };
+      return;
+    }
+
+    container.textContent = "";
+    container.classList.toggle("is-placeholder", !previewUrl);
+
+    if (previewUrl) {
+      const image = document.createElement("img");
+      image.src = previewUrl;
+      image.alt = template?.title || "Референс";
+      image.loading = "lazy";
+      image.addEventListener("error", () => {
+        image.remove();
+        container.classList.add("is-placeholder");
+        const fallback = document.createElement("span");
+        fallback.className = "create-template-thumb-placeholder";
+        fallback.textContent = placeholderText;
+        container.append(fallback);
+      }, { once: true });
+      container.append(image);
+      return;
+    }
+
+    const fallback = document.createElement("span");
+    fallback.className = "create-template-thumb-placeholder";
+    fallback.textContent = placeholderText;
+    container.append(fallback);
+  };
+
+  const renderCreateTemplateTagChips = (container, template, limit) => {
+    if (!container) return;
+    container.textContent = "";
+
+    const tags = Array.isArray(template?.tags)
+      ? template.tags.map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit || 4)
+      : [];
+
+    tags.forEach((tag) => {
+      const chip = document.createElement("span");
+      chip.className = "create-template-tag";
+      chip.textContent = tag;
+      container.append(chip);
+    });
+  };
+
+  const renderCreateSelectedTemplateSummary = () => {
+    const template = getCreateSelectedTemplate();
+
+    if (createSelectedTemplateTitle) {
+      createSelectedTemplateTitle.textContent = template?.title || "Выберите шаблон или референс";
+    }
+    if (createSelectedTemplateDescription) {
+      createSelectedTemplateDescription.textContent = template?.description
+        || "Откройте библиотеку и выберите визуальное направление для карточки.";
+    }
+    if (createSelectedTemplateMeta) {
+      createSelectedTemplateMeta.textContent = [
+        template?.sourceLabel || "KARTOCHKA",
+        getCreateTemplateKindLabel(template),
+      ]
+        .filter(Boolean)
+        .join(" • ");
+    }
+
+    appendCreateTemplateThumb(
+      createSelectedTemplateThumbPlaceholder?.parentElement || null,
+      template,
+      createSelectedTemplateThumbImage,
+      createSelectedTemplateThumbPlaceholder
+    );
+    renderCreateTemplateTagChips(createSelectedTemplateTags, template, 4);
+
+    if (createSelectedTemplateCard) {
+      createSelectedTemplateCard.title = template?.sourceUrl || template?.title || "Открыть библиотеку референсов";
+    }
+  };
+
+  const syncCreateOverlayScrollLock = () => {
+    document.documentElement.style.overflow = createReferenceLibraryOpen || createImageManagerOpen ? "hidden" : "";
+  };
+
+  const syncCreateReferenceLibraryState = () => {
+    createReferenceModal?.classList.toggle("hidden", !createReferenceLibraryOpen);
+    createReferenceModal?.classList.toggle("is-open", createReferenceLibraryOpen);
+    createReferenceModal?.setAttribute("aria-hidden", createReferenceLibraryOpen ? "false" : "true");
+    syncCreateOverlayScrollLock();
+  };
+
+  const openCreateReferenceLibrary = () => {
+    createReferenceLibraryOpen = true;
+    syncCreateReferenceLibraryState();
+    window.setTimeout(() => {
+      createTemplateSearchInput?.focus();
+      createTemplateSearchInput?.select();
+    }, 0);
+  };
+
+  const closeCreateReferenceLibrary = () => {
+    createReferenceLibraryOpen = false;
+    syncCreateReferenceLibraryState();
+  };
+
+  const syncCreateImageManagerState = () => {
+    createImageManagerModal?.classList.toggle("hidden", !createImageManagerOpen);
+    createImageManagerModal?.classList.toggle("is-open", createImageManagerOpen);
+    createImageManagerModal?.setAttribute("aria-hidden", createImageManagerOpen ? "false" : "true");
+    syncCreateOverlayScrollLock();
+  };
+
+  const openCreateImageManagerModal = () => {
+    createImageManagerOpen = true;
+    syncCreateImageManagerState();
+    window.setTimeout(() => {
+      createImageManagerAddBtn?.focus();
+    }, 0);
+  };
+
+  const closeCreateImageManagerModal = () => {
+    createImageManagerOpen = false;
+    syncCreateImageManagerState();
+  };
+
   const renderCreateTemplateLibrary = () => {
+    renderCreateSelectedTemplateSummary();
     if (!createTemplateGrid) return;
 
     createTemplateGrid.textContent = "";
@@ -1087,16 +1807,13 @@
       card.className = "create-template-item";
       card.dataset.templateId = template.id;
       card.classList.toggle("is-active", template.id === createSelectedTemplateId);
+      if (template.sourceUrl) {
+        card.title = template.sourceUrl;
+      }
 
       const thumb = document.createElement("span");
       thumb.className = "create-template-thumb";
-
-      const image = document.createElement("img");
-      image.src = template.previewUrl;
-      image.alt = template.title;
-      image.loading = "lazy";
-
-      thumb.append(image);
+      appendCreateTemplateThumb(thumb, template);
 
       const body = document.createElement("span");
       body.className = "create-template-item-body";
@@ -1109,9 +1826,18 @@
 
       const meta = document.createElement("span");
       meta.className = "create-template-meta";
-      meta.textContent = (template.tags || []).slice(0, 3).join(" • ");
+      meta.textContent = [
+        template.sourceLabel || "",
+        getCreateTemplateKindLabel(template),
+      ]
+        .filter(Boolean)
+        .join(" • ");
 
-      body.append(title, description, meta);
+      const tags = document.createElement("span");
+      tags.className = "create-template-tags";
+      renderCreateTemplateTagChips(tags, template, 4);
+
+      body.append(title, description, meta, tags);
       card.append(thumb, body);
       createTemplateGrid.append(card);
     });
@@ -1249,13 +1975,13 @@
   };
 
   const renderCreateFiles = () => {
-    if (!createImagesList) return;
-
-    createImagesList.textContent = "";
-    createImagesEmpty?.classList.toggle("hidden", createSelectedFiles.length > 0);
     renderCreateSourcePreview();
+    createImagesList && (createImagesList.textContent = "");
+    createImagesEmpty?.classList.toggle("hidden", createSelectedFiles.length > 0);
 
     createSelectedFiles.forEach((file, index) => {
+      if (!createImagesList) return;
+
       const item = document.createElement("article");
       item.className = "create-upload-item";
 
@@ -1291,11 +2017,22 @@
       createImagesCounter.textContent = String(createSelectedFiles.length) + " / " + String(CREATE_UPLOAD_MAX_FILES) + " фото";
     }
 
+    if (createImageManagerCounter) {
+      createImageManagerCounter.textContent = String(createSelectedFiles.length)
+        + " / "
+        + String(CREATE_UPLOAD_MAX_FILES)
+        + " фото • добавляйте и удаляйте вложения внутри этого окна";
+    }
+
     if (createUploadHint) {
       const remaining = Math.max(0, CREATE_UPLOAD_MAX_FILES - createSelectedFiles.length);
-      createUploadHint.textContent = remaining
-        ? "PNG, JPG, WEBP • можно добавить еще " + String(remaining)
-        : "Лимит 5 фото достигнут. Удалите одно фото, чтобы добавить новое.";
+      if (createSelectedFiles.length === 0) {
+        createUploadHint.textContent = "Нажмите, чтобы открыть менеджер изображений и добавить до 5 фото";
+      } else if (remaining > 0) {
+        createUploadHint.textContent = "Откройте менеджер изображений • можно добавить еще " + String(remaining);
+      } else {
+        createUploadHint.textContent = "Лимит 5 фото достигнут • удалите лишнее в менеджере изображений";
+      }
     }
 
     createUploadZone?.classList.toggle("is-empty", createSelectedFiles.length === 0);
@@ -1344,6 +2081,7 @@
       (createHighlights?.value || "").trim(),
       (createMarketplace?.value || "").trim(),
       (createCardsCount?.value || "").trim(),
+      createSelectedTemplateId,
       createSelectedFiles.map((file) => getCreateFileKey(file)).join("|"),
     ].join("::");
   };
@@ -1359,11 +2097,24 @@
   const buildCreateInsightPayload = async () => {
     syncCreateLegacyFields();
     const imageDataUrls = await buildCreateImageDataUrls();
+    const selectedTemplate = getCreateSelectedTemplate();
     return {
+      title: getCreateProductTitleValue(),
+      shortDescription: getCreateProductShortDescriptionValue(),
+      subtitle: getCreateProductShortDescriptionValue(),
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: (createCardsCount?.value || "").trim() || "1",
+      promptMode: createPromptMode,
+      prompt: toText(createCustomPrompt?.value),
+      customPrompt: toText(createCustomPrompt?.value),
+      userText: buildCreateUserText(),
+      settings: buildCreateSettingsPayload(),
+      characteristics: getCreateCharacteristicRows(),
+      selectedTemplate: serializeCreateTemplate(selectedTemplate),
+      reference: serializeCreateTemplate(selectedTemplate),
+      referencePreviewUrl: await getCreateTemplateReferencePreviewUrl(selectedTemplate),
       files: createSelectedFiles.map((file) => ({
         name: file.name,
         type: file.type,
@@ -1573,11 +2324,24 @@
     const hasInsight = Boolean(createInsightData);
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
     const imageDataUrls = await buildCreateImageDataUrls();
+    const selectedTemplate = getCreateSelectedTemplate();
     return {
+      title: getCreateProductTitleValue(),
+      shortDescription: getCreateProductShortDescriptionValue(),
+      subtitle: getCreateProductShortDescriptionValue(),
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: (createCardsCount?.value || "").trim() || "1",
+      promptMode: createPromptMode,
+      prompt: toText(createCustomPrompt?.value),
+      customPrompt: toText(createCustomPrompt?.value),
+      userText: buildCreateUserText(),
+      settings: buildCreateSettingsPayload(),
+      characteristics: getCreateCharacteristicRows(),
+      selectedTemplate: serializeCreateTemplate(selectedTemplate),
+      reference: serializeCreateTemplate(selectedTemplate),
+      referencePreviewUrl: await getCreateTemplateReferencePreviewUrl(selectedTemplate),
       files: createSelectedFiles.map((file) => ({
         name: file.name,
         type: file.type,
@@ -1783,6 +2547,9 @@
   const applyCreateAutofillResult = (analysis, payload) => {
     let titleFilled = false;
     let descriptionFilled = false;
+    const currentShortDescription = getCreateProductShortDescriptionValue();
+    const shouldReplaceShortDescription = currentShortDescription.length < 12
+      || containsCreateCardDescriptionLanguage(currentShortDescription);
 
     if (createProductTitle && getCreateProductTitleValue().length < 3) {
       const nextTitle = buildCreateAutofillTitle(analysis, payload);
@@ -1792,8 +2559,8 @@
       }
     }
 
-    if (createProductShortDescription && getCreateProductShortDescriptionValue().length < 12) {
-      const nextDescription = buildCreateAutofillDescription(analysis);
+    if (createProductShortDescription && shouldReplaceShortDescription) {
+      const nextDescription = buildCreateAutofillDescription(analysis, payload);
       if (nextDescription) {
         createProductShortDescription.value = nextDescription;
         descriptionFilled = true;
@@ -1842,7 +2609,7 @@
 
     const feedbackParts = [];
     if (titleFilled) feedbackParts.push("название");
-    if (descriptionFilled) feedbackParts.push("описание");
+    if (descriptionFilled) feedbackParts.push("описание товара");
     if (characteristicsAfter > characteristicsBefore) feedbackParts.push("характеристики");
     if (toText(analysis?.prompt)) feedbackParts.push("AI-промпт");
 
@@ -1930,7 +2697,10 @@
     if (createTemplateSearchInput) createTemplateSearchInput.toggleAttribute("disabled", controlsLocked);
     if (createAddCharacteristicBtn) createAddCharacteristicBtn.toggleAttribute("disabled", controlsLocked);
     if (createEditImageBtn) {
-      createEditImageBtn.toggleAttribute("disabled", controlsLocked || createSelectedFiles.length === 0);
+      createEditImageBtn.toggleAttribute("disabled", controlsLocked);
+    }
+    if (createImageManagerAddBtn) {
+      createImageManagerAddBtn.toggleAttribute("disabled", controlsLocked || createSelectedFiles.length >= CREATE_UPLOAD_MAX_FILES);
     }
     createTemplateTabButtons.forEach((button) => {
       button.toggleAttribute("disabled", controlsLocked);
@@ -1947,6 +2717,7 @@
     }
 
     createUploadZone?.classList.toggle("is-disabled", controlsLocked);
+    createUploadZone?.toggleAttribute("disabled", controlsLocked);
     createUploadZone?.setAttribute("aria-disabled", controlsLocked ? "true" : "false");
 
     [
@@ -1962,7 +2733,6 @@
       field?.toggleAttribute("disabled", controlsLocked);
     });
     createSettingPreserveLayout?.toggleAttribute("disabled", controlsLocked);
-    createSettingAutoMarketplace?.toggleAttribute("disabled", controlsLocked);
     createCharacteristicsComponent?.setDisabled(controlsLocked);
 
     if (createPromptAssistDetails && createPromptMode !== "ai" && !aiPromptValue && createAiPromptPhase !== "loading") {
@@ -1997,7 +2767,7 @@
 
     if (createCtaHint) {
       if (createAutofillPhase === "loading") {
-        createCtaHint.textContent = "AI заполняет название, описание и предложенные характеристики...";
+        createCtaHint.textContent = "AI заполняет название, описание товара и предложенные характеристики...";
       } else if (createIsGenerating) {
         createCtaHint.textContent = "Генерация в процессе...";
       } else if (validationError) {
@@ -2367,7 +3137,17 @@
     if (typeof window === "undefined" || !window.localStorage) return;
 
     try {
-      window.localStorage.setItem(getHistoryStorageKey(activeUser), JSON.stringify(serializable));
+      let entriesToStore = serializable.slice();
+      let stored = false;
+
+      while (!stored && entriesToStore.length > 0) {
+        try {
+          window.localStorage.setItem(getHistoryStorageKey(activeUser), JSON.stringify(entriesToStore));
+          stored = true;
+        } catch (error) {
+          entriesToStore = entriesToStore.slice(0, entriesToStore.length - 1);
+        }
+      }
     } catch (error) {
       // Local storage can fail in private mode or when quota is exceeded.
     }
@@ -2894,7 +3674,7 @@
         const blobPreview = getCreateFilePreviewUrl(file);
         let url = "";
         try {
-          url = await readFileAsDataUrl(file);
+          url = await buildHistoryImageSnapshot(blobPreview);
         } catch (error) {
           url = sanitizeHistoryPreviewUrl(blobPreview, "create");
         }
@@ -2917,11 +3697,12 @@
       return item.upload;
     });
 
-    const normalizedResults = (Array.isArray(results) ? results : [])
+    const normalizedResults = await Promise.all((Array.isArray(results) ? results : [])
       .slice(0, CREATE_UPLOAD_MAX_FILES)
-      .map((result, index) => {
+      .map(async (result, index) => {
         const rawPreview = String(result.previewUrl || "").trim();
-        const resolvedPreview = previewLookup.get(rawPreview) || sanitizeHistoryPreviewUrl(rawPreview, "create");
+        const previewSource = previewLookup.get(rawPreview) || sanitizeHistoryPreviewUrl(rawPreview, "create");
+        const resolvedPreview = await buildHistoryImageSnapshot(previewSource);
         return normalizeHistoryResult(
           {
             ...result,
@@ -2933,7 +3714,7 @@
           index,
           resolvedPreview
         );
-      });
+      }));
 
     const insight = payload?.insight ? { ...payload.insight } : (createInsightData ? { ...createInsightData } : null);
     const resolvedPrompt = String(payload?.prompt || resolveCreatePromptForGeneration() || "").trim();
@@ -2967,7 +3748,7 @@
     };
   };
 
-  const buildImproveHistoryPayload = (payload, results) => {
+  const buildImproveHistoryPayload = async (payload, results) => {
     const uploads = [];
     if (improveImagePreview) {
       uploads.push({
@@ -2975,7 +3756,7 @@
         role: "source",
         name: improveImageFile?.name || "source-card.png",
         type: improveImageFile?.type || "image/png",
-        url: sanitizeHistoryPreviewUrl(improveImagePreview, "improve"),
+        url: await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(improveImagePreview, "improve")),
       });
     }
     if (improveReferencePreviewUrl) {
@@ -2984,18 +3765,19 @@
         role: "reference",
         name: improveReferenceFile?.name || "reference-card.png",
         type: improveReferenceFile?.type || "image/png",
-        url: sanitizeHistoryPreviewUrl(improveReferencePreviewUrl, "improve"),
+        url: await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(improveReferencePreviewUrl, "improve")),
       });
     }
 
-    const normalizedResults = (Array.isArray(results) ? results : [])
+    const normalizedResults = await Promise.all((Array.isArray(results) ? results : [])
       .slice(0, CREATE_UPLOAD_MAX_FILES)
-      .map((result, index) => {
+      .map(async (result, index) => {
         const fallbackPreview = uploads[index]?.url || uploads[0]?.url || getHistoryFallbackPreview("improve");
+        const compactPreview = await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(result.previewUrl, "improve"));
         return normalizeHistoryResult(
           {
             ...result,
-            previewUrl: sanitizeHistoryPreviewUrl(result.previewUrl, "improve"),
+            previewUrl: compactPreview,
             subtitle: result.strategy || "",
             summary: result.changes || result.promptPreview || "",
           },
@@ -3003,7 +3785,7 @@
           index,
           fallbackPreview
         );
-      });
+      }));
 
     const analysis = payload?.analysis ? { ...payload.analysis } : (improveAnalysisData ? { ...improveAnalysisData } : null);
     const improveComment = String(payload?.prompt || improvePrompt?.value || "").trim();
@@ -3264,13 +4046,33 @@
     const hasInsight = Boolean(createInsightData);
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
     const imageDataUrls = await buildCreateImageDataUrls();
+    const selectedTemplate = getCreateSelectedTemplate();
+    const referencePreviewUrl = await getCreateTemplateReferencePreviewUrl(selectedTemplate);
+    const title = getCreateProductTitleValue();
+    const shortDescription = getCreateProductShortDescriptionValue();
+    const characteristics = getCreateCharacteristicRows();
+    const settings = buildCreateSettingsPayload();
+    const serializedTemplate = serializeCreateTemplate(selectedTemplate);
 
     return {
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
-      characteristics: getCreateCharacteristicRows(),
+      title,
+      shortDescription,
+      subtitle: shortDescription,
+      userText: buildCreateUserText(),
+      characteristics,
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: Number.isFinite(cardsCount) ? cardsCount : 1,
+      cardGoal: "Конверсионная карточка товара для маркетплейса",
+      generationMode: normalizeCreateTemplateTab(createActiveTemplateTab),
+      densityMode: settings.infoDensity,
+      productCategory: hasInsight && !insightIsStale ? createInsightData?.category || "" : "",
+      userNotes: createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : "",
+      settings,
+      selectedTemplate: serializedTemplate,
+      reference: serializedTemplate,
+      referencePreviewUrl,
       promptMode: createPromptMode,
       prompt: resolveCreatePromptForGeneration(),
       insight: hasInsight && !insightIsStale ? { ...createInsightData } : null,
@@ -4358,47 +5160,6 @@
     syncCreateFormState();
   });
 
-  createUploadZone?.addEventListener("dragenter", (event) => {
-    event.preventDefault();
-    if (isCreateControlsLocked()) return;
-    createUploadDragDepth += 1;
-    createUploadZone.classList.add("is-dragover");
-  });
-
-  createUploadZone?.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    if (isCreateControlsLocked()) return;
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = "copy";
-    }
-  });
-
-  createUploadZone?.addEventListener("dragleave", () => {
-    if (isCreateControlsLocked()) return;
-    createUploadDragDepth = Math.max(0, createUploadDragDepth - 1);
-    if (createUploadDragDepth === 0) {
-      createUploadZone.classList.remove("is-dragover");
-    }
-  });
-
-  createUploadZone?.addEventListener("drop", (event) => {
-    event.preventDefault();
-    createUploadDragDepth = 0;
-    createUploadZone.classList.remove("is-dragover");
-    if (isCreateControlsLocked()) return;
-    addCreateFiles(event.dataTransfer?.files);
-  });
-
-  window.addEventListener("dragend", () => {
-    createUploadDragDepth = 0;
-    createUploadZone?.classList.remove("is-dragover");
-  });
-
-  window.addEventListener("drop", () => {
-    createUploadDragDepth = 0;
-    createUploadZone?.classList.remove("is-dragover");
-  });
-
   const handleCreateInputMutation = () => {
     syncCreateLegacyFields();
     const cancelled = cancelPendingCreateRequests();
@@ -4432,7 +5193,6 @@
     createSettingAccentFormat,
     createSettingBackgroundMode,
     createSettingPreserveLayout,
-    createSettingAutoMarketplace,
   ].forEach((field) => {
     field?.addEventListener("input", handleCreateInputMutation);
     field?.addEventListener("change", handleCreateInputMutation);
@@ -4441,6 +5201,69 @@
   createTemplateSearchInput?.addEventListener("input", () => {
     createTemplateSearchQuery = (createTemplateSearchInput.value || "").trim().toLowerCase();
     renderCreateTemplateLibrary();
+  });
+
+  createReferenceLibraryBtn?.addEventListener("click", () => {
+    openCreateReferenceLibrary();
+  });
+
+  createSelectedTemplateCard?.addEventListener("click", () => {
+    openCreateReferenceLibrary();
+  });
+
+  createReferenceModalClose?.addEventListener("click", () => {
+    closeCreateReferenceLibrary();
+  });
+
+  createReferenceModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.matches("[data-create-reference-close]")) {
+      closeCreateReferenceLibrary();
+    }
+  });
+
+  createUploadZone?.addEventListener("click", () => {
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+
+    openCreateImageManagerModal();
+  });
+
+  createEditImageBtn?.addEventListener("click", () => {
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+
+    openCreateImageManagerModal();
+  });
+
+  createImageManagerAddBtn?.addEventListener("click", () => {
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+    if (createSelectedFiles.length >= CREATE_UPLOAD_MAX_FILES) {
+      setStatusMessage(createStatus, "Достигнут лимит: максимум " + String(CREATE_UPLOAD_MAX_FILES) + " фото.", "error");
+      return;
+    }
+
+    createImagesInput?.click();
+  });
+
+  createImageManagerClose?.addEventListener("click", () => {
+    closeCreateImageManagerModal();
+  });
+
+  createImageManagerModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.matches("[data-create-image-manager-close]")) {
+      closeCreateImageManagerModal();
+    }
   });
 
   createTemplateTabButtons.forEach((button) => {
@@ -4457,9 +5280,15 @@
     if (!(templateButton instanceof HTMLElement)) return;
 
     const templateId = String(templateButton.dataset.templateId || "").trim();
-    if (!templateId || templateId === createSelectedTemplateId) return;
+    if (!templateId) return;
+    if (templateId === createSelectedTemplateId) {
+      closeCreateReferenceLibrary();
+      return;
+    }
 
     createSelectedTemplateId = templateId;
+    closeCreateReferenceLibrary();
+    renderCreateTemplateLibrary();
     handleCreateInputMutation();
   });
 
@@ -4471,15 +5300,6 @@
 
     cancelPendingCreateRequests();
     await runCreateAutofill();
-  });
-
-  createEditImageBtn?.addEventListener("click", () => {
-    if (!createSelectedFiles.length) {
-      setStatusMessage(createStatus, "Сначала загрузите изображение товара.", "error");
-      return;
-    }
-
-    setStatusMessage(createStatus, "Редактор изображения будет подключен на следующем этапе.", "");
   });
 
   createExportBtn?.addEventListener("click", (event) => {
@@ -4826,7 +5646,7 @@
       setStatusMessage(improveStatus, "Готово. Подготовлено " + String(total) + " " + formatCardsWord(total) + ".", "success");
       setRequestMeta(improveMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
 
-      const historyPayload = buildImproveHistoryPayload(payload, improveGeneratedResults);
+      const historyPayload = await buildImproveHistoryPayload(payload, improveGeneratedResults);
       pushHistory({
         mode: "improve",
         title: String(total) + " " + formatCardsWord(total) + " • Улучшение",
@@ -4918,6 +5738,8 @@
   syncCreateUsefulSettings();
   initCreateCharacteristicsComponent();
   syncCreateLegacyFields();
+  syncCreateReferenceLibraryState();
+  syncCreateImageManagerState();
   renderCreateTemplateLibrary();
   renderCreateFiles();
   renderCreateResults();
@@ -4935,6 +5757,8 @@
 
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      closeCreateReferenceLibrary();
+      closeCreateImageManagerModal();
       closeHistoryDetailsModal();
       closeMobileMenu();
       closeAuthModal();
