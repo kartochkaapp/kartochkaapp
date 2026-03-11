@@ -732,190 +732,210 @@
           </article>
 
           <article class="step-card step2-mode hidden improve-mode-screen" data-app-mode-panel="improve">
-            <div class="step-title-row">
-              <h2>Улучшить карточку</h2>
-              <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
+            <div class="hidden" aria-hidden="true">
+              <div class="step-title-row">
+                <h2>Улучшить карточку</h2>
+                <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
+              </div>
+              <p class="section-subtitle">
+                Загрузите готовую карточку и получите более чистую, премиальную версию в один клик.
+              </p>
             </div>
-            <p class="section-subtitle">
-              Загрузите карточку, выберите режим и запустите улучшение.
-            </p>
 
-            <div class="improve-form-grid">
-              <div class="improve-main-column">
-                <section class="create-form-card improve-main-input-card">
-                  <div class="create-card-head">
-                    <h3>Материалы для улучшения</h3>
-                    <span>Основной сценарий</span>
-                  </div>
+            <section class="enhance-card-shell" aria-label="Улучшение карточки товара">
+              <div class="enhance-card-panel">
+                <div class="enhance-card-head">
+                  <span class="enhance-card-chip">KARTOCHKA</span>
+                  <h3>Улучшить карточку товара</h3>
+                  <p>
+                    Один экран, один сценарий: загрузите карточку, дождитесь обработки и скачайте улучшенную версию.
+                  </p>
+                </div>
 
-                  <div class="improve-upload-grid">
-                    <section class="improve-main-block improve-source-block">
-                      <div class="create-card-head">
-                        <h3>Исходная карточка</h3>
-                        <span>Обязательно</span>
-                      </div>
+                <div class="enhance-card-stage" id="enhanceCardStage"></div>
+              </div>
+            </section>
 
-                      <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
-                        <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                        <strong>Загрузите существующую карточку</strong>
-                        <small>PNG, JPG, WEBP • до 10 МБ</small>
-                      </label>
-                      <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+            <div class="enhance-card-toast" id="enhanceCardToast" role="status" aria-live="polite"></div>
 
-                      <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
-                        <p>Исходная карточка</p>
-                        <div class="selected-image-wrap">
-                          <img id="improveSelectedImage" alt="Исходная карточка товара" />
-                        </div>
-                      </div>
-                    </section>
-
-                    <section class="improve-main-block improve-reference-block" id="improveReferencePanel">
-                      <div class="create-card-head">
-                        <h3>Референс</h3>
-                        <span>Если нужен стиль</span>
-                      </div>
-
-                      <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
-                        <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                        <strong>Добавьте style reference</strong>
-                        <small>Нужен только для режима «в стиле референса»</small>
-                      </label>
-                      <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
-
-                      <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
-                        <p>Референс</p>
-                        <div class="selected-image-wrap">
-                          <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
-                        </div>
-                      </div>
-
-                      <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
-                        Опционально, если нужен style match.
-                      </p>
-                    </section>
-                  </div>
-
-                  <section class="improve-main-block improve-comment-block">
+            <div class="hidden improve-legacy-shell" aria-hidden="true">
+              <div class="improve-form-grid">
+                <div class="improve-main-column">
+                  <section class="create-form-card improve-main-input-card">
                     <div class="create-card-head">
-                      <h3>Что улучшить</h3>
-                      <span>Optional</span>
+                      <h3>Материалы для улучшения</h3>
+                      <span>Основной сценарий</span>
                     </div>
-                    <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
-                    <textarea
-                      id="improvePrompt"
-                      placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
-                    ></textarea>
+
+                    <div class="improve-upload-grid">
+                      <section class="improve-main-block improve-source-block">
+                        <div class="create-card-head">
+                          <h3>Исходная карточка</h3>
+                          <span>Обязательно</span>
+                        </div>
+
+                        <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
+                          <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                          <strong>Загрузите существующую карточку</strong>
+                          <small>PNG, JPG, WEBP • до 10 МБ</small>
+                        </label>
+                        <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                        <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
+                          <p>Исходная карточка</p>
+                          <div class="selected-image-wrap">
+                            <img id="improveSelectedImage" alt="Исходная карточка товара" />
+                          </div>
+                        </div>
+                      </section>
+
+                      <section class="improve-main-block improve-reference-block" id="improveReferencePanel">
+                        <div class="create-card-head">
+                          <h3>Референс</h3>
+                          <span>Если нужен стиль</span>
+                        </div>
+
+                        <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
+                          <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
+                          <strong>Добавьте style reference</strong>
+                          <small>Нужен только для режима «в стиле референса»</small>
+                        </label>
+                        <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
+
+                        <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
+                          <p>Референс</p>
+                          <div class="selected-image-wrap">
+                            <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
+                          </div>
+                        </div>
+
+                        <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
+                          Опционально, если нужен style match.
+                        </p>
+                      </section>
+                    </div>
+
+                    <section class="improve-main-block improve-comment-block">
+                      <div class="create-card-head">
+                        <h3>Что улучшить</h3>
+                        <span>Optional</span>
+                      </div>
+                      <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
+                      <textarea
+                        id="improvePrompt"
+                        placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
+                      ></textarea>
+                    </section>
                   </section>
+                </div>
+
+                <aside class="create-form-card create-form-card-compact improve-control-panel">
+                  <div class="create-card-head">
+                    <h3>Панель улучшения</h3>
+                    <span>Режим и запуск</span>
+                  </div>
+
+                  <div class="improve-panel-mode">
+                    <label class="field-label">Режим улучшения</label>
+                    <div class="improve-mode-switch" id="improveModeSwitch">
+                      <button class="improve-mode-btn active" type="button" data-improve-mode="ai">AI режим</button>
+                      <button class="improve-mode-btn" type="button" data-improve-mode="reference">По референсу</button>
+                    </div>
+                    <p class="improve-mode-summary" id="improveModeSummary">
+                      AI улучшит карточку без style match.
+                    </p>
+                  </div>
+
+                  <div class="create-inline-grid improve-controls-grid">
+                    <div>
+                      <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
+                      <select id="improveVariantsCount">
+                        <option value="1">1 вариант</option>
+                        <option value="2">2 варианта</option>
+                        <option value="3">3 варианта</option>
+                        <option value="4">4 варианта</option>
+                        <option value="5">5 вариантов</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="improve-readiness-panel">
+                    <div class="improve-readiness-head">
+                      <strong>Готовность</strong>
+                      <span class="create-secondary-badge is-neutral" id="improveModeBadge">AI режим</span>
+                    </div>
+                    <div class="improve-signal-grid">
+                      <article class="improve-signal-item">
+                        <span>Режим</span>
+                        <strong id="improveModeSignal">AI режим</strong>
+                      </article>
+                      <article class="improve-signal-item">
+                        <span>Референс</span>
+                        <strong id="improveReferenceSignal">Не нужен</strong>
+                      </article>
+                      <article class="improve-signal-item">
+                        <span>Варианты</span>
+                        <strong id="improveVariantsSignal">1 вариант</strong>
+                      </article>
+                    </div>
+                    <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
+                      Референс не обязателен.
+                    </p>
+                    <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
+                    <p id="improveStatus" class="status-message" aria-live="polite"></p>
+                    <div class="request-meta" id="improveMeta">
+                      <span>Статус запроса:</span>
+                      <strong>Ожидание исходной карточки</strong>
+                    </div>
+                  </div>
+
+                  <button class="btn btn-primary improve-run-btn" id="improveRunBtn" type="button" disabled>
+                    Запустить улучшение
+                  </button>
+                </aside>
+              </div>
+
+              <div class="improve-analysis-technical-layer hidden" aria-hidden="true">
+                <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
+                  <div class="create-card-head">
+                    <h3>AI анализ слабых сторон</h3>
+                    <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
+                  </div>
+                  <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
+                    После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
+                  </p>
+                  <div class="improve-analysis-overview">
+                    <div class="improve-analysis-score-wrap">
+                      <span>Оценка текущей карточки</span>
+                      <strong id="improveAnalysisScore">--</strong>
+                    </div>
+                    <p id="improveAnalysisSummary">
+                      Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
+                    </p>
+                    <p class="improve-analysis-context" id="improveAnalysisContext">
+                      Режим: стандартное AI-улучшение.
+                    </p>
+                  </div>
+                  <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
+                  <div class="improve-analysis-next">
+                    <span>Что AI усилит дальше</span>
+                    <ul id="improveAnalysisRecommendations"></ul>
+                  </div>
                 </section>
               </div>
 
-              <aside class="create-form-card create-form-card-compact improve-control-panel">
-                <div class="create-card-head">
-                  <h3>Панель улучшения</h3>
-                  <span>Режим и запуск</span>
+              <section class="create-results-section improve-results-section hidden" id="improveResultsSection" aria-live="polite">
+                <div class="create-results-head">
+                  <h3>Улучшенные варианты</h3>
+                  <p id="improveResultsCaption">После улучшения здесь появятся варианты карточек.</p>
                 </div>
-
-                <div class="improve-panel-mode">
-                  <label class="field-label">Режим улучшения</label>
-                  <div class="improve-mode-switch" id="improveModeSwitch">
-                    <button class="improve-mode-btn active" type="button" data-improve-mode="ai">AI режим</button>
-                    <button class="improve-mode-btn" type="button" data-improve-mode="reference">По референсу</button>
-                  </div>
-                  <p class="improve-mode-summary" id="improveModeSummary">
-                    AI улучшит карточку без style match.
-                  </p>
+                <div class="create-results-processing hidden" id="improveResultsProcessing">
+                  <span class="create-results-spinner" aria-hidden="true"></span>
+                  <p>AI улучшает карточку и подготавливает варианты...</p>
                 </div>
-
-                <div class="create-inline-grid improve-controls-grid">
-                  <div>
-                    <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
-                    <select id="improveVariantsCount">
-                      <option value="1">1 вариант</option>
-                      <option value="2">2 варианта</option>
-                      <option value="3">3 варианта</option>
-                      <option value="4">4 варианта</option>
-                      <option value="5">5 вариантов</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="improve-readiness-panel">
-                  <div class="improve-readiness-head">
-                    <strong>Готовность</strong>
-                    <span class="create-secondary-badge is-neutral" id="improveModeBadge">AI режим</span>
-                  </div>
-                  <div class="improve-signal-grid">
-                    <article class="improve-signal-item">
-                      <span>Режим</span>
-                      <strong id="improveModeSignal">AI режим</strong>
-                    </article>
-                    <article class="improve-signal-item">
-                      <span>Референс</span>
-                      <strong id="improveReferenceSignal">Не нужен</strong>
-                    </article>
-                    <article class="improve-signal-item">
-                      <span>Варианты</span>
-                      <strong id="improveVariantsSignal">1 вариант</strong>
-                    </article>
-                  </div>
-                  <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
-                    Референс не обязателен.
-                  </p>
-                  <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
-                  <p id="improveStatus" class="status-message" aria-live="polite"></p>
-                  <div class="request-meta" id="improveMeta">
-                    <span>Статус запроса:</span>
-                    <strong>Ожидание исходной карточки</strong>
-                  </div>
-                </div>
-
-                <button class="btn btn-primary improve-run-btn" id="improveRunBtn" type="button" disabled>
-                  Запустить улучшение
-                </button>
-              </aside>
-            </div>
-
-            <div class="improve-analysis-technical-layer hidden" aria-hidden="true">
-              <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
-                <div class="create-card-head">
-                  <h3>AI анализ слабых сторон</h3>
-                  <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
-                </div>
-                <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
-                  После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
-                </p>
-                <div class="improve-analysis-overview">
-                  <div class="improve-analysis-score-wrap">
-                    <span>Оценка текущей карточки</span>
-                    <strong id="improveAnalysisScore">--</strong>
-                  </div>
-                  <p id="improveAnalysisSummary">
-                    Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
-                  </p>
-                  <p class="improve-analysis-context" id="improveAnalysisContext">
-                    Режим: стандартное AI-улучшение.
-                  </p>
-                </div>
-                <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
-                <div class="improve-analysis-next">
-                  <span>Что AI усилит дальше</span>
-                  <ul id="improveAnalysisRecommendations"></ul>
-                </div>
+                <div class="create-results-grid" id="improveResultsGrid"></div>
               </section>
             </div>
-
-            <section class="create-results-section improve-results-section hidden" id="improveResultsSection" aria-live="polite">
-              <div class="create-results-head">
-                <h3>Улучшенные варианты</h3>
-                <p id="improveResultsCaption">После улучшения здесь появятся варианты карточек.</p>
-              </div>
-              <div class="create-results-processing hidden" id="improveResultsProcessing">
-                <span class="create-results-spinner" aria-hidden="true"></span>
-                <p>AI улучшает карточку и подготавливает варианты...</p>
-              </div>
-              <div class="create-results-grid" id="improveResultsGrid"></div>
-            </section>
           </article>
 
           <article class="step-card step2-mode hidden animate-mode-screen" data-app-mode-panel="animate">
@@ -1057,6 +1077,7 @@
     <script src="./services/kartochka-services.js"></script>
     <script src="./create-characteristics-component.js"></script>
     <script src="./app.js"></script>
+    <script src="./improve-card-flow.js"></script>
   </body>
 </html>
 

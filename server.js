@@ -7,12 +7,14 @@ const { URL } = require("node:url");
 
 const { getRuntimeConfig } = require("./server/config");
 const { toText } = require("./server/utils");
+const { createEnhanceCardHandler } = require("./server/routes/enhance-card");
 const { ApiRouteError, createKartochkaHandlers } = require("./server/routes/kartochka");
 const { createOpenAIBrainAdapter } = require("./server/adapters/openai-brain-adapter");
 const { createOpenRouterGenerationAdapter } = require("./server/adapters/openrouter-generation-adapter");
 const { OpenAIBrainServiceError, createOpenAIBrainService } = require("./server/services/openai-brain-service");
 const { GenerationServiceError, createGenerationService } = require("./server/services/generation-service");
 const { HistoryServiceError, createHistoryService } = require("./server/services/history-service");
+const { NanoBananaServiceError, createNanoBananaService } = require("./server/services/nano-banana-service");
 const { OpenAIProviderError } = require("./server/providers/openai");
 const { OpenRouterProviderError } = require("./server/providers/openrouter");
 
@@ -67,10 +69,16 @@ const historyService = createHistoryService({
   filePath: path.join(runtime.app.rootDir, "server", "data", "history-store.json"),
   maxItems: 30,
 });
+const nanoBananaService = createNanoBananaService({
+  generationService,
+});
 const kartochkaHandlers = createKartochkaHandlers({
   openaiBrainService,
   generationService,
   historyService,
+});
+const enhanceCardHandler = createEnhanceCardHandler({
+  nanoBananaService,
 });
 
 const sendJson = (response, statusCode, payload) => {
@@ -226,6 +234,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof OpenAIBrainServiceError
     || error instanceof GenerationServiceError
     || error instanceof HistoryServiceError
+    || error instanceof NanoBananaServiceError
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
@@ -244,6 +253,8 @@ const toApiErrorPayload = (error) => {
       userMessage = "AI сервис вернул некорректный ответ. Попробуйте снова.";
     } else if (code === "openai_missing_key" || code === "openrouter_missing_key") {
       userMessage = "Серверная конфигурация AI не завершена. Проверьте переменные окружения.";
+    } else if (code.startsWith("nano_")) {
+      userMessage = "Не удалось улучшить карточку. Попробуйте ещё раз.";
     }
 
     return {
@@ -260,6 +271,8 @@ const toApiErrorPayload = (error) => {
 
 const dispatchKartochkaApi = async (pathname, body) => {
   switch (pathname) {
+    case "/api/enhance-card":
+      return enhanceCardHandler(body);
     case "/api/kartochka/createAnalyze":
       return kartochkaHandlers.createAnalyze(body);
     case "/api/kartochka/createGenerate":
@@ -268,6 +281,8 @@ const dispatchKartochkaApi = async (pathname, body) => {
       return kartochkaHandlers.improveAnalyze(body);
     case "/api/kartochka/improveGenerate":
       return kartochkaHandlers.improveGenerate(body);
+    case "/api/kartochka/templatePreview":
+      return kartochkaHandlers.templatePreview(body);
     case "/api/kartochka/historyList":
       return kartochkaHandlers.historyList(body);
     case "/api/kartochka/historyGetById":
@@ -290,7 +305,7 @@ const server = http.createServer(async (request, response) => {
 
   try {
     if (pathname.startsWith("/api/")) {
-      if (!pathname.startsWith("/api/kartochka/")) {
+      if (pathname !== "/api/enhance-card" && !pathname.startsWith("/api/kartochka/")) {
         throw new ApiRouteError({
           status: 404,
           code: "route_not_found",

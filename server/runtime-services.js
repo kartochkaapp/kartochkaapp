@@ -9,6 +9,8 @@ const { createOpenRouterGenerationAdapter } = require("./adapters/openrouter-gen
 const { createOpenAIBrainService } = require("./services/openai-brain-service");
 const { createGenerationService } = require("./services/generation-service");
 const { createHistoryService } = require("./services/history-service");
+const { createNanoBananaService } = require("./services/nano-banana-service");
+const { createEnhanceCardHandler } = require("./routes/enhance-card");
 const { createKartochkaHandlers } = require("./routes/kartochka");
 
 let cachedRuntimeServices = null;
@@ -43,6 +45,9 @@ const getRuntimeServices = () => {
     filePath: resolveHistoryStoreFilePath(runtime),
     maxItems: 30,
   });
+  const nanoBananaService = createNanoBananaService({
+    generationService,
+  });
 
   cachedRuntimeServices = {
     runtime,
@@ -50,6 +55,9 @@ const getRuntimeServices = () => {
       openaiBrainService,
       generationService,
       historyService,
+    }),
+    enhanceCardHandler: createEnhanceCardHandler({
+      nanoBananaService,
     }),
   };
 

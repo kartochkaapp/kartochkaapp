@@ -213,7 +213,8 @@ const resolveCreatePreviewCandidatesV2 = (payload) => {
 
 const buildCreateGenerateUserTextV2 = (payload) => {
   const title = toText(payload?.title) || "(none)";
-  const subtitle = toText(payload?.subtitle || payload?.shortDescription) || "(none)";
+  const subtitle = toText(payload?.subtitle) || "(none)";
+  const shortDescription = toText(payload?.shortDescription) || "(none)";
   const description = toText(payload?.description) || "(none)";
   const highlights = toText(payload?.highlights) || "(none)";
   const marketplace = toText(payload?.marketplace) || "(none)";
@@ -246,15 +247,22 @@ const buildCreateGenerateUserTextV2 = (payload) => {
     referenceAttached
       ? "- the selected reference image is attached after the product images and must be used as a secondary style and layout guide"
       : "- no visual reference image is attached; rely on the reference metadata only",
-    "- plan for premium, clean, readable, commercially strong marketplace cards",
+    "- plan for premium, clean, readable, commercially strong marketplace cards that clearly sell the product from the first glance",
+    "- the card should feel like a strong marketplace first screen: hero product first, then concise selling text",
     "- keep copy concise and suitable for on-card placement",
     "- convert dry features into consumer-facing value statements whenever appropriate",
-    "- subtitle and shortDescription describe the product itself and its features, not the card layout or marketplace formatting",
+    "- shortDescription, subtitle, description, and highlights are product context, not ready-made card paragraphs",
+    "- never place shortDescription or description on the card verbatim and never render them as a paragraph block",
+    "- userText is the primary source for on-card text blocks; characteristics are secondary supporting inputs",
+    "- on-card text hierarchy should be: one dominant headline, 1-3 short proof points or benefits, optional badge or CTA",
+    "- do not generate text-heavy catalog layouts, long sentences, or explanatory prose on the card",
+    "- the product must remain visually dominant; text supports the sale instead of replacing the product",
     "- no markdown",
     "",
     "Structured flow inputs:",
     "- title: " + title,
     "- subtitle: " + subtitle,
+    "- shortDescription: " + shortDescription,
     "- marketplace: " + marketplace,
     "- cardGoal: " + cardGoal,
     "- generationMode: " + generationMode,
@@ -285,7 +293,8 @@ const buildCreateGenerateUserTextV2 = (payload) => {
 const buildCreateVariantImagePromptV2 = (payload, variant, variantNumber) => {
   const marketplace = toText(payload?.marketplace) || "маркетплейс";
   const title = toText(payload?.title) || toText(payload?.description) || "товар";
-  const subtitle = toText(payload?.subtitle || payload?.shortDescription) || "";
+  const subtitle = toText(payload?.subtitle) || "";
+  const shortDescription = toText(payload?.shortDescription) || "";
   const userText = toText(payload?.userText) || "(none)";
   const description = toText(payload?.description) || "товар";
   const highlights = toText(payload?.highlights) || "";
@@ -311,7 +320,8 @@ const buildCreateVariantImagePromptV2 = (payload, variant, variantNumber) => {
     "- marketplace: " + marketplace,
     "- title: " + title,
     "- subtitle: " + (subtitle || "(none)"),
-    "- subtitle describes the product itself, not the card layout",
+    "- shortDescription: " + (shortDescription || "(none)"),
+    "- subtitle, shortDescription, description, and highlights are internal product context, not ready-made text for the card",
     "- userText: " + userText,
     "- description: " + description,
     "- highlights: " + (highlights || "(none)"),
@@ -334,6 +344,14 @@ const buildCreateVariantImagePromptV2 = (payload, variant, variantNumber) => {
     "- plannedFocus: " + focus,
     "- plannedFormat: " + format,
     "- plannedChanges: " + changes,
+    "",
+    "Hard visual-copy rules:",
+    "- create a card that clearly sells the product at first glance",
+    "- keep the product dominant and easy to read from mobile screens",
+    "- use only concise selling copy on the card: one large headline, 1-3 short benefits or proof points, optional badge or CTA",
+    "- never copy shortDescription or description into a paragraph on the card",
+    "- avoid text-heavy layouts, catalog prose, and large explanatory blocks",
+    "- if the text starts to compete with the product, reduce the amount of text and keep the hierarchy cleaner",
   ].join("\n");
 };
 
@@ -386,7 +404,7 @@ const buildImproveGenerateUserText = (payload) => {
   const referenceStyle = Boolean(payload?.referenceStyle);
 
   return [
-    "Задача: собрать варианты улучшенной карточки для маркетплейса.",
+    "Задача: собрать варианты улучшенной продающей карточки товара.",
     "Верни только строгий JSON со следующей структурой:",
     "{",
     '  "variants": [',
@@ -398,6 +416,8 @@ const buildImproveGenerateUserText = (payload) => {
     "- все строковые поля должны быть только на русском языке",
     "- strategy и changes должны кратко объяснять направление улучшения",
     "- styleLabel должен быть пустой строкой, когда стиль референса не активен",
+    "- не предлагай видимый текст или бейджи со словами маркетплейс, marketplace, Ozon, Wildberries, WB, seller или названиями платформ",
+    "- если на исходной карточке есть такие платформенные метки, в улучшенном варианте их нужно убрать и заменить на продуктовую выгоду или чистую композицию",
     "- без markdown",
     "",
     "Входные данные:",
@@ -449,11 +469,14 @@ const buildImproveVariantImagePrompt = (payload, variant, variantNumber) => {
   const referenceStyle = Boolean(payload?.referenceStyle);
 
   return [
-    "Сгенерируй ровно одно улучшенное изображение карточки маркетплейса в вертикальном формате 4:5.",
+    "Сгенерируй ровно одно улучшенное изображение продающей карточки товара в вертикальном формате 4:5.",
     "Первое приложенное изображение — исходная карточка для улучшения.",
     referenceStyle ? "Если приложено второе изображение, используй его как стилевой референс." : "Стилевой референс не требуется.",
     "Не возвращай исходную карточку без изменений.",
     "Сохрани тот же товар, но заметно улучши иерархию, читаемость, композицию и ясность CTA.",
+    "Убери с видимого дизайна любые упоминания маркетплейса, marketplace, Ozon, Wildberries, WB, seller, названия платформ и платформенные бейджи, если это не часть реального брендинга на самом товаре или упаковке.",
+    "Если на исходной карточке есть такие платформенные метки, в улучшенной версии замени их на продуктовую выгоду, короткий proof-point или оставь чистое пространство.",
+    "Не размещай слово маркетплейс на карточке.",
     "Весь видимый текст на карточке должен быть только на русском языке.",
     "Верни только изображение.",
     "",
@@ -644,7 +667,7 @@ const createOpenRouterProvider = (config) => {
       {
         role: "system",
         content: mode === "improve"
-          ? "Ты AI-редактор изображений для карточек маркетплейсов. Верни новое улучшенное изображение, а не исходник. Весь видимый текст должен быть на русском языке."
+          ? "Ты AI-редактор коммерческих карточек товара. Верни новое улучшенное изображение, а не исходник. Весь видимый текст должен быть на русском языке. Не оставляй на карточке платформенные метки и слова вроде маркетплейс, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара."
           : CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2,
       },
       {
@@ -710,7 +733,7 @@ const createOpenRouterProvider = (config) => {
     const parsed = await callChatJson([
       {
         role: "system",
-        content: "Ты AI-дизайнер, который улучшает карточки маркетплейсов. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
+        content: "Ты AI-дизайнер, который улучшает продающие карточки товара. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
       },
       {
         role: "user",
@@ -760,9 +783,34 @@ const createOpenRouterProvider = (config) => {
     return results;
   };
 
+  const generateTemplatePreview = async (promptText) => {
+    const text = toText(promptText);
+    if (!text) {
+      throw new OpenRouterProviderError({
+        status: 400,
+        code: "openrouter_empty_prompt",
+        message: "Template preview prompt is empty",
+      });
+    }
+
+    const responseImages = await callImageGeneration([
+      {
+        role: "system",
+        content: CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2,
+      },
+      {
+        role: "user",
+        content: text,
+      },
+    ]);
+
+    return responseImages[0] || "";
+  };
+
   return {
     createGenerate,
     improveGenerate,
+    generateTemplatePreview,
   };
 };
 

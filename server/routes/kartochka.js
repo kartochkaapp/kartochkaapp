@@ -136,6 +136,21 @@ const createKartochkaHandlers = (deps) => {
       return generationService.improveGenerate(payload);
     },
 
+    async templatePreview(body) {
+      const requestBody = ensureObject(body, "Invalid templatePreview request body");
+      const payload = ensureObject(requestBody.payload || {}, "templatePreview payload must be an object");
+      const prompt = toText(payload.prompt);
+      if (!prompt) {
+        throw new ApiRouteError({
+          status: 400,
+          code: "missing_prompt",
+          message: "Template preview prompt is required",
+        });
+      }
+      const previewUrl = await generationService.generateTemplatePreview(prompt);
+      return { previewUrl };
+    },
+
     async historyList(body) {
       const requestBody = ensureObject(body || {}, "Invalid historyList request body");
       return historyService.list(requestBody);

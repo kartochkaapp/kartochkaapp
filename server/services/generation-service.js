@@ -51,6 +51,24 @@ const createGenerationService = (deps) => {
       const results = await adapter.executeImproveGeneration(payload || {});
       return ensureResultList(results, "improveGenerate must return an array");
     },
+    async generateTemplatePreview(promptText) {
+      if (typeof adapter.executeTemplatePreview !== "function") {
+        throw new GenerationServiceError({
+          status: 500,
+          code: "template_preview_not_supported",
+          message: "Adapter does not support template preview generation",
+        });
+      }
+      const url = await adapter.executeTemplatePreview(promptText);
+      if (!url || typeof url !== "string") {
+        throw new GenerationServiceError({
+          status: 502,
+          code: "template_preview_empty",
+          message: "Template preview generation returned no image",
+        });
+      }
+      return url;
+    },
   };
 };
 

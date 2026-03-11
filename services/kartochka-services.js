@@ -46,6 +46,7 @@
     historyList: "",
     historyGetById: "",
     historySave: "",
+    templatePreview: "",
   });
 
   const ERROR_CODES = Object.freeze({
@@ -937,6 +938,12 @@
           savedAt: new Date().toISOString(),
         };
       },
+
+      async templatePreview() {
+        await wait(config.delays.createGeneration || 1500);
+        const pool = config.previewPools.create;
+        return pool[Math.floor(Math.random() * pool.length)] || "";
+      },
     };
   };
   const createRealGateway = (config) => {
@@ -997,6 +1004,18 @@
       async historySave(payload) {
         const raw = await postJson("historySave", payload || {});
         return validateHistorySaveResponse(raw);
+      },
+
+      async templatePreview(payload) {
+        const raw = await postJson("templatePreview", { payload });
+        const url = toText(raw?.previewUrl);
+        if (!url) {
+          throw new ServiceError({
+            code: ERROR_CODES.invalidResponse,
+            message: "templatePreview did not return previewUrl",
+          });
+        }
+        return url;
       },
     };
   };
@@ -1104,6 +1123,10 @@
 
       async historySave(payload) {
         return callGateway("historySave", [payload]);
+      },
+
+      async templatePreview(payload) {
+        return callGateway("templatePreview", [payload]);
       },
     };
     client.ai = Object.freeze({

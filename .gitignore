@@ -7,3 +7,5 @@ tmp_server_out.log
 tmp_server_err.log
 __head_app.js
 server/data/history-store.json
+
+.vercel

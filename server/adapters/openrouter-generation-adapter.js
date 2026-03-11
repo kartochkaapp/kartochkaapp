@@ -12,6 +12,9 @@ const createOpenRouterGenerationAdapter = (config) => {
     executeImproveGeneration(payload) {
       return provider.improveGenerate(payload);
     },
+    executeTemplatePreview(promptText) {
+      return provider.generateTemplatePreview(promptText);
+    },
   };
 };
 

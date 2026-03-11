@@ -1,5 +1,6 @@
 (function () {
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prefersTouchUi = window.matchMedia("(pointer: coarse)").matches;
 
   const mobileMenu = document.getElementById("mobileMenu");
   const mobileMenuBtn = document.getElementById("mobileMenuBtn");
@@ -169,6 +170,14 @@
   const historyDetailsHighlights = document.getElementById("historyDetailsHighlights");
   const historyDetailsAi = document.getElementById("historyDetailsAi");
   const historyDetailsResults = document.getElementById("historyDetailsResults");
+
+  const mountWorkspaceOverlay = (element) => {
+    if (!element || !workspace || element.parentElement === workspace) return;
+    workspace.append(element);
+  };
+
+  mountWorkspaceOverlay(createReferenceModal);
+  mountWorkspaceOverlay(createImageManagerModal);
 
   const APP_ROUTE_PREFIX = "#app/";
   const APP_MODES = ["create", "improve", "animate", "history"];
@@ -1144,6 +1153,7 @@
     return library.find((item) => item.id === createSelectedTemplateId) || CREATE_TEMPLATE_LIBRARY[0] || library[0] || null;
   };
 
+
   const shouldUseCreateTemplatePreviewAsReference = (template) => {
     return Boolean(template) && template.usePreviewAsReference !== false;
   };
@@ -1192,16 +1202,59 @@
     return (createProductShortDescription?.value || "").trim();
   };
 
-  const buildCreateUserText = () => {
-    const title = getCreateProductTitleValue();
-    const shortDescription = getCreateProductShortDescriptionValue();
-    const characteristicBlock = getCreateCharacteristicRows()
-      .map((item) => [String(item.label || "").trim(), String(item.value || "").trim()].filter(Boolean).join(": "))
-      .filter(Boolean)
-      .slice(0, 6)
-      .join("; ");
+  const normalizeCreateCardTextLine = (value) => {
+    return String(value || "")
+      .replace(/\s+/g, " ")
+      .replace(/^[\s\-:+]+/, "")
+      .replace(/[\s\-:+.,;!?]+$/, "")
+      .trim();
+  };
 
-    return [title, shortDescription, characteristicBlock].filter(Boolean).join("\n\n");
+  const formatCreateCardFeatureLine = (item) => {
+    const label = normalizeCreateCardTextLine(item?.label);
+    const value = normalizeCreateCardTextLine(item?.value);
+
+    if (label && value) {
+      if (value.toLowerCase().includes(label.toLowerCase())) {
+        return value;
+      }
+
+      return label.length <= 18 && value.length <= 24
+        ? label + " " + value
+        : label + ": " + value;
+    }
+
+    return value || label;
+  };
+
+  const buildCreateSellingFeatureLines = () => {
+    const seen = new Set();
+
+    return getCreateCharacteristicRows()
+      .map((item) => formatCreateCardFeatureLine(item))
+      .filter(Boolean)
+      .filter((line) => {
+        const key = line.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 4);
+  };
+
+  const pickCreateBadgeTextLine = (lines) => {
+    const candidates = Array.isArray(lines) ? lines.filter(Boolean) : [];
+    const badgePattern = /\d|гарант|скид|комплект|хит|премиум|защита|выгода|комфорт|мл|см|мм|кг|шт|мин|час|дн|лет/i;
+    return candidates.find((line) => badgePattern.test(line)) || candidates[0] || "";
+  };
+
+  const buildCreateUserText = () => {
+    const title = normalizeCreateCardTextLine(getCreateProductTitleValue());
+    const featureLines = buildCreateSellingFeatureLines();
+    const featureBlock = featureLines.slice(0, 2).join("\n");
+    const badgeLine = pickCreateBadgeTextLine(featureLines.slice(2));
+
+    return [title, featureBlock, badgeLine].filter(Boolean).join("\n\n");
   };
 
   const buildCreateSettingsPayload = () => {
@@ -1815,10 +1868,12 @@
   const openCreateReferenceLibrary = () => {
     createReferenceLibraryOpen = true;
     syncCreateReferenceLibraryState();
-    window.setTimeout(() => {
-      createTemplateSearchInput?.focus();
-      createTemplateSearchInput?.select();
-    }, 0);
+    if (!prefersTouchUi) {
+      window.setTimeout(() => {
+        createTemplateSearchInput?.focus();
+        createTemplateSearchInput?.select();
+      }, 0);
+    }
   };
 
   const closeCreateReferenceLibrary = () => {
@@ -1877,6 +1932,7 @@
 
       const thumb = document.createElement("span");
       thumb.className = "create-template-thumb";
+
       appendCreateTemplateThumb(thumb, template);
 
       const body = document.createElement("span");
@@ -1885,23 +1941,11 @@
       const title = document.createElement("strong");
       title.textContent = template.title;
 
-      const description = document.createElement("span");
-      description.textContent = template.description;
-
-      const meta = document.createElement("span");
-      meta.className = "create-template-meta";
-      meta.textContent = [
-        template.sourceLabel || "",
-        getCreateTemplateKindLabel(template),
-      ]
-        .filter(Boolean)
-        .join(" • ");
-
       const tags = document.createElement("span");
       tags.className = "create-template-tags";
-      renderCreateTemplateTagChips(tags, template, 4);
+      renderCreateTemplateTagChips(tags, template, 6);
 
-      body.append(title, description, meta, tags);
+      body.append(title, tags);
       card.append(thumb, body);
       createTemplateGrid.append(card);
     });
@@ -2165,7 +2209,7 @@
     return {
       title: getCreateProductTitleValue(),
       shortDescription: getCreateProductShortDescriptionValue(),
-      subtitle: getCreateProductShortDescriptionValue(),
+      subtitle: "",
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
       marketplace: (createMarketplace?.value || "").trim(),
@@ -2392,7 +2436,7 @@
     return {
       title: getCreateProductTitleValue(),
       shortDescription: getCreateProductShortDescriptionValue(),
-      subtitle: getCreateProductShortDescriptionValue(),
+      subtitle: "",
       description: (createDescription?.value || "").trim(),
       highlights: (createHighlights?.value || "").trim(),
       marketplace: (createMarketplace?.value || "").trim(),
@@ -4159,7 +4203,7 @@
       highlights: (createHighlights?.value || "").trim(),
       title,
       shortDescription,
-      subtitle: shortDescription,
+      subtitle: "",
       userText: buildCreateUserText(),
       characteristics,
       marketplace: (createMarketplace?.value || "").trim(),
