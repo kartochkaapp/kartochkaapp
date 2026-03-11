@@ -84,6 +84,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
 const createKartochkaHandlers = (deps) => {
   const openaiBrainService = deps?.openaiBrainService;
   const generationService = deps?.generationService;
+  const historyService = deps?.historyService;
 
   if (
     !openaiBrainService
@@ -98,6 +99,14 @@ const createKartochkaHandlers = (deps) => {
     || typeof generationService.improveGenerate !== "function"
   ) {
     throw new Error("Generation service is not configured correctly");
+  }
+  if (
+    !historyService
+    || typeof historyService.list !== "function"
+    || typeof historyService.getById !== "function"
+    || typeof historyService.save !== "function"
+  ) {
+    throw new Error("History service is not configured correctly");
   }
 
   return {
@@ -125,6 +134,21 @@ const createKartochkaHandlers = (deps) => {
       const requestBody = ensureObject(body, "Invalid improveGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "improveGenerate payload must be an object");
       return generationService.improveGenerate(payload);
+    },
+
+    async historyList(body) {
+      const requestBody = ensureObject(body || {}, "Invalid historyList request body");
+      return historyService.list(requestBody);
+    },
+
+    async historyGetById(body) {
+      const requestBody = ensureObject(body || {}, "Invalid historyGetById request body");
+      return historyService.getById(requestBody);
+    },
+
+    async historySave(body) {
+      const requestBody = ensureObject(body || {}, "Invalid historySave request body");
+      return historyService.save(requestBody);
     },
   };
 };

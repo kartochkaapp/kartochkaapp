@@ -12,6 +12,7 @@ const { createOpenAIBrainAdapter } = require("./server/adapters/openai-brain-ada
 const { createOpenRouterGenerationAdapter } = require("./server/adapters/openrouter-generation-adapter");
 const { OpenAIBrainServiceError, createOpenAIBrainService } = require("./server/services/openai-brain-service");
 const { GenerationServiceError, createGenerationService } = require("./server/services/generation-service");
+const { HistoryServiceError, createHistoryService } = require("./server/services/history-service");
 const { OpenAIProviderError } = require("./server/providers/openai");
 const { OpenRouterProviderError } = require("./server/providers/openrouter");
 
@@ -62,9 +63,14 @@ const openaiBrainService = createOpenAIBrainService({
 const generationService = createGenerationService({
   adapter: openrouterGenerationAdapter,
 });
+const historyService = createHistoryService({
+  filePath: path.join(runtime.app.rootDir, "server", "data", "history-store.json"),
+  maxItems: 30,
+});
 const kartochkaHandlers = createKartochkaHandlers({
   openaiBrainService,
   generationService,
+  historyService,
 });
 
 const sendJson = (response, statusCode, payload) => {
@@ -219,6 +225,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof OpenRouterProviderError
     || error instanceof OpenAIBrainServiceError
     || error instanceof GenerationServiceError
+    || error instanceof HistoryServiceError
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
@@ -261,6 +268,12 @@ const dispatchKartochkaApi = async (pathname, body) => {
       return kartochkaHandlers.improveAnalyze(body);
     case "/api/kartochka/improveGenerate":
       return kartochkaHandlers.improveGenerate(body);
+    case "/api/kartochka/historyList":
+      return kartochkaHandlers.historyList(body);
+    case "/api/kartochka/historyGetById":
+      return kartochkaHandlers.historyGetById(body);
+    case "/api/kartochka/historySave":
+      return kartochkaHandlers.historySave(body);
     default:
       throw new ApiRouteError({
         status: 404,

@@ -683,9 +683,9 @@
           createGenerate: "/api/kartochka/createGenerate",
           improveAnalyze: "/api/kartochka/improveAnalyze",
           improveGenerate: "/api/kartochka/improveGenerate",
-          historyList: "",
-          historyGetById: "",
-          historySave: "",
+          historyList: "/api/kartochka/historyList",
+          historyGetById: "/api/kartochka/historyGetById",
+          historySave: "/api/kartochka/historySave",
         },
       })
     : null;
@@ -3104,8 +3104,8 @@
     });
   };
 
-  const persistHistory = async () => {
-    const serializable = historyEntries.map((entry) => ({
+  const serializeHistoryEntry = (entry) => {
+    return {
       id: entry.id,
       mode: entry.mode,
       createdAt: entry.createdAt,
@@ -3120,14 +3120,33 @@
       ai: entry.ai,
       results: entry.results,
       meta: entry.meta,
-    }));
+    };
+  };
+
+  const persistHistory = async (options) => {
+    const serializable = historyEntries.map((entry) => serializeHistoryEntry(entry));
+    const persistMode = String(options?.mode || "replace").trim().toLowerCase();
+    const scopeId = getHistoryScopeId(activeUser);
+    const singleEntry = options?.entry ? serializeHistoryEntry(options.entry) : null;
 
     if (serviceClient?.historySave) {
       try {
-        await serviceClient.historySave({
-          scopeId: getHistoryScopeId(activeUser),
-          entries: serializable,
-        });
+        if (persistMode === "clear") {
+          await serviceClient.historySave({
+            scopeId,
+            clear: true,
+          });
+        } else if (persistMode === "entry" && singleEntry) {
+          await serviceClient.historySave({
+            scopeId,
+            entry: singleEntry,
+          });
+        } else {
+          await serviceClient.historySave({
+            scopeId,
+            entries: serializable,
+          });
+        }
         return;
       } catch (error) {
         // Fallback to legacy localStorage persistence when service storage fails.
@@ -3137,6 +3156,11 @@
     if (typeof window === "undefined" || !window.localStorage) return;
 
     try {
+      if (!serializable.length) {
+        window.localStorage.removeItem(getHistoryStorageKey(activeUser));
+        return;
+      }
+
       let entriesToStore = serializable.slice();
       let stored = false;
 
@@ -3198,7 +3222,7 @@
   const clearHistory = async () => {
     historyEntries.length = 0;
     selectedHistoryEntryId = "";
-    await persistHistory();
+    await persistHistory({ mode: "clear" });
     renderHistory();
   };
 
@@ -3627,7 +3651,10 @@
     }
 
     selectedHistoryEntryId = normalizedEntry.id;
-    void persistHistory();
+    void persistHistory({
+      mode: "entry",
+      entry: normalizedEntry,
+    });
     renderHistory();
   };
 
@@ -4014,6 +4041,15 @@
     if (lastDigit > 1 && lastDigit < 5) return "карточки";
     if (lastDigit === 1) return "карточка";
     return "карточек";
+  };
+
+  const formatRussianCountWord = (count, one, few, many) => {
+    const normalized = Math.abs(Number(count) || 0) % 100;
+    const lastDigit = normalized % 10;
+    if (normalized > 10 && normalized < 20) return many;
+    if (lastDigit > 1 && lastDigit < 5) return few;
+    if (lastDigit === 1) return one;
+    return many;
   };
 
   const setCreateResultsProcessing = (isProcessing) => {
@@ -4475,11 +4511,12 @@
         : "Сократить перегрузку: меньше текста, чище композиция, выше читаемость.",
     ];
 
+    const issuesCountLabel = String(issues.length) + " " + formatRussianCountWord(issues.length, "зона", "зоны", "зон");
     const summary = referenceStyleActive
-      ? "AI учел стиль референса: выявили 7 зон риска и подготовили план улучшения под этот визуальный язык."
+      ? "AI учел стиль референса: выявили " + issuesCountLabel + " риска и подготовили план улучшения под этот визуальный язык."
       : hasReference
-        ? "AI нашел 7 зон риска. Референс загружен, но сейчас используется стандартный AI-режим."
-        : "AI нашел 7 зон риска: фокус и CTA слабые, композицию и читаемость нужно усилить.";
+        ? "AI нашел " + issuesCountLabel + " риска. Референс загружен, но сейчас используется стандартный AI-режим."
+        : "AI нашел " + issuesCountLabel + " риска: фокус и CTA слабые, композицию и читаемость нужно усилить.";
 
     const referenceNote = referenceStyleActive
       ? "Активен reference style: улучшение будет ориентироваться на загруженный референс."
@@ -4664,6 +4701,10 @@
       improveAnalysisFingerprint = getImproveAnalysisFingerprint();
       improveAnalysisPhase = "success";
       renderImproveAnalysisValues(analysis);
+      const issuesCount = Array.isArray(analysis?.issues) ? analysis.issues.length : 0;
+      const improveIssuesLabel = issuesCount
+        ? String(issuesCount) + " " + formatRussianCountWord(issuesCount, "зона", "зоны", "зон") + " улучшения"
+        : "несколько зон улучшения";
       setStatusMessage(
         improveAnalysisStatus,
         source === "generation"
@@ -4671,8 +4712,8 @@
             ? "Анализ обновлен с учетом референса и применен перед запуском улучшения."
             : "Анализ обновлен и применен перед запуском улучшения."
           : referenceStyleActive
-            ? "Анализ готов: 7 зон улучшения определены с учетом стиля референса."
-            : "Анализ готов: показали 7 зон улучшения. Можно запускать генерацию.",
+            ? "Анализ готов: " + improveIssuesLabel + " определены с учетом стиля референса."
+            : "Анализ готов: показали " + improveIssuesLabel + ". Можно запускать генерацию.",
         "success"
       );
       if (source !== "generation") {

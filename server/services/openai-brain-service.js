@@ -32,13 +32,90 @@ const ensureObject = (value, message) => {
   return value;
 };
 
-const normalizeCreateAnalyzeResult = (result, intent) => {
+const normalizeCharacteristicList = (value) => {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item, index) => ({
+      label: toText(item?.label),
+      value: toText(item?.value),
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index + 1,
+    }))
+    .filter((item) => item.label || item.value)
+    .slice(0, 8);
+};
+
+const normalizeBenefits = (value) => {
+  const items = Array.isArray(value) ? value : [];
+  return items.map((item) => toText(item)).filter(Boolean).slice(0, 6);
+};
+
+const splitBenefitText = (value) => {
+  return String(value || "")
+    .split(/[\n;|•]+/g)
+    .map((item) => toText(item).replace(/[.!?,]+$/g, ""))
+    .filter(Boolean)
+    .slice(0, 6);
+};
+
+const buildFallbackSubjectOnScreen = (payload, detectedCategory) => {
+  const title = toText(payload?.title);
+  const shortDescription = toText(payload?.shortDescription || payload?.subtitle);
+  const description = toText(payload?.description);
+  const characteristics = normalizeCharacteristicList(payload?.characteristics);
+  const referenceTitle = toText(payload?.reference?.title || payload?.selectedTemplate?.title);
+  const characteristicSummary = characteristics
+    .slice(0, 2)
+    .map((item) => [item.label, item.value].filter(Boolean).join(": "))
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    summary: title || shortDescription || description || detectedCategory || "Товар на фото",
+    productType: detectedCategory || title || "Товар",
+    productIdentity: title || shortDescription || detectedCategory || "Товар на фото",
+    visualEvidence: characteristicSummary || description || shortDescription || title || detectedCategory,
+    referenceRelation: referenceTitle
+      ? "Адаптировать композицию и стиль шаблона " + referenceTitle + " под этот товар."
+      : "Опирайтесь на фото товара как на главный источник идентичности.",
+  };
+};
+
+const buildFallbackAutofill = (payload, detectedCategory, headlineIdeas) => {
+  const title = toText(payload?.title) || headlineIdeas[0] || detectedCategory || "Товар";
+  const characteristics = normalizeCharacteristicList(payload?.characteristics);
+  const benefits = splitBenefitText(payload?.highlights);
+  const shortDescription = (
+    toText(payload?.shortDescription || payload?.subtitle)
+    || toText(payload?.description)
+    || characteristics
+      .slice(0, 2)
+      .map((item) => [item.label, item.value].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .join(", ")
+    || benefits.slice(0, 2).join(". ")
+    || detectedCategory
+  );
+
+  return {
+    title,
+    shortDescription,
+    subtitle: shortDescription,
+    characteristics,
+    benefits,
+  };
+};
+
+const normalizeCreateAnalyzeResult = (result, payload, intent) => {
   const safeResult = ensureObject(result, "OpenAI createAnalyze response must be an object");
   const normalizedIntent = toText(intent).toLowerCase();
   const detectedCategory = toText(safeResult.detectedCategory || safeResult?.insight?.category);
+  const fallbackHeadline = toText(payload?.title || payload?.shortDescription || detectedCategory);
   const headlineIdeas = Array.isArray(safeResult.headlineIdeas)
     ? safeResult.headlineIdeas.map((item) => toText(item)).filter(Boolean).slice(0, 5)
     : [];
+  if (!headlineIdeas.length && fallbackHeadline) {
+    headlineIdeas.push(fallbackHeadline);
+  }
 
   const insight = {
     category: toText(safeResult?.insight?.category || detectedCategory),
@@ -52,12 +129,32 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       || toText(safeResult?.insight?.conversionAccent),
     headlineIdeas,
   };
-  const subjectOnScreen = safeResult.subjectOnScreen && typeof safeResult.subjectOnScreen === "object"
+  const subjectSource = safeResult.subjectOnScreen && typeof safeResult.subjectOnScreen === "object"
     ? safeResult.subjectOnScreen
-    : null;
-  const autofill = safeResult.autofill && typeof safeResult.autofill === "object"
+    : {};
+  const autofillSource = safeResult.autofill && typeof safeResult.autofill === "object"
     ? safeResult.autofill
-    : null;
+    : {};
+  const fallbackSubject = buildFallbackSubjectOnScreen(payload, detectedCategory);
+  const fallbackAutofill = buildFallbackAutofill(payload, detectedCategory, headlineIdeas);
+  const subjectOnScreen = {
+    summary: toText(subjectSource.summary) || fallbackSubject.summary,
+    productType: toText(subjectSource.productType) || fallbackSubject.productType,
+    productIdentity: toText(subjectSource.productIdentity) || fallbackSubject.productIdentity,
+    visualEvidence: toText(subjectSource.visualEvidence) || fallbackSubject.visualEvidence,
+    referenceRelation: toText(subjectSource.referenceRelation) || fallbackSubject.referenceRelation,
+  };
+  const autofill = {
+    title: toText(autofillSource.title) || fallbackAutofill.title,
+    shortDescription: toText(autofillSource.shortDescription) || fallbackAutofill.shortDescription,
+    subtitle: toText(autofillSource.subtitle) || fallbackAutofill.subtitle,
+    characteristics: normalizeCharacteristicList(autofillSource.characteristics).length
+      ? normalizeCharacteristicList(autofillSource.characteristics)
+      : fallbackAutofill.characteristics,
+    benefits: normalizeBenefits(autofillSource.benefits).length
+      ? normalizeBenefits(autofillSource.benefits)
+      : fallbackAutofill.benefits,
+  };
 
   if (normalizedIntent === "category") {
     return {
@@ -128,7 +225,7 @@ const createOpenAIBrainService = (deps) => {
   return {
     async createAnalyze(payload, context) {
       const result = await adapter.analyzeCreateInput(payload || {});
-      return normalizeCreateAnalyzeResult(result, context?.intent);
+      return normalizeCreateAnalyzeResult(result, payload || {}, context?.intent);
     },
     async improveAnalyze(payload) {
       const result = await adapter.analyzeImproveInput(payload || {});
