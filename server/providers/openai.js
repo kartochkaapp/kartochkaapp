@@ -1,5 +1,6 @@
 "use strict";
 
+const fs = require("node:fs");
 
 const { HttpClientError, requestJson } = require("../http-client");
 const { toText, extractJsonObject, clamp } = require("../utils");
@@ -123,11 +124,71 @@ const formatCreateAnalyzeReferenceV2 = (payload) => {
 
 const formatCreateTemplateInstructionTextV2 = (payload) => {
   const reference = payload?.reference || payload?.selectedTemplate || null;
-  const instructionPrompt = toText(reference?.instructionPrompt);
+  const inlineInstructionPrompt = toText(payload?.instructionDocumentText || reference?.instructionPrompt);
+  const instructionPrompt = inlineInstructionPrompt || (() => {
+    const instructionPath = toText(reference?.instructionPromptPath);
+    if (!instructionPath) return "";
+    try {
+      return toText(fs.readFileSync(instructionPath, "utf8"));
+    } catch (error) {
+      return "";
+    }
+  })();
   if (!instructionPrompt) return "";
 
-  const userText = toText(payload?.userText) || "(пусто)";
+  const userText = toText(payload?.contentCardText || payload?.userText || payload?.prompt || payload?.customPrompt) || "(пусто)";
   return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
+};
+
+const normalizeCreateCardTextLevelsV2 = (value) => {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    primary: toText(source?.primary),
+    secondary: toText(source?.secondary),
+    tertiary: toText(source?.tertiary),
+  };
+};
+
+const formatCreateCardPlacementTextV2 = (payload) => {
+  const levels = normalizeCreateCardTextLevelsV2(payload?.cardTextLevels);
+  const lines = [
+    levels.primary ? "- Главный текст (нужно разместить на карточке): " + levels.primary : "",
+    levels.secondary ? "- Второй уровень текста (нужно разместить на карточке): " + levels.secondary : "",
+    levels.tertiary ? "- Третий уровень текста (нужно разместить на карточке): " + levels.tertiary : "",
+  ].filter(Boolean);
+
+  return lines.length ? lines.join("\n") : "(пусто)";
+};
+
+const isCreateInstructionPromptRequestV2 = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  return toText(payload?.analysisIntent) === "prompt"
+    && toText(reference?.kind) === "instruction-template"
+    && toText(reference?.promptFlow) === "gpt_instruction";
+};
+
+const buildCreateInstructionPromptUserTextV2 = (payload) => {
+  const instructionText = formatCreateTemplateInstructionTextV2(payload) || "(пусто)";
+  const cardPlacementText = formatCreateCardPlacementTextV2(payload);
+
+  return [
+    "Задача: по инструкции шаблона, фото товара и пользовательскому тексту для карточки собери один финальный prompt для image AI.",
+    "Верни только валидный JSON со следующей структурой:",
+    "{",
+    '  "prompt": string',
+    "}",
+    "Правила:",
+    "- фото товара — главный источник правды о товаре",
+    "- пользовательский текст ниже нужно разместить на карточке",
+    "- не добавляй объяснения, комментарии или markdown",
+    "- верни только один готовый prompt для image AI",
+    "",
+    "Инструкция шаблона:",
+    instructionText,
+    "",
+    "Пользовательский текст для размещения на карточке:",
+    cardPlacementText,
+  ].join("\n");
 };
 
 const formatCreateAnalyzeSettingsV2 = (payload) => {
@@ -155,6 +216,7 @@ const buildCreateAnalyzeUserTextV2 = (payload) => {
   const cardsCount = clamp(payload?.cardsCount, 1, 5, 1);
   const promptMode = toText(payload?.promptMode) || "ai";
   const customPrompt = toText(payload?.prompt) || toText(payload?.customPrompt) || "";
+  const contentCardText = toText(payload?.contentCardText) || "(пусто)";
   const title = toText(payload?.title) || "(пусто)";
   const shortDescription = toText(payload?.shortDescription || payload?.subtitle) || "(пусто)";
   const userText = toText(payload?.userText) || "(пусто)";
@@ -191,10 +253,12 @@ const buildCreateAnalyzeUserTextV2 = (payload) => {
     "- headlineIdeas должны содержать 3-5 коротких вариантов в логике товара, а не шаблона",
     "- marketplaceFormat должен соответствовать особенностям маркетплейса",
     "- prompt должен быть готов для production-генерации карточки и учитывать товар, референс и structured inputs",
+    "- если пользователь заполнил contentCardText, используй его как обязательный текстовый контекст для сборки финального prompt",
     "",
     "Структурированные данные формы:",
     "- title: " + title,
     "- shortDescription: " + shortDescription,
+    "- contentCardText: " + contentCardText,
     "- description: " + description,
     "- highlights: " + highlights,
     "- marketplace: " + marketplace,
@@ -440,7 +504,7 @@ const createOpenAIProvider = (config) => {
   const endpoint = String(config?.baseUrl || "").replace(/\/+$/, "") + "/chat/completions";
   const model = toText(config?.model) || "gpt-4.1-mini";
   const apiKey = toText(config?.apiKey);
-  const timeoutMs = clamp(config?.timeoutMs, 1000, 120000, 45000);
+  const timeoutMs = clamp(config?.timeoutMs, 1000, 300000, 300000);
 
   const callChatJson = async (messages) => {
     if (!apiKey) {
@@ -462,7 +526,7 @@ const createOpenAIProvider = (config) => {
         },
         body: {
           model,
-          temperature: 0.2,
+          reasoning_effort: "xhigh",
           response_format: { type: "json_object" },
           messages,
         },
@@ -502,6 +566,45 @@ const createOpenAIProvider = (config) => {
   };
 
   const createAnalyze = async (payload) => {
+    if (isCreateInstructionPromptRequestV2(payload)) {
+      const messages = [
+        {
+          role: "system",
+          content: "Ты собираешь один готовый prompt для image AI. Возвращай только строгий JSON.",
+        },
+      ];
+
+      const userContent = [
+        {
+          type: "text",
+          text: buildCreateInstructionPromptUserTextV2(payload),
+        },
+      ];
+
+      const imageDataUrls = Array.isArray(payload?.imageDataUrls)
+        ? payload.imageDataUrls.filter((value) => toText(value))
+        : [];
+      for (const imageUrl of imageDataUrls.slice(0, 5)) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: "high",
+          },
+        });
+      }
+
+      messages.push({
+        role: "user",
+        content: userContent,
+      });
+
+      const parsed = await callChatJson(messages);
+      return {
+        prompt: toText(parsed?.prompt),
+      };
+    }
+
     {
       const messages = [
         {

@@ -61,6 +61,12 @@
   const createCtaHint = document.getElementById("createCtaHint");
   const createStatus = document.getElementById("createStatus");
   const createDoneBadge = document.getElementById("createDoneBadge");
+  const createFlowSteps = {
+    photo: document.querySelector('[data-create-flow-step="photo"]'),
+    template: document.querySelector('[data-create-flow-step="template"]'),
+    content: document.querySelector('[data-create-flow-step="content"]'),
+    generate: document.querySelector('[data-create-flow-step="generate"]'),
+  };
   const createMeta = document.getElementById("createMeta");
   const createResultsSection = document.getElementById("createResultsSection");
   const createResultsCaption = document.getElementById("createResultsCaption");
@@ -87,8 +93,14 @@
   const createSelectedTemplateDescription = document.getElementById("createSelectedTemplateDescription");
   const createSelectedTemplateMeta = document.getElementById("createSelectedTemplateMeta");
   const createSelectedTemplateTags = document.getElementById("createSelectedTemplateTags");
+  const createInstructionTemplatePanel = document.getElementById("createInstructionTemplatePanel");
+  const createCustomPromptPanel = document.getElementById("createCustomPromptPanel");
+  const createInstructionAttachBtn = document.getElementById("createInstructionAttachBtn");
+  const createInstructionInput = document.getElementById("createInstructionInput");
+  const createInstructionState = document.getElementById("createInstructionState");
   const createProductTitle = document.getElementById("createProductTitle");
   const createProductShortDescription = document.getElementById("createProductShortDescription");
+  const createProductThirdLevelText = document.getElementById("createProductThirdLevelText");
   const createAutofillBtn = document.getElementById("createAutofillBtn");
   const createCharacteristicPresets = document.getElementById("createCharacteristicPresets");
   const createCharacteristicsList = document.getElementById("createCharacteristicsList");
@@ -569,7 +581,35 @@
       tags: ["preset", "frosted glass", "skincare", "macro", "condensation", "studio"],
     },
   ]);
-  const CREATE_TEMPLATE_TABS = new Set(["all", "marketplace", "clean", "promo", "reference"]);
+  const CREATE_INSTRUCTION_TEMPLATE_PATH = "/Users/levvasilev/Downloads/marketplace_prompt_instruction_master_v6_reworked_env_refined_cohesive_3x4_typecraft_plus_wholecard_stableforms_noplaceholders_materialstage.md";
+  const CREATE_INSTRUCTION_TEMPLATE_LABEL = "marketplace_prompt_instruction_master_v6_reworked_env_refined_cohesive_3x4_typecraft_plus_wholecard_stableforms_noplaceholders_materialstage.md";
+  const CREATE_BEST_INSTRUCTION_TEMPLATE = Object.freeze({
+    id: "tpl-best-instruction",
+    title: "Лучший",
+    description: "Адаптивный визуал персонально под ваш товар",
+    tab: "marketplace",
+    previewUrl: "",
+    sourceLabel: "KARTOCHKA",
+    kind: "instruction-template",
+    promptFlow: "gpt_instruction",
+    instructionPromptPath: CREATE_INSTRUCTION_TEMPLATE_PATH,
+    instructionPromptLabel: CREATE_INSTRUCTION_TEMPLATE_LABEL,
+    usePreviewAsReference: false,
+    tags: ["лучший", "инструкция", "gpt", "prompt pipeline"],
+  });
+  const CREATE_DIRECT_PROMPT_TEMPLATE = Object.freeze({
+    id: "tpl-direct-custom-prompt",
+    title: "Свой промт",
+    description: "Полностью ручной режим: ваш промт без изменений уходит в image AI.",
+    tab: "custom",
+    previewUrl: "",
+    sourceLabel: "KARTOCHKA",
+    kind: "custom-prompt",
+    usePreviewAsReference: false,
+    tags: ["свой промт", "ручной", "direct", "no rewrite"],
+  });
+  const CREATE_DEFAULT_TEMPLATE_ID = CREATE_BEST_INSTRUCTION_TEMPLATE.id;
+  const CREATE_TEMPLATE_TABS = new Set(["all"]);
   const CREATE_USEFUL_SETTINGS_DEFAULTS = Object.freeze({
     accentColor: "emerald",
     referenceStrength: "medium",
@@ -687,7 +727,7 @@
         historyMaxItems: HISTORY_MAX_ITEMS,
         request: {
           baseUrl: "",
-          timeoutMs: 45000,
+          timeoutMs: 300000,
         },
         endpoints: {
           createAnalyze: "/api/kartochka/createAnalyze",
@@ -717,10 +757,12 @@
   let createGeneratedResults = [];
   let createResultExpandedId = "";
   let createActivePreviewResultId = "";
+  let createInstructionDocumentText = "";
+  let createInstructionDocumentName = "";
   const createSelectedFiles = [];
   let createActiveTemplateTab = "all";
   let createTemplateSearchQuery = "";
-  let createSelectedTemplateId = CREATE_TEMPLATE_LIBRARY[0]?.id || "";
+  let createSelectedTemplateId = CREATE_DEFAULT_TEMPLATE_ID;
   let createReferenceLibraryOpen = false;
   let createImageManagerOpen = false;
   const createCharacteristics = [];
@@ -765,6 +807,10 @@
     node.textContent = text || "";
     node.classList.remove("error", "success");
     if (type) node.classList.add(type);
+
+    if (node === createStatus && createMeta) {
+      setRequestMeta(createMeta, "Статус запроса:", text || "Ожидание данных", type);
+    }
   };
 
   const setCreateSecondaryBadge = (node, text, tone) => {
@@ -774,9 +820,10 @@
     node.classList.add(tone || "is-neutral");
   };
 
-  const setRequestMeta = (node, title, value) => {
+  const setRequestMeta = (node, title, value, type) => {
     if (!node) return;
     node.textContent = "";
+    node.classList.remove("is-neutral", "is-active", "is-success", "is-error");
 
     const label = document.createElement("span");
     label.textContent = title;
@@ -784,7 +831,26 @@
     const strong = document.createElement("strong");
     strong.textContent = value;
 
+    const tone = (() => {
+      if (type === "error" || /ошиб/i.test(String(value || ""))) return "is-error";
+      if (type === "success" || /готово/i.test(String(value || ""))) return "is-success";
+      if (!String(value || "").trim() || /ожидани/i.test(String(value || ""))) return "is-neutral";
+      return "is-active";
+    })();
+
+    node.classList.add(tone);
     node.append(label, strong);
+  };
+
+  const setCreateFlowStepState = (node, state, detail) => {
+    if (!node) return;
+    node.classList.remove("is-upcoming", "is-active", "is-done", "is-optional");
+    node.classList.add(state || "is-upcoming");
+
+    const detailNode = node.querySelector("small");
+    if (!detailNode) return;
+
+    detailNode.textContent = detail || detailNode.dataset.defaultText || "";
   };
 
   const setDoneState = (badge, isDone) => {
@@ -1145,12 +1211,39 @@
   };
 
   const getCreateTemplateLibrary = () => {
-    return CREATE_TEMPLATE_LIBRARY;
+    return [CREATE_BEST_INSTRUCTION_TEMPLATE, CREATE_DIRECT_PROMPT_TEMPLATE];
   };
 
   const getCreateSelectedTemplate = () => {
     const library = getCreateTemplateLibrary();
-    return library.find((item) => item.id === createSelectedTemplateId) || CREATE_TEMPLATE_LIBRARY[0] || library[0] || null;
+    return library.find((item) => item.id === createSelectedTemplateId) || library[0] || null;
+  };
+
+  const isCreateDirectPromptTemplate = (template) => {
+    return toText(template?.kind) === "custom-prompt";
+  };
+
+  const isCreateDirectPromptSelected = () => {
+    return isCreateDirectPromptTemplate(getCreateSelectedTemplate());
+  };
+
+  const isCreateInstructionTemplate = (template) => {
+    return toText(template?.kind) === "instruction-template";
+  };
+
+  const usesCreateInstructionPromptFlow = (template) => {
+    return toText(template?.promptFlow) === "gpt_instruction";
+  };
+
+  const syncCreateInstructionState = () => {
+    if (!createInstructionState) return;
+
+    if (createInstructionDocumentName) {
+      createInstructionState.textContent = createInstructionDocumentName;
+      return;
+    }
+
+    createInstructionState.textContent = "";
   };
 
 
@@ -1170,7 +1263,10 @@
       sourceUrl: template.sourceUrl || "",
       sourceLabel: template.sourceLabel || "",
       kind: template.kind || "",
+      promptFlow: template.promptFlow || "",
       instructionPrompt: toText(template.instructionPrompt),
+      instructionPromptPath: toText(template.instructionPromptPath),
+      instructionPromptLabel: toText(template.instructionPromptLabel),
       usePreviewAsReference: shouldUseCreateTemplatePreviewAsReference(template),
     };
   };
@@ -1181,6 +1277,8 @@
   };
 
   const getCreateTemplateKindLabel = (template) => {
+    if (template?.kind === "custom-prompt") return "Ручной режим";
+    if (template?.kind === "instruction-template") return "Адаптивный режим";
     if (template?.kind === "preset") return "Пресет";
     if (template?.tab === "reference") return "Референс";
     if (template?.tab === "promo") return "Промо";
@@ -1189,6 +1287,8 @@
   };
 
   const getCreateTemplatePlaceholderText = (template) => {
+    if (template?.kind === "custom-prompt") return "PROMPT";
+    if (template?.kind === "instruction-template") return template?.title || "Лучший";
     const sourceLabel = String(template?.sourceLabel || "").trim();
     if (sourceLabel) return sourceLabel.slice(0, 3).toUpperCase();
     return "REF";
@@ -1200,6 +1300,10 @@
 
   const getCreateProductShortDescriptionValue = () => {
     return (createProductShortDescription?.value || "").trim();
+  };
+
+  const getCreateProductThirdLevelTextValue = () => {
+    return (createProductThirdLevelText?.value || "").trim();
   };
 
   const normalizeCreateCardTextLine = (value) => {
@@ -1248,16 +1352,60 @@
     return candidates.find((line) => badgePattern.test(line)) || candidates[0] || "";
   };
 
-  const buildCreateUserText = () => {
-    const title = normalizeCreateCardTextLine(getCreateProductTitleValue());
-    const featureLines = buildCreateSellingFeatureLines();
-    const featureBlock = featureLines.slice(0, 2).join("\n");
-    const badgeLine = pickCreateBadgeTextLine(featureLines.slice(2));
-
-    return [title, featureBlock, badgeLine].filter(Boolean).join("\n\n");
+  const getCreateCardTextLevels = () => {
+    return {
+      primary: getCreateProductTitleValue(),
+      secondary: getCreateProductShortDescriptionValue(),
+      tertiary: getCreateProductThirdLevelTextValue(),
+    };
   };
 
+  const buildCreateCardTextLevelsPayload = () => {
+    const levels = getCreateCardTextLevels();
+    return {
+      primary: levels.primary,
+      secondary: levels.secondary,
+      tertiary: levels.tertiary,
+    };
+  };
+
+  const buildCreateUserText = () => {
+    const levels = getCreateCardTextLevels();
+
+    return [
+      normalizeCreateCardTextLine(levels.primary),
+      normalizeCreateCardTextLine(levels.secondary),
+      normalizeCreateCardTextLine(levels.tertiary),
+    ].filter(Boolean).join("\n");
+  };
+
+  const buildCreateContentCardText = () => {
+    const levels = getCreateCardTextLevels();
+
+    return [
+      levels.primary ? "Главный текст (нужно разместить на карточке): " + levels.primary : "",
+      levels.secondary ? "Второй уровень текста (нужно разместить на карточке): " + levels.secondary : "",
+      levels.tertiary ? "Третий уровень текста (нужно разместить на карточке): " + levels.tertiary : "",
+    ].filter(Boolean).join("\n");
+  };
+
+  const hasCreateSettingsControls = [
+    createSettingAccentColor,
+    createSettingReferenceStrength,
+    createSettingVisualStyle,
+    createSettingInfoDensity,
+    createSettingReadabilityPriority,
+    createSettingConversionPriority,
+    createSettingAccentFormat,
+    createSettingBackgroundMode,
+    createSettingPreserveLayout,
+  ].some(Boolean);
+
   const buildCreateSettingsPayload = () => {
+    if (!hasCreateSettingsControls) {
+      return {};
+    }
+
     const getSelectedLabel = (selectElement) => String(selectElement?.selectedOptions?.[0]?.textContent || "").trim();
 
     return {
@@ -1323,6 +1471,7 @@
     const hasContext = Boolean(
       toText(createProductTitle?.value)
       || toText(createProductShortDescription?.value)
+      || toText(createProductThirdLevelText?.value)
       || toText(createDescription?.value)
       || toText(createHighlights?.value)
     );
@@ -1350,6 +1499,7 @@
     return [
       toText(createProductTitle?.value),
       toText(createProductShortDescription?.value),
+      toText(createProductThirdLevelText?.value),
       toText(payload?.title),
       toText(payload?.shortDescription || payload?.subtitle),
       toText(analysis?.subjectOnScreen?.summary),
@@ -1584,6 +1734,7 @@
     const payload = await buildCreateInsightPayload();
     return {
       ...payload,
+      analysisIntent: "full",
       promptMode: createPromptMode,
       prompt: toText(createCustomPrompt?.value),
       customPrompt: toText(createCustomPrompt?.value),
@@ -1604,6 +1755,8 @@
   };
 
   const buildCreateSettingsSummary = () => {
+    if (!hasCreateSettingsControls) return "";
+
     const flags = [];
     const accentColorLabel = createSettingAccentColor?.selectedOptions?.[0]?.textContent || "";
     const visualStyleLabel = createSettingVisualStyle?.selectedOptions?.[0]?.textContent || "";
@@ -1627,6 +1780,11 @@
   };
 
   const syncCreateUsefulSettings = () => {
+    if (!hasCreateSettingsControls) {
+      Object.assign(createUsefulSettings, CREATE_USEFUL_SETTINGS_DEFAULTS);
+      return;
+    }
+
     createUsefulSettings.accentColor = String(createSettingAccentColor?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.accentColor);
     createUsefulSettings.referenceStrength = String(createSettingReferenceStrength?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.referenceStrength);
     createUsefulSettings.visualStyle = String(createSettingVisualStyle?.value || CREATE_USEFUL_SETTINGS_DEFAULTS.visualStyle);
@@ -1645,9 +1803,8 @@
   const syncCreateLegacyFields = () => {
     syncCreateUsefulSettings();
 
-    const title = getCreateProductTitleValue();
-    const shortDescription = getCreateProductShortDescriptionValue();
-    const descriptionParts = [title, shortDescription].filter(Boolean);
+    const cardTextLevels = getCreateCardTextLevels();
+    const descriptionParts = [cardTextLevels.primary, cardTextLevels.secondary, cardTextLevels.tertiary].filter(Boolean);
     const highlightParts = [
       buildCreateTemplateSummary(),
       buildCreateCharacteristicsSummaryClean(),
@@ -1758,16 +1915,20 @@
 
     const previewUrl = String(template?.previewUrl || "").trim();
     const placeholderText = getCreateTemplatePlaceholderText(template);
+    const isEmptyVisual = !previewUrl && !placeholderText;
+    const isTitleOnlyPlaceholder = !previewUrl && toText(template?.kind) === "instruction-template";
     container.classList.toggle("is-placeholder", !previewUrl);
+    container.classList.toggle("is-empty-visual", isEmptyVisual);
+    container.classList.toggle("is-title-only", isTitleOnlyPlaceholder);
 
     if (imageElement && placeholderElement) {
       imageElement.classList.toggle("hidden", !previewUrl);
       placeholderElement.textContent = placeholderText;
-      placeholderElement.classList.toggle("hidden", Boolean(previewUrl));
+      placeholderElement.classList.toggle("hidden", Boolean(previewUrl) || isEmptyVisual);
 
       if (previewUrl) {
         imageElement.src = previewUrl;
-        imageElement.alt = template?.title || "Референс";
+        imageElement.alt = template?.title || "Шаблон";
       } else {
         imageElement.removeAttribute("src");
       }
@@ -1782,11 +1943,13 @@
 
     container.textContent = "";
     container.classList.toggle("is-placeholder", !previewUrl);
+    container.classList.toggle("is-empty-visual", isEmptyVisual);
+    container.classList.toggle("is-title-only", isTitleOnlyPlaceholder);
 
     if (previewUrl) {
       const image = document.createElement("img");
       image.src = previewUrl;
-      image.alt = template?.title || "Референс";
+      image.alt = template?.title || "Шаблон";
       image.loading = "lazy";
       image.addEventListener("error", () => {
         image.remove();
@@ -1797,6 +1960,10 @@
         container.append(fallback);
       }, { once: true });
       container.append(image);
+      return;
+    }
+
+    if (isEmptyVisual) {
       return;
     }
 
@@ -1824,34 +1991,48 @@
 
   const renderCreateSelectedTemplateSummary = () => {
     const template = getCreateSelectedTemplate();
+    const isDirectPrompt = isCreateDirectPromptTemplate(template);
+    const isInstructionTemplate = isCreateInstructionTemplate(template);
+    const selectedTemplateThumb = createSelectedTemplateThumbPlaceholder?.parentElement || null;
 
     if (createSelectedTemplateTitle) {
-      createSelectedTemplateTitle.textContent = template?.title || "Выберите шаблон или референс";
+      createSelectedTemplateTitle.textContent = template?.title || "Выберите шаблон";
     }
     if (createSelectedTemplateDescription) {
       createSelectedTemplateDescription.textContent = template?.description
-        || "Откройте библиотеку и выберите визуальное направление для карточки.";
+        || "Откройте библиотеку и выберите режим генерации.";
     }
     if (createSelectedTemplateMeta) {
-      createSelectedTemplateMeta.textContent = [
-        template?.sourceLabel || "KARTOCHKA",
-        getCreateTemplateKindLabel(template),
-      ]
-        .filter(Boolean)
-        .join(" • ");
+      createSelectedTemplateMeta.textContent = getCreateTemplateKindLabel(template);
+    }
+    if (createReferenceLibraryBtn) {
+      createReferenceLibraryBtn.textContent = template ? "Сменить режим" : "Открыть библиотеку";
     }
 
-    appendCreateTemplateThumb(
-      createSelectedTemplateThumbPlaceholder?.parentElement || null,
-      template,
-      createSelectedTemplateThumbImage,
-      createSelectedTemplateThumbPlaceholder
-    );
-    renderCreateTemplateTagChips(createSelectedTemplateTags, template, 4);
+    if (selectedTemplateThumb) {
+      appendCreateTemplateThumb(
+        selectedTemplateThumb,
+        template,
+        createSelectedTemplateThumbImage,
+        createSelectedTemplateThumbPlaceholder
+      );
+    }
+    if (createSelectedTemplateTags) {
+      createSelectedTemplateTags.textContent = "";
+    }
 
     if (createSelectedTemplateCard) {
-      createSelectedTemplateCard.title = template?.sourceUrl || template?.title || "Открыть библиотеку референсов";
+      createSelectedTemplateCard.title = isDirectPrompt
+        ? "Сейчас выбран режим «Свой промт»"
+        : isInstructionTemplate
+          ? "Сейчас выбран шаблон «Лучший»"
+          : (template?.sourceUrl || template?.title || "Открыть библиотеку шаблонов");
+      createSelectedTemplateCard.classList.toggle("hidden", isDirectPrompt);
+      createSelectedTemplateCard.classList.remove("is-text-only");
     }
+    createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
+    createCustomPromptPanel?.classList.toggle("hidden", !isDirectPrompt);
+    syncCreateInstructionState();
   };
 
   const syncCreateOverlayScrollLock = () => {
@@ -1926,26 +2107,33 @@
       card.className = "create-template-item";
       card.dataset.templateId = template.id;
       card.classList.toggle("is-active", template.id === createSelectedTemplateId);
+      card.classList.toggle("is-recommended", isCreateInstructionTemplate(template));
       if (template.sourceUrl) {
         card.title = template.sourceUrl;
       }
 
       const thumb = document.createElement("span");
       thumb.className = "create-template-thumb";
-
       appendCreateTemplateThumb(thumb, template);
 
       const body = document.createElement("span");
       body.className = "create-template-item-body";
 
+      const meta = document.createElement("span");
+      meta.className = "create-template-item-meta";
+      meta.textContent = getCreateTemplateKindLabel(template);
+
       const title = document.createElement("strong");
       title.textContent = template.title;
 
-      const tags = document.createElement("span");
-      tags.className = "create-template-tags";
-      renderCreateTemplateTagChips(tags, template, 6);
+      const description = document.createElement("span");
+      description.textContent = template.description || "Откройте и используйте этот шаблон для генерации.";
 
-      body.append(title, tags);
+      const action = document.createElement("span");
+      action.className = "create-template-item-action";
+      action.textContent = template.id === createSelectedTemplateId ? "Выбрано" : "Выбрать";
+
+      body.append(meta, title, description, action);
       card.append(thumb, body);
       createTemplateGrid.append(card);
     });
@@ -1986,7 +2174,9 @@
           activeResult.style || "",
         ].filter(Boolean).join(" • ")
       : [
-          getCreateProductShortDescriptionValue() || "Выберите шаблон, заполните данные и запустите генерацию.",
+          getCreateProductShortDescriptionValue()
+            || getCreateProductThirdLevelTextValue()
+            || "Выберите шаблон, заполните данные и запустите генерацию.",
           buildCreateCharacteristicsSummaryClean(),
         ].filter(Boolean).join(" ");
 
@@ -2066,20 +2256,28 @@
   };
 
   const getCreateValidationError = () => {
-    const productTitle = getCreateProductTitleValue();
-    const shortDescription = getCreateProductShortDescriptionValue();
     if (createSelectedFiles.length < 1) return "Добавьте минимум 1 фото товара";
     if (createSelectedFiles.length > CREATE_UPLOAD_MAX_FILES) {
       return "Допустимо максимум " + String(CREATE_UPLOAD_MAX_FILES) + " фото";
     }
-    if (productTitle.length < 3) return "Заполните название товара";
-    if (shortDescription.length < 12) return "Добавьте краткое описание товара";
     if (createPromptMode === "custom" && (createCustomPrompt?.value || "").trim().length < 12) {
       return "В режиме «Свой промпт» заполните собственный промпт";
     }
     if (!(createMarketplace?.value || "").trim()) return "Выберите маркетплейс";
     if (!(createCardsCount?.value || "").trim()) return "Выберите количество карточек";
     return "";
+  };
+
+  const applyCreateTemplateSelection = (templateId) => {
+    const nextId = String(templateId || "").trim();
+    if (!nextId) return;
+
+    const library = getCreateTemplateLibrary();
+    const nextTemplate = library.find((item) => item.id === nextId) || null;
+    if (!nextTemplate) return;
+
+    createSelectedTemplateId = nextId;
+    syncCreatePromptMode(isCreateDirectPromptTemplate(nextTemplate) ? "custom" : "ai");
   };
 
   const renderCreateFiles = () => {
@@ -2182,6 +2380,63 @@
     }
   };
 
+  const syncCreateFlowGuide = (validationError) => {
+    const hasPhoto = createSelectedFiles.length > 0;
+    const selectedTemplate = getCreateSelectedTemplate();
+    const isDirectPrompt = isCreateDirectPromptTemplate(selectedTemplate);
+    const customPromptValue = (createCustomPrompt?.value || "").trim();
+    const hasCardText = Boolean(
+      getCreateProductTitleValue()
+      || getCreateProductShortDescriptionValue()
+      || getCreateProductThirdLevelTextValue()
+    );
+
+    setCreateFlowStepState(
+      createFlowSteps.photo,
+      hasPhoto ? "is-done" : "is-active",
+      hasPhoto
+        ? String(createSelectedFiles.length) + " из " + String(CREATE_UPLOAD_MAX_FILES) + " фото"
+        : "Добавьте минимум одно фото товара"
+    );
+
+    setCreateFlowStepState(
+      createFlowSteps.template,
+      selectedTemplate ? "is-done" : (hasPhoto ? "is-active" : "is-upcoming"),
+      selectedTemplate ? "Выбран режим: " + selectedTemplate.title : "Выберите режим генерации"
+    );
+
+    if (isDirectPrompt) {
+      setCreateFlowStepState(
+        createFlowSteps.content,
+        customPromptValue.length >= 12 ? "is-done" : (hasPhoto ? "is-active" : "is-upcoming"),
+        customPromptValue.length >= 12 ? "Промт готов к запуску" : "Введите свой промт для генерации"
+      );
+    } else {
+      setCreateFlowStepState(
+        createFlowSteps.content,
+        hasCardText ? "is-done" : "is-optional",
+        hasCardText ? "Текст для карточки добавлен" : "Опционально: можно генерировать и без текста"
+      );
+    }
+
+    if (createGeneratedResults.length) {
+      setCreateFlowStepState(createFlowSteps.generate, "is-done", "Варианты готовы, можно выбрать лучший");
+      return;
+    }
+
+    if (createIsGenerating) {
+      setCreateFlowStepState(createFlowSteps.generate, "is-active", "AI создает карточки");
+      return;
+    }
+
+    if (validationError) {
+      setCreateFlowStepState(createFlowSteps.generate, "is-upcoming", "Ждет обязательные данные");
+      return;
+    }
+
+    setCreateFlowStepState(createFlowSteps.generate, "is-active", "Можно запускать генерацию");
+  };
+
   const getCreateInsightFingerprint = () => {
     syncCreateLegacyFields();
     return [
@@ -2206,7 +2461,9 @@
     syncCreateLegacyFields();
     const imageDataUrls = await buildCreateImageDataUrls();
     const selectedTemplate = getCreateSelectedTemplate();
+    const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
     return {
+      analysisIntent: "insight",
       title: getCreateProductTitleValue(),
       shortDescription: getCreateProductShortDescriptionValue(),
       subtitle: "",
@@ -2215,8 +2472,12 @@
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: (createCardsCount?.value || "").trim() || "1",
       promptMode: createPromptMode,
-      prompt: toText(createCustomPrompt?.value),
-      customPrompt: toText(createCustomPrompt?.value),
+      prompt: customPromptText,
+      customPrompt: customPromptText,
+      cardTextLevels: buildCreateCardTextLevelsPayload(),
+      contentCardText: buildCreateContentCardText(),
+      instructionDocumentText: createInstructionDocumentText,
+      instructionDocumentName: createInstructionDocumentName,
       userText: buildCreateUserText(),
       settings: buildCreateSettingsPayload(),
       characteristics: getCreateCharacteristicRows(),
@@ -2433,7 +2694,9 @@
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
     const imageDataUrls = await buildCreateImageDataUrls();
     const selectedTemplate = getCreateSelectedTemplate();
+    const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
     return {
+      analysisIntent: "prompt",
       title: getCreateProductTitleValue(),
       shortDescription: getCreateProductShortDescriptionValue(),
       subtitle: "",
@@ -2442,8 +2705,12 @@
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: (createCardsCount?.value || "").trim() || "1",
       promptMode: createPromptMode,
-      prompt: toText(createCustomPrompt?.value),
-      customPrompt: toText(createCustomPrompt?.value),
+      prompt: customPromptText,
+      customPrompt: customPromptText,
+      cardTextLevels: buildCreateCardTextLevelsPayload(),
+      contentCardText: buildCreateContentCardText(),
+      instructionDocumentText: createInstructionDocumentText,
+      instructionDocumentName: createInstructionDocumentName,
       userText: buildCreateUserText(),
       settings: buildCreateSettingsPayload(),
       characteristics: getCreateCharacteristicRows(),
@@ -2800,6 +3067,7 @@
     if (createHighlights) createHighlights.toggleAttribute("disabled", controlsLocked);
     if (createProductTitle) createProductTitle.toggleAttribute("disabled", controlsLocked);
     if (createProductShortDescription) createProductShortDescription.toggleAttribute("disabled", controlsLocked);
+    if (createProductThirdLevelText) createProductThirdLevelText.toggleAttribute("disabled", controlsLocked);
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
     if (createTemplateSearchInput) createTemplateSearchInput.toggleAttribute("disabled", controlsLocked);
@@ -2810,6 +3078,8 @@
     if (createImageManagerAddBtn) {
       createImageManagerAddBtn.toggleAttribute("disabled", controlsLocked || createSelectedFiles.length >= CREATE_UPLOAD_MAX_FILES);
     }
+    createInstructionAttachBtn?.toggleAttribute("disabled", controlsLocked);
+    createInstructionInput?.toggleAttribute("disabled", controlsLocked);
     createTemplateTabButtons.forEach((button) => {
       button.toggleAttribute("disabled", controlsLocked);
     });
@@ -2875,17 +3145,30 @@
 
     if (createCtaHint) {
       if (createAutofillPhase === "loading") {
-        createCtaHint.textContent = "AI заполняет название, описание товара и предложенные характеристики...";
+        createCtaHint.textContent = "AI подготавливает текстовые уровни для карточки...";
       } else if (createIsGenerating) {
         createCtaHint.textContent = "Генерация в процессе...";
+      } else if (createSelectedFiles.length < 1) {
+        createCtaHint.textContent = "Следующий шаг: добавьте фото товара.";
+      } else if (createPromptMode === "custom" && customPromptValue.length < 12) {
+        createCtaHint.textContent = "Следующий шаг: введите свой промт для генерации.";
       } else if (validationError) {
         createCtaHint.textContent = validationError;
       } else if (createGeneratedResults.length) {
-        createCtaHint.textContent = "Можно перегенерировать текущий вариант или экспортировать активное превью.";
+        createCtaHint.textContent = "Выберите лучший вариант ниже или экспортируйте активное превью.";
+      } else if (createPromptMode === "custom") {
+        createCtaHint.textContent = "Все готово: запускайте генерацию по своему промту.";
+      } else if (
+        !getCreateProductTitleValue()
+        && !getCreateProductShortDescriptionValue()
+        && !getCreateProductThirdLevelTextValue()
+      ) {
+        createCtaHint.textContent = "Можно запускать сразу или добавить текст на карточку для более точного результата.";
       } else {
-        createCtaHint.textContent = "Форма готова к запуску.";
+        createCtaHint.textContent = "Все готово: запускайте генерацию карточки.";
       }
     }
+    syncCreateFlowGuide(validationError);
     renderCreateTemplateLibrary();
     renderCreatePreviewPanel();
     syncCreateInsightState();
@@ -3863,9 +4146,13 @@
       input: {
         description: String(payload?.description || "").trim(),
         highlights: String(payload?.highlights || "").trim(),
+        mainText: getCreateProductTitleValue(),
+        secondaryText: getCreateProductShortDescriptionValue(),
+        tertiaryText: getCreateProductThirdLevelTextValue(),
         marketplace: String(payload?.marketplace || "").trim(),
         cardsCount: Number(payload?.cardsCount || normalizedResults.length || 1),
         promptMode: String(payload?.promptMode || createPromptMode || "ai"),
+        selectedTemplateId: String(payload?.selectedTemplate?.id || createSelectedTemplateId || ""),
         customPrompt: String(createCustomPrompt?.value || "").trim(),
         improvePrompt: "",
         improveMode: "ai",
@@ -3991,11 +4278,17 @@
 
     const restoredDescription = entry.input.description || "";
     const restoredHighlights = entry.input.highlights || "";
+    const restoredMainText = entry.input.mainText || restoredDescription.split(/[.!?]/)[0] || restoredDescription;
+    const restoredSecondaryText = entry.input.secondaryText || restoredHighlights || restoredDescription;
+    const restoredTertiaryText = entry.input.tertiaryText || "";
     if (createProductTitle) {
-      createProductTitle.value = restoredDescription.split(/[.!?]/)[0] || restoredDescription;
+      createProductTitle.value = restoredMainText;
     }
     if (createProductShortDescription) {
-      createProductShortDescription.value = restoredHighlights || restoredDescription;
+      createProductShortDescription.value = restoredSecondaryText;
+    }
+    if (createProductThirdLevelText) {
+      createProductThirdLevelText.value = restoredTertiaryText;
     }
     if (createDescription) {
       createDescription.value = restoredDescription;
@@ -4010,10 +4303,13 @@
       createTemplateSearchInput.value = "";
     }
     createActiveTemplateTab = "all";
-    createSelectedTemplateId = CREATE_TEMPLATE_LIBRARY[0]?.id || "";
+    createSelectedTemplateId = entry.input.selectedTemplateId || CREATE_DEFAULT_TEMPLATE_ID;
     setCreateCharacteristicsState(entry.input.characteristics || []);
 
-    const historyPromptMode = entry.input.promptMode === "custom" ? "custom" : "ai";
+    const historyPromptMode = (
+      createSelectedTemplateId === CREATE_DIRECT_PROMPT_TEMPLATE.id
+      || entry.input.promptMode === "custom"
+    ) ? "custom" : "ai";
     syncCreatePromptMode(historyPromptMode);
     if (createCustomPrompt) {
       createCustomPrompt.value = entry.input.customPrompt || entry.prompt || "";
@@ -4168,6 +4464,16 @@
 
   const resolveCreatePromptForGeneration = () => {
     syncCreateLegacyFields();
+    const selectedTemplate = getCreateSelectedTemplate();
+    if (usesCreateInstructionPromptFlow(selectedTemplate)) {
+      const aiPrompt = (createAiPromptOutput?.value || "").trim();
+      if (aiPrompt) return aiPrompt;
+    }
+
+    if (isCreateDirectPromptSelected()) {
+      return (createCustomPrompt?.value || "").trim();
+    }
+
     if (createPromptMode === "custom") {
       return (createCustomPrompt?.value || "").trim();
     }
@@ -4204,13 +4510,14 @@
       title,
       shortDescription,
       subtitle: "",
+      cardTextLevels: buildCreateCardTextLevelsPayload(),
       userText: buildCreateUserText(),
       characteristics,
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: Number.isFinite(cardsCount) ? cardsCount : 1,
       cardGoal: "Конверсионная карточка товара для маркетплейса",
-      generationMode: normalizeCreateTemplateTab(createActiveTemplateTab),
-      densityMode: settings.infoDensity,
+      generationMode: isCreateDirectPromptTemplate(selectedTemplate) ? "custom" : normalizeCreateTemplateTab(createActiveTemplateTab),
+      densityMode: settings.infoDensity || CREATE_USEFUL_SETTINGS_DEFAULTS.infoDensity,
       productCategory: hasInsight && !insightIsStale ? createInsightData?.category || "" : "",
       userNotes: createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : "",
       settings,
@@ -4288,11 +4595,13 @@
     const marketplace = createMarketplace?.value || "маркетплейс";
     createResultsCaption.textContent =
       "Сгенерировано " + String(totalResults) + " " + formatCardsWord(totalResults) + " для " + marketplace + ".";
+    const selectedTemplateTitle = getCreateSelectedTemplate()?.title || "Шаблон";
 
     createGeneratedResults.forEach((result) => {
       const card = document.createElement("article");
       card.className = "create-result-card create-result-card-compact";
       card.classList.toggle("is-active", result.id === createActivePreviewResultId);
+      card.dataset.resultPreviewId = result.id;
 
       const media = document.createElement("div");
       media.className = "create-result-media";
@@ -4301,51 +4610,15 @@
       image.src = result.previewUrl;
       image.alt = result.title;
       image.loading = "lazy";
-
-      const variantBadge = document.createElement("span");
-      variantBadge.className = "create-result-badge";
-      variantBadge.textContent = "Вариант " + String(result.variantNumber) + " из " + String(result.totalVariants);
-
-      media.append(image, variantBadge);
+      media.append(image);
 
       const body = document.createElement("div");
       body.className = "create-result-body";
 
       const title = document.createElement("h4");
-      title.textContent = result.title;
+      title.textContent = selectedTemplateTitle;
 
-      const subtitle = document.createElement("p");
-      subtitle.textContent = [result.marketplace, result.style].filter(Boolean).join(" • ");
-
-      const actions = document.createElement("div");
-      actions.className = "create-result-actions";
-
-      const selectBtn = document.createElement("button");
-      selectBtn.className = "create-result-action";
-      selectBtn.type = "button";
-      selectBtn.dataset.resultPreviewId = result.id;
-      selectBtn.textContent = result.id === createActivePreviewResultId ? "Активное превью" : "Выбрать";
-
-      const downloadLink = document.createElement("a");
-      downloadLink.className = "create-result-action";
-      downloadLink.href = result.previewUrl;
-      downloadLink.download = result.downloadName;
-      downloadLink.textContent = "Скачать";
-
-      actions.append(selectBtn, downloadLink);
-
-      const details = document.createElement("div");
-      details.className = "create-result-details";
-
-      const focus = document.createElement("p");
-      focus.textContent = "Акцент: " + result.focus;
-
-      const format = document.createElement("p");
-      format.textContent = "Формат: " + result.format;
-
-      details.append(focus, format);
-
-      body.append(title, subtitle, actions, details);
+      body.append(title);
       card.append(media, body);
       createResultsGrid.append(card);
     });
@@ -5324,6 +5597,7 @@
   [
     createProductTitle,
     createProductShortDescription,
+    createProductThirdLevelText,
     createCustomPrompt,
     createMarketplace,
     createCardsCount,
@@ -5435,10 +5709,47 @@
       return;
     }
 
-    createSelectedTemplateId = templateId;
+    applyCreateTemplateSelection(templateId);
     closeCreateReferenceLibrary();
     renderCreateTemplateLibrary();
     handleCreateInputMutation();
+
+    if (createSelectedTemplateId === CREATE_DIRECT_PROMPT_TEMPLATE.id) {
+      window.setTimeout(() => {
+        createCustomPrompt?.focus();
+      }, 0);
+    }
+  });
+
+  createInstructionAttachBtn?.addEventListener("click", () => {
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+    createInstructionInput?.click();
+  });
+
+  createInstructionInput?.addEventListener("change", async () => {
+    const file = createInstructionInput.files?.[0] || null;
+    if (!file) return;
+
+    try {
+      createInstructionDocumentText = await file.text();
+      createInstructionDocumentName = file.name || "instruction.md";
+      syncCreateInstructionState();
+      setStatusMessage(createStatus, "Инструкция подключена: " + createInstructionDocumentName + ".", "success");
+      setDoneState(createDoneBadge, false);
+      syncCreateFormState();
+    } catch (error) {
+      createInstructionDocumentText = "";
+      createInstructionDocumentName = "";
+      syncCreateInstructionState();
+      setStatusMessage(createStatus, "Не удалось прочитать файл инструкции.", "error");
+    } finally {
+      if (createInstructionInput) {
+        createInstructionInput.value = "";
+      }
+    }
   });
 
   createAutofillBtn?.addEventListener("click", async () => {
@@ -5484,14 +5795,50 @@
     syncCreateFormState();
 
     try {
-      const insightNeedsRefresh = !createInsightData || createInsightFingerprint !== getCreateInsightFingerprint();
-      if (insightNeedsRefresh) {
-        const insightReady = await runCreateInsightAnalysis({ source: "generation" });
-        if (!insightReady) {
-          throw new Error("Не удалось получить AI-анализ для генерации карточек.");
+      const selectedTemplate = getCreateSelectedTemplate();
+      const isDirectPromptTemplate = isCreateDirectPromptTemplate(selectedTemplate);
+      const usesInstructionPromptFlow = usesCreateInstructionPromptFlow(selectedTemplate);
+
+      if (usesInstructionPromptFlow) {
+        createAiPromptPhase = "loading";
+        setStatusMessage(createStatus, "Шаг 1/2. GPT собирает финальный промт по инструкции шаблона, фото товара и тексту для карточки...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Шаг 1/2: GPT собирает prompt");
+        syncCreateFormState();
+
+        const promptPayload = await buildCreateAiPromptPayload();
+        const generatedPrompt = await requestCreateAiPrompt(promptPayload);
+        if (requestId !== createGenerationRequestId) return;
+
+        if (createAiPromptOutput) {
+          createAiPromptOutput.value = generatedPrompt;
         }
+        createAiPromptPhase = "success";
+        setStatusMessage(createStatus, "Шаг 2/2. Prompt от GPT готов. Передаем его вместе с фото товара в image AI...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Шаг 2/2: prompt готов, старт image AI");
+        syncCreateFormState();
+      } else if (!isDirectPromptTemplate) {
+        const insightNeedsRefresh = !createInsightData || createInsightFingerprint !== getCreateInsightFingerprint();
+        if (insightNeedsRefresh) {
+          const insightReady = await runCreateInsightAnalysis({ source: "generation" });
+          if (!insightReady) {
+            throw new Error("Не удалось получить AI-анализ для генерации карточек.");
+          }
+        }
+      } else {
+        setStatusMessage(createStatus, "Шаг 1/1. Отправляем ваш промт и фото товара в image AI без переписывания...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Шаг 1/1: прямой prompt -> image AI");
       }
 
+      if (usesInstructionPromptFlow) {
+        setStatusMessage(createStatus, "Image AI генерирует карточку по prompt от GPT и фото товара...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Image AI: генерация по prompt от GPT");
+      } else if (isDirectPromptTemplate) {
+        setStatusMessage(createStatus, "Image AI генерирует карточку по вашему промту и фото товара...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Image AI: генерация по пользовательскому prompt");
+      } else {
+        setStatusMessage(createStatus, "Генерируем изображения по подготовленному промпту...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Генерация изображения");
+      }
       const payload = await buildCreateGenerationPayload();
       const results = await requestCreateGeneration(payload);
       if (requestId !== createGenerationRequestId) return;
@@ -5538,6 +5885,7 @@
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];
       createActivePreviewResultId = "";
+      createAiPromptPhase = createAiPromptPhase === "loading" ? "error" : createAiPromptPhase;
       setCreateResultsProcessing(false);
       renderCreateResults();
       setDoneState(createDoneBadge, false);
@@ -6218,6 +6566,3 @@
     syncTopbarVisibility();
   }
 })();
-
-
-

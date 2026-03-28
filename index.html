@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260328-17" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
   </head>
@@ -387,11 +387,39 @@
             <div class="step-title-row create-screen-head">
               <div>
                 <h2>Создать карточку</h2>
-                <p class="section-subtitle">
-                  Загрузите фото, добавьте данные о товаре и запустите генерацию карточки.
-                </p>
               </div>
               <span class="step-done" id="createDoneBadge" aria-hidden="true">✓</span>
+            </div>
+
+            <div class="create-flow-guide" id="createFlowGuide" role="list" aria-label="Шаги создания карточки">
+              <div class="create-flow-step" data-create-flow-step="photo" role="listitem">
+                <span class="create-flow-step-index">1</span>
+                <span class="create-flow-step-copy">
+                  <strong>Фото</strong>
+                  <small data-default-text="Добавьте минимум одно фото">Добавьте минимум одно фото</small>
+                </span>
+              </div>
+              <div class="create-flow-step" data-create-flow-step="template" role="listitem">
+                <span class="create-flow-step-index">2</span>
+                <span class="create-flow-step-copy">
+                  <strong>Режим</strong>
+                  <small data-default-text="Выберите шаблон генерации">Выберите шаблон генерации</small>
+                </span>
+              </div>
+              <div class="create-flow-step" data-create-flow-step="content" role="listitem">
+                <span class="create-flow-step-index">3</span>
+                <span class="create-flow-step-copy">
+                  <strong>Текст</strong>
+                  <small data-default-text="Добавьте текст на карточку при необходимости">Добавьте текст на карточку при необходимости</small>
+                </span>
+              </div>
+              <div class="create-flow-step" data-create-flow-step="generate" role="listitem">
+                <span class="create-flow-step-index">4</span>
+                <span class="create-flow-step-copy">
+                  <strong>Генерация</strong>
+                  <small data-default-text="Запустите и выберите лучший вариант">Запустите и выберите лучший вариант</small>
+                </span>
+              </div>
             </div>
 
             <div class="create-single-flow">
@@ -415,117 +443,6 @@
                   </button>
                   <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
 
-                  <div class="create-source-actions">
-                    <button class="btn btn-outline create-edit-image-btn" id="createEditImageBtn" type="button">
-                      Управлять изображениями
-                    </button>
-                  </div>
-
-                  <section class="create-arrangement-panel" aria-label="Варианты расположения предметов">
-                    <div class="create-arrangement-panel-head">
-                      <strong>Варианты расположения предметов</strong>
-                      <span>Это место зарезервировано под будущие композиции и раскладки предмета.</span>
-                    </div>
-                    <div class="create-arrangement-placeholder">
-                      <strong>Скоро здесь появятся варианты композиции</strong>
-                      <p>Блок вложений убран из основного экрана. Добавление и удаление фото теперь работает через отдельное модальное окно.</p>
-                    </div>
-                  </section>
-                </section>
-
-                <section class="create-form-card create-settings-card">
-                  <div class="create-card-head">
-                    <h3>Полезные настройки</h3>
-                    <span>Локальный черновик</span>
-                  </div>
-
-                  <div class="create-settings-grid">
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingAccentColor">Акцентный цвет</label>
-                      <select id="createSettingAccentColor">
-                        <option value="emerald">Изумрудный</option>
-                        <option value="mint">Мятный</option>
-                        <option value="sky">Небесный</option>
-                        <option value="gold">Золотой</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingReferenceStrength">Сила референса</label>
-                      <select id="createSettingReferenceStrength">
-                        <option value="medium">Средняя</option>
-                        <option value="soft">Мягкая</option>
-                        <option value="strong">Сильная</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingVisualStyle">Визуальный стиль</label>
-                      <select id="createSettingVisualStyle">
-                        <option value="clean-market">Чистый маркетплейс</option>
-                        <option value="premium">Премиальный</option>
-                        <option value="promo">Промо</option>
-                        <option value="editorial">Редакционный</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingInfoDensity">Плотность информации</label>
-                      <select id="createSettingInfoDensity">
-                        <option value="balanced">Сбалансированная</option>
-                        <option value="light">Лёгкая</option>
-                        <option value="dense">Плотная</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingReadabilityPriority">Приоритет читаемости</label>
-                      <select id="createSettingReadabilityPriority">
-                        <option value="high">Высокий</option>
-                        <option value="medium">Средний</option>
-                        <option value="max">Максимальный</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingConversionPriority">Приоритет конверсии</label>
-                      <select id="createSettingConversionPriority">
-                        <option value="balanced">Сбалансированный</option>
-                        <option value="aggressive">Агрессивный</option>
-                        <option value="soft">Мягкий</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingAccentFormat">Формат акцента</label>
-                      <select id="createSettingAccentFormat">
-                        <option value="benefit">Бейдж выгоды</option>
-                        <option value="price">Акцент на цене</option>
-                        <option value="cta">Акцент на CTA</option>
-                        <option value="proof">Доверительный блок</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field">
-                      <label class="field-label" for="createSettingBackgroundMode">Режим фона</label>
-                      <select id="createSettingBackgroundMode">
-                        <option value="clean">Чистый</option>
-                        <option value="soft-gradient">Мягкий градиент</option>
-                        <option value="studio">Студийный</option>
-                        <option value="contextual">Контекстный</option>
-                      </select>
-                    </div>
-
-                    <div class="create-setting-field create-setting-toggle">
-                      <label class="field-label" for="createSettingPreserveLayout">Сохранить компоновку референса</label>
-                      <label class="create-switch">
-                        <input id="createSettingPreserveLayout" type="checkbox" />
-                        <span>Сохранить базовую композицию референса</span>
-                      </label>
-                    </div>
-
-                  </div>
-
                   <div class="hidden" aria-hidden="true">
                     <select id="createMarketplace">
                       <option value="Маркетплейс" selected>Маркетплейс</option>
@@ -541,76 +458,89 @@
                 <section class="create-form-card create-template-panel create-reference-summary-panel">
                   <div class="create-card-head create-reference-summary-head">
                     <div>
-                      <h3>Шаблон и референс</h3>
-                      <span>Компактный доступ к каталогу шаблонов и визуальных референсов</span>
+                      <h3>Выбрать шаблон</h3>
                     </div>
                     <button class="btn btn-outline create-reference-open-btn" id="createReferenceLibraryBtn" type="button">
-                      Открыть библиотеку
+                      Выбрать режим
                     </button>
                   </div>
 
                   <button class="create-selected-template-card" id="createSelectedTemplateCard" type="button">
                     <span class="create-selected-template-thumb" id="createSelectedTemplateThumb">
-                      <img class="hidden" id="createSelectedTemplateThumbImage" alt="Выбранный референс" />
+                      <img class="hidden" id="createSelectedTemplateThumbImage" alt="Выбранный шаблон" />
                       <span class="create-selected-template-thumb-placeholder" id="createSelectedTemplateThumbPlaceholder">REF</span>
                     </span>
 
                     <span class="create-selected-template-body">
-                      <strong id="createSelectedTemplateTitle">Выберите шаблон или референс</strong>
-                      <span id="createSelectedTemplateDescription">Откройте библиотеку и выберите визуальное направление для карточки.</span>
-                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Каталог KARTOCHKA</span>
+                      <strong id="createSelectedTemplateTitle">Выберите шаблон</strong>
+                      <span id="createSelectedTemplateDescription">Откройте библиотеку и выберите режим генерации.</span>
+                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Режим генерации</span>
                       <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
                     </span>
                   </button>
+
+                  <div class="create-instruction-template-panel hidden" id="createInstructionTemplatePanel">
+                    <div class="create-instruction-toolbar">
+                      <button
+                        class="btn btn-outline create-instruction-attach-btn"
+                        id="createInstructionAttachBtn"
+                        type="button"
+                        aria-label="Прикрепить инструкцию"
+                        title="Прикрепить инструкцию"
+                      >
+                        <span aria-hidden="true">+</span>
+                      </button>
+                      <span class="create-instruction-state" id="createInstructionState"></span>
+                    </div>
+                    <input
+                      class="hidden"
+                      id="createInstructionInput"
+                      type="file"
+                      accept=".md,.txt,text/markdown,text/plain"
+                    />
+                  </div>
+
+                  <div class="create-custom-prompt-panel hidden" id="createCustomPromptPanel">
+                    <label class="field-label" for="createCustomPrompt">Свой промт для генерации</label>
+                    <textarea
+                      id="createCustomPrompt"
+                      placeholder="Опишите сцену, композицию, фон, свет, типографику и любые ограничения для финальной картинки."
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
                 </section>
 
                 <section class="create-form-card create-product-card">
                   <div class="create-card-head create-product-card-head">
                     <div>
                       <h3>Контент карточки</h3>
-                      <span>Данные о товаре для заполнения карточки</span>
                     </div>
                     <button class="btn btn-outline create-autofill-btn" id="createAutofillBtn" type="button">
                       Автозаполнить AI
                     </button>
                   </div>
 
-                  <label class="field-label" for="createProductTitle">Название товара</label>
-                  <input
+                  <label class="field-label" for="createProductTitle">Главный текст</label>
+                  <textarea
                     id="createProductTitle"
-                    type="text"
-                    placeholder="Например: Сыворотка с пептидами для сияния кожи"
-                  />
+                    placeholder="Например: Мгновенное сияние кожи"
+                  ></textarea>
 
-                  <label class="field-label" for="createProductShortDescription">Краткое описание товара</label>
+                  <label class="field-label" for="createProductShortDescription">Второй уровень текста</label>
                   <textarea
                     id="createProductShortDescription"
-                    placeholder="Опишите сам товар: материал, назначение, особенности, пользу и сценарий использования."
+                    placeholder="Например: Пептиды, увлажнение, ровный тон"
                   ></textarea>
-                  <p class="create-field-hint">Только про товар: материал, назначение, особенности и пользу. Не описывайте макет карточки, маркетплейс или визуальный стиль.</p>
 
-                  <div class="create-characteristics-head">
-                    <div>
-                      <label class="field-label">Характеристики товара</label>
-                      <p>Добавляйте характеристики inline, меняйте порядок и быстро подставляйте готовые пресеты.</p>
-                    </div>
-                    <button class="create-add-characteristic-btn" id="createAddCharacteristicBtn" type="button" aria-label="Добавить характеристику">
-                      +
-                    </button>
-                  </div>
-
-                  <div class="create-characteristics-presets-block">
-                    <span class="create-characteristics-presets-label">Быстрые пресеты</span>
-                    <div class="create-characteristics-presets" id="createCharacteristicPresets"></div>
-                  </div>
-
-                  <div class="create-characteristics-list" id="createCharacteristicsList"></div>
-                  <p class="create-characteristics-empty" id="createCharacteristicsEmpty">Добавьте характеристики, если нужно показать состав, размеры, комплектацию или ключевые параметры товара.</p>
+                  <label class="field-label" for="createProductThirdLevelText">Третий уровень текста</label>
+                  <textarea
+                    id="createProductThirdLevelText"
+                    placeholder="Например: Легкая формула, подходит для ежедневного ухода"
+                  ></textarea>
 
                   <div class="hidden" aria-hidden="true">
                     <textarea id="createDescription"></textarea>
                     <textarea id="createHighlights"></textarea>
-                    <textarea id="createCustomPrompt"></textarea>
                     <textarea id="createAiPromptOutput"></textarea>
                   </div>
                 </section>
@@ -620,7 +550,6 @@
                 <section class="create-form-card create-preview-card" id="createPreviewCard">
                   <div class="create-card-head">
                     <h3>Превью карточки</h3>
-                    <span>Живое превью</span>
                   </div>
 
                   <div class="create-preview-stage">
@@ -628,13 +557,6 @@
                     <div class="create-preview-empty" id="createPreviewEmpty">
                       <strong>Карточка появится здесь</strong>
                       <p>Выберите шаблон, заполните данные и запустите генерацию.</p>
-                    </div>
-                    <div class="create-preview-overlay">
-                      <span class="create-preview-badge" id="createPreviewBadge">Черновик</span>
-                      <div class="create-preview-copy">
-                        <strong id="createPreviewTitle">Готовим структуру карточки</strong>
-                        <p id="createPreviewMeta">Здесь будет итоговое превью 3:4.</p>
-                      </div>
                     </div>
                   </div>
 
@@ -647,8 +569,8 @@
                     </a>
                   </div>
 
-                  <p class="create-cta-hint" id="createCtaHint">Заполните форму, чтобы активировать генерацию</p>
-                  <p id="createStatus" class="status-message" aria-live="polite"></p>
+                  <p class="create-cta-hint" id="createCtaHint">Сначала добавьте фото товара.</p>
+                  <p id="createStatus" class="status-message hidden" aria-live="polite"></p>
                   <div class="request-meta" id="createMeta">
                     <span>Статус запроса:</span>
                     <strong>Ожидание данных</strong>
@@ -674,29 +596,19 @@
                 <div class="create-reference-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="createReferenceModalTitle">
                   <div class="create-reference-modal-head">
                     <div>
-                      <h3 id="createReferenceModalTitle">Библиотека шаблонов и референсов</h3>
-                      <span>Открывайте каталог отдельно от формы и выбирайте визуальное направление без длинной ленты в основном flow</span>
+                      <h3 id="createReferenceModalTitle">Библиотека шаблонов</h3>
                     </div>
                     <button class="create-reference-modal-close" id="createReferenceModalClose" type="button" aria-label="Закрыть библиотеку">
                       ×
                     </button>
                   </div>
 
-                  <div class="create-template-toolbar create-template-toolbar-modal">
-                    <label class="field-label sr-only" for="createTemplateSearchInput">Поиск шаблонов</label>
-                    <input
-                      id="createTemplateSearchInput"
-                      type="search"
-                      placeholder="Поиск шаблонов, референсов и визуальных направлений"
-                    />
-                  </div>
-
-                  <div class="create-template-tabs">
-                    <button class="create-template-tab active" type="button" data-create-template-tab="all">Все</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="marketplace">Маркетплейс</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="clean">Чистые</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="promo">Промо</button>
-                    <button class="create-template-tab" type="button" data-create-template-tab="reference">Референсы</button>
+                  <div class="create-library-hero">
+                    <div class="create-library-hero-copy">
+                      <span class="create-library-kicker">Два режима на выбор</span>
+                      <strong>Один адаптивный сценарий и один полностью ручной.</strong>
+                      <p>«Лучший» собирает визуал персонально под товар. «Свой промт» оставляет постановку полностью под вашим контролем.</p>
+                    </div>
                   </div>
 
                   <div class="create-template-grid create-template-grid-modal" id="createTemplateGrid"></div>
@@ -1074,10 +986,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="./services/kartochka-services.js"></script>
-    <script src="./create-characteristics-component.js"></script>
-    <script src="./app.js"></script>
-    <script src="./improve-card-flow.js"></script>
+    <script src="./services/kartochka-services.js?v=20260328-5"></script>
+    <script src="./create-characteristics-component.js?v=20260328-5"></script>
+    <script src="./app.js?v=20260328-7"></script>
+    <script src="./improve-card-flow.js?v=20260328-5"></script>
   </body>
 </html>
-

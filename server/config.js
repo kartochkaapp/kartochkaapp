@@ -64,7 +64,7 @@ const getRuntimeConfig = () => {
       rootDir: ROOT_DIR,
       publicBaseUrl: toText(process.env.PUBLIC_BASE_URL) || "http://localhost:2020",
       requestBodyLimitBytes: toNumber(process.env.REQUEST_BODY_LIMIT_BYTES, 25 * 1024 * 1024),
-      requestTimeoutMs: toNumber(process.env.REQUEST_TIMEOUT_MS, 45000),
+      requestTimeoutMs: toNumber(process.env.REQUEST_TIMEOUT_MS, 300000),
     },
     openai: {
       apiKey: toText(process.env.OPENAI_API_KEY),

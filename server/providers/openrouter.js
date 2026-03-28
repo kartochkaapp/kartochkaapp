@@ -201,6 +201,20 @@ const formatCreateTemplateInstructionTextV2 = (payload) => {
   return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
 };
 
+const isCreateDirectPromptMode = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  return toText(payload?.promptMode) === "custom"
+    && toText(reference?.kind) === "custom-prompt"
+    && Boolean(toText(payload?.prompt) || toText(payload?.customPrompt));
+};
+
+const isCreateInstructionPromptMode = (payload) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  return toText(reference?.kind) === "instruction-template"
+    && toText(reference?.promptFlow) === "gpt_instruction"
+    && Boolean(toText(payload?.prompt));
+};
+
 const resolveCreatePreviewCandidatesV2 = (payload) => {
   return [
     ...(Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls : []),
@@ -291,6 +305,10 @@ const buildCreateGenerateUserTextV2 = (payload) => {
 };
 
 const buildCreateVariantImagePromptV2 = (payload, variant, variantNumber) => {
+  if (isCreateDirectPromptMode(payload)) {
+    return toText(payload?.prompt) || toText(payload?.customPrompt) || "";
+  }
+
   const marketplace = toText(payload?.marketplace) || "маркетплейс";
   const title = toText(payload?.title) || toText(payload?.description) || "товар";
   const subtitle = toText(payload?.subtitle) || "";
@@ -521,7 +539,7 @@ const createOpenRouterProvider = (config) => {
   const apiKey = toText(config?.apiKey);
   const referer = toText(config?.referer) || "http://localhost:2020";
   const title = toText(config?.title) || "KARTOCHKA";
-  const timeoutMs = clamp(config?.timeoutMs, 1000, 120000, 60000);
+  const timeoutMs = clamp(config?.timeoutMs, 1000, 300000, 300000);
 
   const callChatJson = async (messages) => {
     if (!apiKey) {
@@ -679,9 +697,58 @@ const createOpenRouterProvider = (config) => {
     return responseImages[0] || "";
   };
 
-  const createGenerate = async (payload) => {
-    const variantsCount = clamp(payload?.cardsCount, 1, 5, 1);
-    const parsed = await callChatJson([
+const createGenerate = async (payload) => {
+  const variantsCount = clamp(payload?.cardsCount, 1, 5, 1);
+  const directPromptMode = isCreateDirectPromptMode(payload);
+  const instructionPromptMode = isCreateInstructionPromptMode(payload);
+  const rawPromptMode = directPromptMode || instructionPromptMode;
+
+  if (rawPromptMode) {
+    const rawPrompt = toText(payload?.prompt || payload?.customPrompt);
+    const promptPreview = rawPrompt.slice(0, 240);
+    const marketplace = toText(payload?.marketplace) || "Маркетплейс";
+    const inputImages = resolveCreatePreviewCandidatesV2(payload);
+    const modeTitle = instructionPromptMode ? "Лучший" : "Свой промпт";
+    const modeStyle = instructionPromptMode
+      ? "Генерация по prompt от GPT и фото товара"
+      : "Прямая генерация по пользовательскому промпту";
+    const modeFocus = instructionPromptMode
+      ? "Финальный prompt передан в image AI без дополнительных модификаций"
+      : "Использовать ручной промпт без переписывания";
+    const results = [];
+
+    for (let index = 0; index < variantsCount; index += 1) {
+      const variantNumber = index + 1;
+      const responseImages = await callImageGeneration([
+        {
+          role: "user",
+          content: buildImageMessageContent(rawPrompt, inputImages),
+        },
+      ]);
+      const previewUrl = responseImages[0] || "";
+
+      results.push({
+        id: "result-" + String(Date.now()) + "-" + String(variantNumber),
+        variantNumber,
+        totalVariants: variantsCount,
+        previewUrl,
+        title: modeTitle + (variantsCount > 1 ? " " + String(variantNumber) : ""),
+        marketplace,
+        style: modeStyle,
+        focus: modeFocus,
+        format: "Raw prompt generation",
+        changes: instructionPromptMode
+          ? "Prompt от GPT и фото товара отправлены в image AI без дополнительных модификаций"
+          : "Пользовательский промпт отправлен в image AI как есть",
+        promptPreview,
+        downloadName: (instructionPromptMode ? "kartochka-best-" : "kartochka-custom-prompt-") + String(variantNumber) + ".png",
+      });
+    }
+
+    return results;
+  }
+
+  const parsed = await callChatJson([
       {
         role: "system",
         content: CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 + "\nReturn only strict JSON with the requested planning structure.",

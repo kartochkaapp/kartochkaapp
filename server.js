@@ -191,9 +191,13 @@ const serveStatic = (requestPath, response) => {
 
   const extension = path.extname(absolutePath).toLowerCase();
   const contentType = CONTENT_TYPES[extension] || "application/octet-stream";
+  const cacheControl = extension === ".html"
+    ? "no-store"
+    : "public, max-age=3600";
+
   response.writeHead(200, {
     "Content-Type": contentType,
-    "Cache-Control": extension === ".html" ? "no-store" : "public, max-age=3600",
+    "Cache-Control": cacheControl,
   });
 
   const stream = fs.createReadStream(absolutePath);

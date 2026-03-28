@@ -9,7 +9,7 @@
 
   const DEFAULT_MODE = "mock";
   const MODE_SET = new Set(["mock", "real"]);
-  const DEFAULT_TIMEOUT_MS = 12000;
+  const DEFAULT_TIMEOUT_MS = 300000;
   const DEFAULT_HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
   const DEFAULT_HISTORY_MAX_ITEMS = 30;
 
@@ -378,7 +378,7 @@
 
   const createHttpClient = (options) => {
     const baseUrl = toText(options?.baseUrl).replace(/\/+$/, "");
-    const timeoutMs = clampInt(options?.timeoutMs, 1000, 120000, DEFAULT_TIMEOUT_MS);
+    const timeoutMs = clampInt(options?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS);
     const defaultHeaders = {
       Accept: "application/json",
       ...(isPlainObject(options?.headers) ? options.headers : {}),
@@ -445,7 +445,7 @@
       }
 
       const method = toText(config?.method || "POST").toUpperCase();
-      const requestTimeout = clampInt(config?.timeoutMs, 500, 120000, timeoutMs);
+      const requestTimeout = clampInt(config?.timeoutMs, 500, 300000, timeoutMs);
       const headers = {
         ...defaultHeaders,
         ...(isPlainObject(config?.headers) ? config.headers : {}),
@@ -1045,7 +1045,7 @@
       },
       request: {
         baseUrl: toText(options?.request?.baseUrl),
-        timeoutMs: clampInt(options?.request?.timeoutMs, 1000, 120000, DEFAULT_TIMEOUT_MS),
+        timeoutMs: clampInt(options?.request?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS),
         headers: isPlainObject(options?.request?.headers) ? options.request.headers : {},
       },
     };
