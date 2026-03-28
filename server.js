@@ -166,6 +166,16 @@ const isPathInsideRoot = (targetPath, rootDir) => {
   return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
 };
 
+const isLocalRuntime = () => {
+  const host = String(runtime.app.host || "").trim().toLowerCase();
+  const baseUrl = String(runtime.app.publicBaseUrl || "").trim().toLowerCase();
+  return host === "0.0.0.0"
+    || host === "127.0.0.1"
+    || host === "localhost"
+    || baseUrl.includes("localhost")
+    || baseUrl.includes("127.0.0.1");
+};
+
 const serveStatic = (requestPath, response) => {
   const decodedPath = decodeURIComponent(requestPath || "/");
   const normalizedPath = decodedPath === "/" ? "/index.html" : decodedPath;
@@ -191,9 +201,11 @@ const serveStatic = (requestPath, response) => {
 
   const extension = path.extname(absolutePath).toLowerCase();
   const contentType = CONTENT_TYPES[extension] || "application/octet-stream";
-  const cacheControl = extension === ".html"
+  const cacheControl = isLocalRuntime()
     ? "no-store"
-    : "public, max-age=3600";
+    : extension === ".html"
+      ? "no-store"
+      : "public, max-age=3600";
 
   response.writeHead(200, {
     "Content-Type": contentType,
@@ -242,9 +254,19 @@ const toApiErrorPayload = (error) => {
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
+    const providerDetailsText = JSON.stringify(error.details || "").toLowerCase();
+    const hasKeyLimitExceeded = providerDetailsText.includes("key limit exceeded")
+      || providerDetailsText.includes("monthly limit")
+      || providerDetailsText.includes("credit limit")
+      || providerDetailsText.includes("quota");
+    const hasInvalidInputImage = providerDetailsText.includes("unable to process input image");
 
     let userMessage = "AI сервис временно недоступен. Попробуйте снова.";
-    if (status === 401 || status === 403) {
+    if (hasKeyLimitExceeded) {
+      userMessage = "Лимит AI-ключа исчерпан. Нужен новый лимит или другой ключ OpenRouter.";
+    } else if (hasInvalidInputImage) {
+      userMessage = "AI не смог обработать одно из фото. Попробуйте PNG/JPG/WEBP и, если фото несколько, оставьте 1-3 самых важных.";
+    } else if (status === 401 || status === 403) {
       userMessage = "Сервер не авторизован в AI провайдере. Проверьте API ключи в .env.local.";
     } else if (status === 429) {
       userMessage = "Лимит запросов к AI провайдеру превышен. Повторите попытку позже.";

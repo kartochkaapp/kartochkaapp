@@ -132,10 +132,13 @@ const toApiErrorPayload = (error) => {
       || providerDetailsText.includes("monthly limit")
       || providerDetailsText.includes("credit limit")
       || providerDetailsText.includes("quota");
+    const hasInvalidInputImage = providerDetailsText.includes("unable to process input image");
 
     let userMessage = "AI сервис временно недоступен. Попробуйте снова.";
     if (hasKeyLimitExceeded) {
       userMessage = "Лимит AI-ключа исчерпан. Нужен новый лимит или другой ключ OpenRouter.";
+    } else if (hasInvalidInputImage) {
+      userMessage = "AI не смог обработать одно из фото. Попробуйте PNG/JPG/WEBP и, если фото несколько, оставьте 1-3 самых важных.";
     } else if (status === 401 || status === 403) {
       userMessage = "Сервер не авторизован в AI-провайдере. Проверьте API-ключи.";
     } else if (status === 429) {

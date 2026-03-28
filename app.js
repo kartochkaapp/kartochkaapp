@@ -94,6 +94,9 @@
   const createSelectedTemplateMeta = document.getElementById("createSelectedTemplateMeta");
   const createSelectedTemplateTags = document.getElementById("createSelectedTemplateTags");
   const createInstructionTemplatePanel = document.getElementById("createInstructionTemplatePanel");
+  const createGenerationNotesPanel = document.getElementById("createGenerationNotesPanel");
+  const createGenerationNotesDetails = document.getElementById("createGenerationNotesDetails");
+  const createGenerationNotes = document.getElementById("createGenerationNotes");
   const createCustomPromptPanel = document.getElementById("createCustomPromptPanel");
   const createInstructionAttachBtn = document.getElementById("createInstructionAttachBtn");
   const createInstructionInput = document.getElementById("createInstructionInput");
@@ -109,6 +112,8 @@
   const createPreviewCard = document.getElementById("createPreviewCard");
   const createPreviewImage = document.getElementById("createPreviewImage");
   const createPreviewEmpty = document.getElementById("createPreviewEmpty");
+  const createPreviewEmptyTitle = document.getElementById("createPreviewEmptyTitle");
+  const createPreviewEmptyText = document.getElementById("createPreviewEmptyText");
   const createPreviewBadge = document.getElementById("createPreviewBadge");
   const createPreviewTitle = document.getElementById("createPreviewTitle");
   const createPreviewMeta = document.getElementById("createPreviewMeta");
@@ -197,7 +202,7 @@
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
   const HISTORY_IMAGE_MAX_DIMENSION = 960;
   const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
-  const API_IMAGE_MAX_DIMENSION = 1600;
+  const API_IMAGE_MAX_DIMENSION = 1280;
   const API_IMAGE_JPEG_QUALITY = 0.84;
   const CREATE_UPLOAD_MAX_FILES = 5;
   const CREATE_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -581,8 +586,8 @@
       tags: ["preset", "frosted glass", "skincare", "macro", "condensation", "studio"],
     },
   ]);
-  const CREATE_INSTRUCTION_TEMPLATE_PATH = "/Users/levvasilev/Downloads/marketplace_prompt_instruction_master_v6_reworked_env_refined_cohesive_3x4_typecraft_plus_wholecard_stableforms_noplaceholders_materialstage.md";
-  const CREATE_INSTRUCTION_TEMPLATE_LABEL = "marketplace_prompt_instruction_master_v6_reworked_env_refined_cohesive_3x4_typecraft_plus_wholecard_stableforms_noplaceholders_materialstage.md";
+  const CREATE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/best-template-instruction.md";
+  const CREATE_INSTRUCTION_TEMPLATE_LABEL = "best-template-instruction.md";
   const CREATE_BEST_INSTRUCTION_TEMPLATE = Object.freeze({
     id: "tpl-best-instruction",
     title: "Лучший",
@@ -765,6 +770,7 @@
   let createSelectedTemplateId = CREATE_DEFAULT_TEMPLATE_ID;
   let createReferenceLibraryOpen = false;
   let createImageManagerOpen = false;
+  let createUploadDragDepth = 0;
   const createCharacteristics = [];
   let createCharacteristicsComponent = null;
   const createUsefulSettings = { ...CREATE_USEFUL_SETTINGS_DEFAULTS };
@@ -844,7 +850,7 @@
 
   const setCreateFlowStepState = (node, state, detail) => {
     if (!node) return;
-    node.classList.remove("is-upcoming", "is-active", "is-done", "is-optional");
+    node.classList.remove("is-upcoming", "is-active", "is-done");
     node.classList.add(state || "is-upcoming");
 
     const detailNode = node.querySelector("small");
@@ -1124,7 +1130,7 @@
       URL.revokeObjectURL(objectUrl);
     }
 
-    return readFileAsDataUrl(file);
+    return "";
   };
 
   const buildHistoryImageSnapshot = async (sourceUrl) => {
@@ -1167,7 +1173,11 @@
 
   const buildCreateImageDataUrls = async () => {
     const urls = await Promise.all(createSelectedFiles.map((file) => getCreateFileDataUrl(file)));
-    return urls.filter(Boolean);
+    const prepared = urls.filter(Boolean);
+    if (createSelectedFiles.length > 0 && prepared.length !== createSelectedFiles.length) {
+      throw new Error("Не удалось подготовить одно или несколько фото для AI. Оставьте PNG, JPG или WEBP и попробуйте другое изображение.");
+    }
+    return prepared;
   };
 
   const getCreateTemplatePreviewDataUrl = async (previewUrl) => {
@@ -1277,8 +1287,8 @@
   };
 
   const getCreateTemplateKindLabel = (template) => {
-    if (template?.kind === "custom-prompt") return "Ручной режим";
-    if (template?.kind === "instruction-template") return "Адаптивный режим";
+    if (template?.kind === "custom-prompt") return "Ручной";
+    if (template?.kind === "instruction-template") return "Адаптивный";
     if (template?.kind === "preset") return "Пресет";
     if (template?.tab === "reference") return "Референс";
     if (template?.tab === "promo") return "Промо";
@@ -1387,6 +1397,10 @@
       levels.secondary ? "Второй уровень текста (нужно разместить на карточке): " + levels.secondary : "",
       levels.tertiary ? "Третий уровень текста (нужно разместить на карточке): " + levels.tertiary : "",
     ].filter(Boolean).join("\n");
+  };
+
+  const buildCreateGenerationNotesValue = () => {
+    return toText(createGenerationNotes?.value);
   };
 
   const hasCreateSettingsControls = [
@@ -2000,13 +2014,13 @@
     }
     if (createSelectedTemplateDescription) {
       createSelectedTemplateDescription.textContent = template?.description
-        || "Откройте библиотеку и выберите режим генерации.";
+        || "Выберите режим генерации.";
     }
     if (createSelectedTemplateMeta) {
       createSelectedTemplateMeta.textContent = getCreateTemplateKindLabel(template);
     }
     if (createReferenceLibraryBtn) {
-      createReferenceLibraryBtn.textContent = template ? "Сменить режим" : "Открыть библиотеку";
+      createReferenceLibraryBtn.textContent = template ? "Сменить режим" : "Выбрать режим";
     }
 
     if (selectedTemplateThumb) {
@@ -2030,7 +2044,11 @@
       createSelectedTemplateCard.classList.toggle("hidden", isDirectPrompt);
       createSelectedTemplateCard.classList.remove("is-text-only");
     }
-    createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
+    createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate || !createInstructionDocumentName);
+    createGenerationNotesPanel?.classList.toggle("hidden", !isInstructionTemplate);
+    if (createGenerationNotesDetails && isInstructionTemplate && buildCreateGenerationNotesValue()) {
+      createGenerationNotesDetails.open = true;
+    }
     createCustomPromptPanel?.classList.toggle("hidden", !isDirectPrompt);
     syncCreateInstructionState();
   };
@@ -2127,11 +2145,12 @@
       title.textContent = template.title;
 
       const description = document.createElement("span");
+      description.className = "create-template-item-description";
       description.textContent = template.description || "Откройте и используйте этот шаблон для генерации.";
 
       const action = document.createElement("span");
       action.className = "create-template-item-action";
-      action.textContent = template.id === createSelectedTemplateId ? "Выбрано" : "Выбрать";
+      action.textContent = template.id === createSelectedTemplateId ? "Выбрано" : "Выбрать режим";
 
       body.append(meta, title, description, action);
       card.append(thumb, body);
@@ -2164,6 +2183,8 @@
   const renderCreatePreviewPanel = () => {
     const activeResult = getActiveCreateResult();
     const selectedTemplate = getCreateSelectedTemplate();
+    const isDirectPrompt = isCreateDirectPromptTemplate(selectedTemplate);
+    const hasPhoto = createSelectedFiles.length > 0;
     const uploadUrl = createSelectedFiles[0] ? getCreateFilePreviewUrl(createSelectedFiles[0]) : "";
     const previewUrl = activeResult?.previewUrl || selectedTemplate?.previewUrl || uploadUrl;
     const accentColor = CREATE_ACCENT_COLOR_MAP[createUsefulSettings.accentColor] || CREATE_ACCENT_COLOR_MAP.emerald;
@@ -2195,6 +2216,23 @@
       }
     }
 
+    if (!previewUrl) {
+      if (createPreviewEmptyTitle) {
+        createPreviewEmptyTitle.textContent = hasPhoto
+          ? (selectedTemplate ? "Можно переходить к генерации" : "Выберите режим")
+          : "Добавьте фото товара";
+      }
+      if (createPreviewEmptyText) {
+        createPreviewEmptyText.textContent = hasPhoto
+          ? (selectedTemplate
+              ? (isDirectPrompt
+                  ? "Введите свой промт и запустите генерацию."
+                  : "Добавьте текст при необходимости и запустите генерацию.")
+              : "Следующий шаг: выберите режим генерации.")
+          : "Первое фото сразу станет основой для превью и генерации.";
+      }
+    }
+
     if (createPreviewBadge) {
       createPreviewBadge.textContent = activeResult
         ? "Готово"
@@ -2211,6 +2249,7 @@
 
     if (createExportBtn) {
       const canExport = Boolean(activeResult?.previewUrl);
+      createExportBtn.classList.toggle("hidden", !canExport);
       createExportBtn.classList.toggle("is-disabled", !canExport);
       createExportBtn.setAttribute("aria-disabled", canExport ? "false" : "true");
       createExportBtn.href = canExport ? activeResult.previewUrl : "#";
@@ -2327,23 +2366,28 @@
       createImageManagerCounter.textContent = String(createSelectedFiles.length)
         + " / "
         + String(CREATE_UPLOAD_MAX_FILES)
-        + " фото • добавляйте и удаляйте вложения внутри этого окна";
+        + " фото • первое фото основное";
     }
 
     if (createUploadHint) {
-      const remaining = Math.max(0, CREATE_UPLOAD_MAX_FILES - createSelectedFiles.length);
-      if (createSelectedFiles.length === 0) {
-        createUploadHint.textContent = "Нажмите, чтобы открыть менеджер изображений и добавить до 5 фото";
-      } else if (remaining > 0) {
-        createUploadHint.textContent = "Откройте менеджер изображений • можно добавить еще " + String(remaining);
+      if (createSelectedFiles.length < CREATE_UPLOAD_MAX_FILES) {
+        createUploadHint.textContent = "PNG, JPG, WEBP • до 5 фото";
       } else {
-        createUploadHint.textContent = "Лимит 5 фото достигнут • удалите лишнее в менеджере изображений";
+        createUploadHint.textContent = "Лимит достигнут • удалите лишнее фото";
       }
     }
 
     createUploadZone?.classList.toggle("is-empty", createSelectedFiles.length === 0);
     createUploadZone?.classList.toggle("is-filled", createSelectedFiles.length > 0);
     createUploadZone?.classList.toggle("is-limit", createSelectedFiles.length >= CREATE_UPLOAD_MAX_FILES);
+    createUploadZone?.setAttribute(
+      "aria-label",
+      createSelectedFiles.length > 0 ? "Открыть менеджер изображений товара" : "Добавить фото товара"
+    );
+    createUploadZone?.setAttribute(
+      "title",
+      createSelectedFiles.length > 0 ? "Открыть менеджер изображений" : "Добавить фото товара"
+    );
   };
 
   const syncCreatePromptMode = (nextMode) => {
@@ -2394,33 +2438,31 @@
     setCreateFlowStepState(
       createFlowSteps.photo,
       hasPhoto ? "is-done" : "is-active",
-      hasPhoto
-        ? String(createSelectedFiles.length) + " из " + String(CREATE_UPLOAD_MAX_FILES) + " фото"
-        : "Добавьте минимум одно фото товара"
+      hasPhoto ? "Фото добавлено" : "Добавьте хотя бы 1 фото"
     );
 
     setCreateFlowStepState(
       createFlowSteps.template,
       selectedTemplate ? "is-done" : (hasPhoto ? "is-active" : "is-upcoming"),
-      selectedTemplate ? "Выбран режим: " + selectedTemplate.title : "Выберите режим генерации"
+      selectedTemplate ? "Выбран: " + selectedTemplate.title : "Нужен выбор режима"
     );
 
     if (isDirectPrompt) {
       setCreateFlowStepState(
         createFlowSteps.content,
         customPromptValue.length >= 12 ? "is-done" : (hasPhoto ? "is-active" : "is-upcoming"),
-        customPromptValue.length >= 12 ? "Промт готов к запуску" : "Введите свой промт для генерации"
+        customPromptValue.length >= 12 ? "Промт добавлен" : "Добавьте свой промт"
       );
     } else {
       setCreateFlowStepState(
         createFlowSteps.content,
-        hasCardText ? "is-done" : "is-optional",
-        hasCardText ? "Текст для карточки добавлен" : "Опционально: можно генерировать и без текста"
+        hasCardText ? "is-done" : "is-upcoming",
+        hasCardText ? "Текст добавлен" : "Необязательно"
       );
     }
 
     if (createGeneratedResults.length) {
-      setCreateFlowStepState(createFlowSteps.generate, "is-done", "Варианты готовы, можно выбрать лучший");
+      setCreateFlowStepState(createFlowSteps.generate, "is-done", "Варианты готовы");
       return;
     }
 
@@ -2430,11 +2472,11 @@
     }
 
     if (validationError) {
-      setCreateFlowStepState(createFlowSteps.generate, "is-upcoming", "Ждет обязательные данные");
+      setCreateFlowStepState(createFlowSteps.generate, "is-upcoming", "Нужны обязательные данные");
       return;
     }
 
-    setCreateFlowStepState(createFlowSteps.generate, "is-active", "Можно запускать генерацию");
+    setCreateFlowStepState(createFlowSteps.generate, "is-active", "Можно запускать");
   };
 
   const getCreateInsightFingerprint = () => {
@@ -2476,6 +2518,7 @@
       customPrompt: customPromptText,
       cardTextLevels: buildCreateCardTextLevelsPayload(),
       contentCardText: buildCreateContentCardText(),
+      generationNotes: buildCreateGenerationNotesValue(),
       instructionDocumentText: createInstructionDocumentText,
       instructionDocumentName: createInstructionDocumentName,
       userText: buildCreateUserText(),
@@ -3068,6 +3111,7 @@
     if (createProductTitle) createProductTitle.toggleAttribute("disabled", controlsLocked);
     if (createProductShortDescription) createProductShortDescription.toggleAttribute("disabled", controlsLocked);
     if (createProductThirdLevelText) createProductThirdLevelText.toggleAttribute("disabled", controlsLocked);
+    if (createGenerationNotes) createGenerationNotes.toggleAttribute("disabled", controlsLocked);
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
     if (createTemplateSearchInput) createTemplateSearchInput.toggleAttribute("disabled", controlsLocked);
@@ -3149,23 +3193,23 @@
       } else if (createIsGenerating) {
         createCtaHint.textContent = "Генерация в процессе...";
       } else if (createSelectedFiles.length < 1) {
-        createCtaHint.textContent = "Следующий шаг: добавьте фото товара.";
+        createCtaHint.textContent = "Шаг 1: добавьте фото товара.";
       } else if (createPromptMode === "custom" && customPromptValue.length < 12) {
-        createCtaHint.textContent = "Следующий шаг: введите свой промт для генерации.";
+        createCtaHint.textContent = "Шаг 3: введите свой промт.";
       } else if (validationError) {
         createCtaHint.textContent = validationError;
       } else if (createGeneratedResults.length) {
         createCtaHint.textContent = "Выберите лучший вариант ниже или экспортируйте активное превью.";
       } else if (createPromptMode === "custom") {
-        createCtaHint.textContent = "Все готово: запускайте генерацию по своему промту.";
+        createCtaHint.textContent = "Шаг 4: запускайте генерацию по своему промту.";
       } else if (
         !getCreateProductTitleValue()
         && !getCreateProductShortDescriptionValue()
         && !getCreateProductThirdLevelTextValue()
       ) {
-        createCtaHint.textContent = "Можно запускать сразу или добавить текст на карточку для более точного результата.";
+        createCtaHint.textContent = "Шаг 4: можно запускать сразу или добавить текст на карточку.";
       } else {
-        createCtaHint.textContent = "Все готово: запускайте генерацию карточки.";
+        createCtaHint.textContent = "Шаг 4: всё готово к генерации.";
       }
     }
     syncCreateFlowGuide(validationError);
@@ -4146,6 +4190,7 @@
       input: {
         description: String(payload?.description || "").trim(),
         highlights: String(payload?.highlights || "").trim(),
+        generationNotes: String(payload?.generationNotes || buildCreateGenerationNotesValue() || "").trim(),
         mainText: getCreateProductTitleValue(),
         secondaryText: getCreateProductShortDescriptionValue(),
         tertiaryText: getCreateProductThirdLevelTextValue(),
@@ -4457,9 +4502,10 @@
   };
 
   const setCreateResultsProcessing = (isProcessing) => {
-    createResultsSection?.classList.remove("hidden");
-    createResultsProcessing?.classList.toggle("hidden", !isProcessing);
-    createResultsGrid?.classList.toggle("hidden", isProcessing);
+    if (!createResultsSection || !createResultsProcessing || !createResultsGrid) return;
+    createResultsSection.classList.remove("hidden");
+    createResultsProcessing.classList.toggle("hidden", !isProcessing);
+    createResultsGrid.classList.toggle("hidden", isProcessing);
   };
 
   const resolveCreatePromptForGeneration = () => {
@@ -4576,7 +4622,10 @@
   };
 
   const renderCreateResults = () => {
-    if (!createResultsGrid || !createResultsCaption || !createResultsSection) return;
+    if (!createResultsGrid || !createResultsCaption || !createResultsSection) {
+      renderCreatePreviewPanel();
+      return;
+    }
 
     createResultsGrid.textContent = "";
     const totalResults = createGeneratedResults.length;
@@ -5598,6 +5647,7 @@
     createProductTitle,
     createProductShortDescription,
     createProductThirdLevelText,
+    createGenerationNotes,
     createCustomPrompt,
     createMarketplace,
     createCardsCount,
@@ -5653,6 +5703,37 @@
     }
 
     openCreateImageManagerModal();
+  });
+
+  createUploadZone?.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+    if (isCreateControlsLocked()) return;
+    createUploadDragDepth += 1;
+    createUploadZone.classList.add("is-dragover");
+  });
+
+  createUploadZone?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    if (isCreateControlsLocked()) return;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  });
+
+  createUploadZone?.addEventListener("dragleave", () => {
+    if (isCreateControlsLocked()) return;
+    createUploadDragDepth = Math.max(0, createUploadDragDepth - 1);
+    if (createUploadDragDepth === 0) {
+      createUploadZone.classList.remove("is-dragover");
+    }
+  });
+
+  createUploadZone?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    createUploadDragDepth = 0;
+    createUploadZone.classList.remove("is-dragover");
+    if (isCreateControlsLocked()) return;
+    addCreateFiles(event.dataTransfer?.files);
   });
 
   createEditImageBtn?.addEventListener("click", () => {
@@ -5876,11 +5957,6 @@
           promptMode: createPromptMode,
         },
       });
-
-      createResultsSection?.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "start",
-      });
     } catch (error) {
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];
@@ -6028,15 +6104,19 @@
   });
 
   window.addEventListener("dragend", () => {
+    createUploadDragDepth = 0;
     improvePrimaryDragDepth = 0;
     improveReferenceDragDepth = 0;
+    createUploadZone?.classList.remove("is-dragover");
     improvePrimaryUploadZone?.classList.remove("is-dragover");
     improveReferenceUploadZone?.classList.remove("is-dragover");
   });
 
   window.addEventListener("drop", () => {
+    createUploadDragDepth = 0;
     improvePrimaryDragDepth = 0;
     improveReferenceDragDepth = 0;
+    createUploadZone?.classList.remove("is-dragover");
     improvePrimaryUploadZone?.classList.remove("is-dragover");
     improveReferenceUploadZone?.classList.remove("is-dragover");
   });

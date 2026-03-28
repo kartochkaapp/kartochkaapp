@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const path = require("node:path");
 
 const { HttpClientError, requestJson } = require("../http-client");
 const { toText, extractJsonObject, clamp } = require("../utils");
@@ -128,8 +129,11 @@ const formatCreateTemplateInstructionTextV2 = (payload) => {
   const instructionPrompt = inlineInstructionPrompt || (() => {
     const instructionPath = toText(reference?.instructionPromptPath);
     if (!instructionPath) return "";
+    const resolvedPath = path.isAbsolute(instructionPath)
+      ? instructionPath
+      : path.resolve(__dirname, "..", "..", instructionPath);
     try {
-      return toText(fs.readFileSync(instructionPath, "utf8"));
+      return toText(fs.readFileSync(resolvedPath, "utf8"));
     } catch (error) {
       return "";
     }
@@ -170,6 +174,7 @@ const isCreateInstructionPromptRequestV2 = (payload) => {
 const buildCreateInstructionPromptUserTextV2 = (payload) => {
   const instructionText = formatCreateTemplateInstructionTextV2(payload) || "(пусто)";
   const cardPlacementText = formatCreateCardPlacementTextV2(payload);
+  const generationNotes = toText(payload?.generationNotes) || "(пусто)";
 
   return [
     "Задача: по инструкции шаблона, фото товара и пользовательскому тексту для карточки собери один финальный prompt для image AI.",
@@ -180,6 +185,7 @@ const buildCreateInstructionPromptUserTextV2 = (payload) => {
     "Правила:",
     "- фото товара — главный источник правды о товаре",
     "- пользовательский текст ниже нужно разместить на карточке",
+    "- пожелания к генерации ниже считай важной частью итогового prompt и обязательно учти их при сборке финального prompt",
     "- не добавляй объяснения, комментарии или markdown",
     "- верни только один готовый prompt для image AI",
     "",
@@ -188,6 +194,9 @@ const buildCreateInstructionPromptUserTextV2 = (payload) => {
     "",
     "Пользовательский текст для размещения на карточке:",
     cardPlacementText,
+    "",
+    "Пожелания к генерации:",
+    generationNotes,
   ].join("\n");
 };
 

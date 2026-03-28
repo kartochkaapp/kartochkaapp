@@ -112,7 +112,7 @@ const buildImageMessageContent = (text, imageUrls) => {
     ? Array.from(new Set(imageUrls.map((item) => toText(item)).filter(Boolean)))
     : [];
 
-  uniqueUrls.slice(0, 5).forEach((url) => {
+  uniqueUrls.slice(0, 3).forEach((url) => {
     content.push({
       type: "image_url",
       image_url: {

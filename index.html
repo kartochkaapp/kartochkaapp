@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260328-17" />
+    <link rel="stylesheet" href="./styles.css?v=20260328-19" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
   </head>
@@ -396,28 +396,28 @@
                 <span class="create-flow-step-index">1</span>
                 <span class="create-flow-step-copy">
                   <strong>Фото</strong>
-                  <small data-default-text="Добавьте минимум одно фото">Добавьте минимум одно фото</small>
+                  <small data-default-text="Добавьте хотя бы 1 фото">Добавьте хотя бы 1 фото</small>
                 </span>
               </div>
               <div class="create-flow-step" data-create-flow-step="template" role="listitem">
                 <span class="create-flow-step-index">2</span>
                 <span class="create-flow-step-copy">
                   <strong>Режим</strong>
-                  <small data-default-text="Выберите шаблон генерации">Выберите шаблон генерации</small>
+                  <small data-default-text="Нужен выбор режима">Нужен выбор режима</small>
                 </span>
               </div>
               <div class="create-flow-step" data-create-flow-step="content" role="listitem">
                 <span class="create-flow-step-index">3</span>
                 <span class="create-flow-step-copy">
                   <strong>Текст</strong>
-                  <small data-default-text="Добавьте текст на карточку при необходимости">Добавьте текст на карточку при необходимости</small>
+                  <small data-default-text="Необязательно">Необязательно</small>
                 </span>
               </div>
               <div class="create-flow-step" data-create-flow-step="generate" role="listitem">
                 <span class="create-flow-step-index">4</span>
                 <span class="create-flow-step-copy">
                   <strong>Генерация</strong>
-                  <small data-default-text="Запустите и выберите лучший вариант">Запустите и выберите лучший вариант</small>
+                  <small data-default-text="Нужны обязательные данные">Нужны обязательные данные</small>
                 </span>
               </div>
             </div>
@@ -432,13 +432,15 @@
 
                   <button class="create-upload-dropzone create-upload-dropzone-hero" id="createUploadZone" type="button" aria-haspopup="dialog">
                     <span class="create-upload-stage">
-                      <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
                       <span class="create-upload-preview-frame" id="createSourcePreviewFrame">
+                        <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
                         <img class="hidden" id="createSourcePreviewImage" alt="Превью изображения товара" />
                         <span id="createSourcePreviewEmpty">Превью 3:4</span>
                       </span>
-                      <strong>Добавить изображение товара</strong>
-                      <small id="createUploadHint">PNG, JPG, WEBP • можно добавить еще 5</small>
+                      <span class="create-upload-copy">
+                        <strong>Добавить фото товара</strong>
+                        <small id="createUploadHint">PNG, JPG, WEBP • до 5 фото</small>
+                      </span>
                     </span>
                   </button>
                   <input class="hidden" id="createImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
@@ -473,23 +475,14 @@
 
                     <span class="create-selected-template-body">
                       <strong id="createSelectedTemplateTitle">Выберите шаблон</strong>
-                      <span id="createSelectedTemplateDescription">Откройте библиотеку и выберите режим генерации.</span>
-                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Режим генерации</span>
+                      <span id="createSelectedTemplateDescription">Выберите режим генерации.</span>
+                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Режим</span>
                       <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
                     </span>
                   </button>
 
                   <div class="create-instruction-template-panel hidden" id="createInstructionTemplatePanel">
                     <div class="create-instruction-toolbar">
-                      <button
-                        class="btn btn-outline create-instruction-attach-btn"
-                        id="createInstructionAttachBtn"
-                        type="button"
-                        aria-label="Прикрепить инструкцию"
-                        title="Прикрепить инструкцию"
-                      >
-                        <span aria-hidden="true">+</span>
-                      </button>
                       <span class="create-instruction-state" id="createInstructionState"></span>
                     </div>
                     <input
@@ -500,11 +493,24 @@
                     />
                   </div>
 
+                  <div class="create-generation-notes-panel hidden" id="createGenerationNotesPanel">
+                    <details class="create-generation-notes-details" id="createGenerationNotesDetails">
+                      <summary>Пожелания к генерации</summary>
+                      <div class="create-generation-notes-body">
+                        <textarea
+                          id="createGenerationNotes"
+                          placeholder="Например: светлый фон, без людей, акцент на материале товара и чистой типографике."
+                          spellcheck="false"
+                        ></textarea>
+                      </div>
+                    </details>
+                  </div>
+
                   <div class="create-custom-prompt-panel hidden" id="createCustomPromptPanel">
                     <label class="field-label" for="createCustomPrompt">Свой промт для генерации</label>
                     <textarea
                       id="createCustomPrompt"
-                      placeholder="Опишите сцену, композицию, фон, свет, типографику и любые ограничения для финальной картинки."
+                      placeholder="Коротко опишите сцену, фон, свет и любые ограничения для итоговой картинки."
                       spellcheck="false"
                     ></textarea>
                   </div>
@@ -555,8 +561,8 @@
                   <div class="create-preview-stage">
                     <img class="hidden" id="createPreviewImage" alt="Итоговое превью карточки" />
                     <div class="create-preview-empty" id="createPreviewEmpty">
-                      <strong>Карточка появится здесь</strong>
-                      <p>Выберите шаблон, заполните данные и запустите генерацию.</p>
+                      <strong id="createPreviewEmptyTitle">Карточка появится здесь</strong>
+                      <p id="createPreviewEmptyText">После генерации здесь появится активный вариант.</p>
                     </div>
                   </div>
 
@@ -564,7 +570,7 @@
                     <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
                       Сгенерировать карточку
                     </button>
-                    <a class="btn btn-outline create-export-btn is-disabled" id="createExportBtn" href="#" aria-disabled="true">
+                    <a class="btn btn-outline create-export-btn is-disabled hidden" id="createExportBtn" href="#" aria-disabled="true">
                       Экспортировать
                     </a>
                   </div>
@@ -576,18 +582,6 @@
                     <strong>Ожидание данных</strong>
                   </div>
                 </section>
-
-                <section class="create-results-section hidden" id="createResultsSection" aria-live="polite">
-                  <div class="create-results-head">
-                    <h3>Варианты карточки</h3>
-                    <p id="createResultsCaption">После генерации здесь появятся варианты карточек.</p>
-                  </div>
-                  <div class="create-results-processing hidden" id="createResultsProcessing">
-                    <span class="create-results-spinner" aria-hidden="true"></span>
-                    <p>AI готовит варианты карточек...</p>
-                  </div>
-                  <div class="create-results-grid create-results-grid-compact" id="createResultsGrid"></div>
-                </section>
               </aside>
 
               <div class="create-reference-modal hidden" id="createReferenceModal" aria-hidden="true">
@@ -596,7 +590,7 @@
                 <div class="create-reference-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="createReferenceModalTitle">
                   <div class="create-reference-modal-head">
                     <div>
-                      <h3 id="createReferenceModalTitle">Библиотека шаблонов</h3>
+                      <h3 id="createReferenceModalTitle">Выберите режим</h3>
                     </div>
                     <button class="create-reference-modal-close" id="createReferenceModalClose" type="button" aria-label="Закрыть библиотеку">
                       ×
@@ -605,9 +599,8 @@
 
                   <div class="create-library-hero">
                     <div class="create-library-hero-copy">
-                      <span class="create-library-kicker">Два режима на выбор</span>
-                      <strong>Один адаптивный сценарий и один полностью ручной.</strong>
-                      <p>«Лучший» собирает визуал персонально под товар. «Свой промт» оставляет постановку полностью под вашим контролем.</p>
+                      <strong>Выберите режим генерации</strong>
+                      <p>Автоматический режим адаптирует визуал под товар, ручной отправляет ваш промт без изменений.</p>
                     </div>
                   </div>
 
@@ -633,10 +626,10 @@
                     <button class="btn btn-primary" id="createImageManagerAddBtn" type="button">
                       Добавить изображения
                     </button>
-                    <p>Поддерживаются PNG, JPG и WEBP. Первое фото остаётся основным для генерации.</p>
+                    <p>PNG, JPG и WEBP. Первое фото используется как основное.</p>
                   </div>
 
-                  <p class="create-upload-empty" id="createImagesEmpty">Добавьте 1-5 фото товара. Первое изображение станет основным.</p>
+                  <p class="create-upload-empty" id="createImagesEmpty">Добавьте 1-5 фото товара. Первое будет основным.</p>
                   <div class="create-upload-list create-image-manager-list" id="createImagesList"></div>
                 </div>
               </div>
@@ -988,7 +981,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js?v=20260328-5"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260328-7"></script>
+    <script src="./app.js?v=20260328-11"></script>
     <script src="./improve-card-flow.js?v=20260328-5"></script>
   </body>
 </html>
