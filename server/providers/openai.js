@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { HttpClientError, requestJson } = require("../http-client");
+const { getBundledPromptText } = require("../prompts/prompt-registry");
 const { toText, extractJsonObject, clamp } = require("../utils");
 
 class OpenAIProviderError extends Error {
@@ -129,6 +130,8 @@ const formatCreateTemplateInstructionTextV2 = (payload) => {
   const instructionPrompt = inlineInstructionPrompt || (() => {
     const instructionPath = toText(reference?.instructionPromptPath);
     if (!instructionPath) return "";
+    const bundledPromptText = getBundledPromptText(instructionPath);
+    if (bundledPromptText) return bundledPromptText;
     const resolvedPath = path.isAbsolute(instructionPath)
       ? instructionPath
       : path.resolve(__dirname, "..", "..", instructionPath);
@@ -148,6 +151,9 @@ const formatCreateAutofillInstructionText = (payload) => {
   const instructionPath = toText(payload?.autofillInstructionPromptPath);
   if (!instructionPath) return "";
 
+  const bundledPromptText = getBundledPromptText(instructionPath);
+  if (bundledPromptText) return bundledPromptText;
+
   const resolvedPath = path.isAbsolute(instructionPath)
     ? instructionPath
     : path.resolve(__dirname, "..", "..", instructionPath);
@@ -164,6 +170,8 @@ const formatImproveInstructionText = (payload) => {
   const instructionPrompt = inlineInstructionPrompt || (() => {
     const instructionPath = toText(payload?.improveInstructionPromptPath || payload?.instructionPromptPath);
     if (!instructionPath) return "";
+    const bundledPromptText = getBundledPromptText(instructionPath);
+    if (bundledPromptText) return bundledPromptText;
     const resolvedPath = path.isAbsolute(instructionPath)
       ? instructionPath
       : path.resolve(__dirname, "..", "..", instructionPath);
