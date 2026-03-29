@@ -1,6 +1,7 @@
 (function () {
   const stage = document.getElementById("enhanceCardStage");
   const toast = document.getElementById("enhanceCardToast");
+  const promptInput = document.getElementById("enhanceCardPrompt");
 
   if (!stage || !toast) return;
 
@@ -11,9 +12,8 @@
   const MAX_IMAGE_DIMENSION = 1600;
   const JPEG_QUALITY = 0.84;
   const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-  const REQUEST_PROMPT =
-    "Professional product card. Pure minimalist background, studio lighting, highly detailed, vibrant colors, clear drop shadow. Keep the original product shape intact, but make it look premium and conversion-focused. Do not show marketplace names, marketplace badges, or words like marketplace, маркетплейс, Ozon, Wildberries, or WB on the card unless they are part of the actual product branding.";
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const CLIENT_REQUEST_SESSION_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
 
   const state = {
     phase: "upload",
@@ -113,6 +113,15 @@
     });
   };
 
+  const blobToDataUrl = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Не удалось подготовить изображение."));
+      reader.readAsDataURL(blob);
+    });
+  };
+
   const loadImageElement = (sourceUrl) => {
     return new Promise((resolve, reject) => {
       const image = new Image();
@@ -178,6 +187,27 @@
     }
 
     return "";
+  };
+
+  const getUserImprovePrompt = () => toText(promptInput?.value || "");
+
+  const resolveSourceUrlToDataUrl = async (sourceUrl) => {
+    const safeSourceUrl = toText(sourceUrl);
+    if (!safeSourceUrl) {
+      throw new Error("Не удалось подготовить карточку для улучшения.");
+    }
+
+    if (/^data:image\//i.test(safeSourceUrl)) {
+      return safeSourceUrl;
+    }
+
+    const response = await fetch(safeSourceUrl);
+    if (!response.ok) {
+      throw new Error("Не удалось подготовить карточку для улучшения.");
+    }
+
+    const blob = await response.blob();
+    return blobToDataUrl(blob);
   };
 
   const resetState = () => {
@@ -262,15 +292,11 @@
 
     frame.append(label);
 
-    const note = createElement(
-      "p",
-      "enhance-card-status-note",
-      state.sourcePreviewUrl
-        ? !hasEnoughTokens() && getBillingState()?.summary
-          ? "Недостаточно токенов для улучшения. Откройте баланс и пополните его."
-          : "Проверьте превью и запустите улучшение."
-        : "Интерфейс начнёт работу сразу после загрузки изображения."
-    );
+    const noteText = state.sourcePreviewUrl
+      ? !hasEnoughTokens() && getBillingState()?.summary
+        ? "Недостаточно токенов для улучшения. Откройте баланс и пополните его."
+        : ""
+      : "";
 
     const actions = createElement("div", "enhance-card-actions");
     if (state.sourcePreviewUrl) {
@@ -279,7 +305,7 @@
       submitButton.id = "enhanceCardSubmitBtn";
       submitButton.textContent = "";
       submitButton.append(createEnhanceButtonCopy("Улучшить"));
-      submitButton.toggleAttribute("disabled", !hasEnoughTokens());
+      submitButton.toggleAttribute("disabled", !hasEnoughTokens() || !state.uploadDataUrl);
 
       const replaceButton = createElement("button", "enhance-card-secondary", "Загрузить другую");
       replaceButton.type = "button";
@@ -288,7 +314,11 @@
       actions.append(submitButton, replaceButton);
     }
 
-    view.append(frame, note);
+    view.append(frame);
+    if (noteText) {
+      const note = createElement("p", "enhance-card-status-note", noteText);
+      view.append(note);
+    }
     if (actions.childElementCount) {
       view.append(actions);
     }
@@ -509,8 +539,8 @@
         },
         body: JSON.stringify({
           imageDataUrl: state.uploadDataUrl,
-          prompt: REQUEST_PROMPT,
-          requestId: "enhance-card-" + String(requestId),
+          userPrompt: getUserImprovePrompt(),
+          requestId: "enhance-card-" + CLIENT_REQUEST_SESSION_ID + "-" + String(requestId),
         }),
         signal: controller.signal,
       });
@@ -549,6 +579,32 @@
   window.addEventListener("kartochka:billing:update", () => {
     if (state.phase === "upload") {
       render();
+    }
+  });
+
+  window.addEventListener("kartochka:improve:prefill", async (event) => {
+    const previewUrl = toText(event?.detail?.previewUrl);
+    const fileName = toText(event?.detail?.fileName) || "generated-card.png";
+    if (!previewUrl) return;
+
+    try {
+      state.sourceFile = null;
+      state.sourceName = fileName;
+      state.sourcePreviewUrl = previewUrl;
+      state.uploadDataUrl = "";
+      state.resultUrl = "";
+      state.phase = "upload";
+      render();
+
+      const dataUrl = await resolveSourceUrlToDataUrl(previewUrl);
+      state.sourcePreviewUrl = dataUrl || previewUrl;
+      state.uploadDataUrl = dataUrl;
+      state.resultUrl = "";
+      state.phase = "upload";
+      render();
+    } catch (error) {
+      resetState();
+      showToast(getErrorMessage(error));
     }
   });
 

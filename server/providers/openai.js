@@ -144,6 +144,41 @@ const formatCreateTemplateInstructionTextV2 = (payload) => {
   return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
 };
 
+const formatCreateAutofillInstructionText = (payload) => {
+  const instructionPath = toText(payload?.autofillInstructionPromptPath);
+  if (!instructionPath) return "";
+
+  const resolvedPath = path.isAbsolute(instructionPath)
+    ? instructionPath
+    : path.resolve(__dirname, "..", "..", instructionPath);
+
+  try {
+    return toText(fs.readFileSync(resolvedPath, "utf8"));
+  } catch (error) {
+    return "";
+  }
+};
+
+const formatImproveInstructionText = (payload) => {
+  const inlineInstructionPrompt = toText(payload?.improveInstructionText || payload?.instructionDocumentText);
+  const instructionPrompt = inlineInstructionPrompt || (() => {
+    const instructionPath = toText(payload?.improveInstructionPromptPath || payload?.instructionPromptPath);
+    if (!instructionPath) return "";
+    const resolvedPath = path.isAbsolute(instructionPath)
+      ? instructionPath
+      : path.resolve(__dirname, "..", "..", instructionPath);
+    try {
+      return toText(fs.readFileSync(resolvedPath, "utf8"));
+    } catch (error) {
+      return "";
+    }
+  })();
+  if (!instructionPrompt) return "";
+
+  const userText = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt || payload?.userText) || "(пусто)";
+  return instructionPrompt.replace(/\{USER_TEXT\}/g, userText).trim();
+};
+
 const normalizeCreateCardTextLevelsV2 = (value) => {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
@@ -169,6 +204,44 @@ const isCreateInstructionPromptRequestV2 = (payload) => {
   return toText(payload?.analysisIntent) === "prompt"
     && toText(reference?.kind) === "instruction-template"
     && toText(reference?.promptFlow) === "gpt_instruction";
+};
+
+const isCreateAutofillTextRequestV2 = (payload) => {
+  return toText(payload?.analysisIntent) === "full";
+};
+
+const buildCreateAutofillInstructionUserText = (payload) => {
+  const instructionText = formatCreateAutofillInstructionText(payload) || "(пусто)";
+
+  return [
+    "Задача: по фото товара и приложенной инструкции написать тексты для карточки товара в 3 уровнях.",
+    "Используй только фото товара и инструкцию ниже. Не используй описания, характеристики, шаблоны, промпты, заметки пользователя или любые другие текстовые поля.",
+    "Верни только валидный JSON строго в таком формате:",
+    "{",
+    '  "level1": string[],',
+    '  "level2": string[],',
+    '  "level3": string[]',
+    "}",
+    "Правила:",
+    "- каждая строка в массивах должна содержать только сам текст для карточки",
+    "- не добавляй префиксы Level 1, Level 2, Level 3",
+    "- не добавляй маркеры списка, дефисы, точки или markdown",
+    "- level1, level2, level3 должны отражать иерархию из инструкции",
+    "- если для уровня достаточно одного сильного текста, верни один элемент массива",
+    "",
+    "Инструкция:",
+    instructionText,
+  ].join("\n");
+};
+
+const normalizeAutofillLevelLines = (value) => {
+  const items = Array.isArray(value) ? value : String(value || "").split(/\r?\n+/g);
+  return items
+    .map((item) => toText(item))
+    .map((item) => item.replace(/^level\s*[123]\s*:?\s*/i, ""))
+    .map((item) => item.replace(/^[-*•–—\d.)\s]+/, ""))
+    .map((item) => item.trim())
+    .filter(Boolean);
 };
 
 const buildCreateInstructionPromptUserTextV2 = (payload) => {
@@ -197,6 +270,35 @@ const buildCreateInstructionPromptUserTextV2 = (payload) => {
     "",
     "Пожелания к генерации:",
     generationNotes,
+  ].join("\n");
+};
+
+const isImprovePromptRequest = (payload) => {
+  return toText(payload?.analysisIntent) === "prompt"
+    && Boolean(toText(payload?.improveInstructionPromptPath || payload?.instructionPromptPath || payload?.improveInstructionText || payload?.instructionDocumentText));
+};
+
+const buildImprovePromptUserText = (payload) => {
+  const instructionText = formatImproveInstructionText(payload) || "(пусто)";
+  const userPrompt = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt) || "(пусто)";
+
+  return [
+    "Задача: по инструкции улучшения, загруженной карточке товара и пожеланиям пользователя собери один финальный prompt для image AI.",
+    "Верни только валидный JSON со следующей структурой:",
+    "{",
+    '  "prompt": string',
+    "}",
+    "Правила:",
+    "- загруженная карточка товара — главный визуальный источник правды",
+    "- пожелания пользователя ниже являются обязательной частью итогового prompt и должны быть учтены",
+    "- не добавляй комментарии, markdown или пояснения",
+    "- верни только один готовый prompt для image AI",
+    "",
+    "Инструкция улучшения:",
+    instructionText,
+    "",
+    "Пожелания пользователя:",
+    userPrompt,
   ].join("\n");
 };
 
@@ -291,6 +393,32 @@ const buildCreateAnalyzeUserTextV2 = (payload) => {
 };
 
 const normalizeCreateAnalyzeResultV2 = (parsed, payload) => {
+  if (isCreateAutofillTextRequestV2(payload)) {
+    const level1 = normalizeAutofillLevelLines(parsed?.level1);
+    const level2 = normalizeAutofillLevelLines(parsed?.level2);
+    const level3 = normalizeAutofillLevelLines(parsed?.level3);
+
+    return {
+      detectedCategory: "",
+      subjectOnScreen: null,
+      insight: null,
+      headlineIdeas: level1.slice(0, 3),
+      autofill: {
+        title: level1.join("\n"),
+        shortDescription: level2.join("\n"),
+        subtitle: level3.join("\n"),
+        characteristics: [],
+        benefits: [],
+      },
+      cardTextLevels: {
+        primary: level1.join("\n"),
+        secondary: level2.join("\n"),
+        tertiary: level3.join("\n"),
+      },
+      prompt: "",
+    };
+  }
+
   const fallbackCategory = "Товар для маркетплейса";
   const detectedCategory = toText(parsed?.detectedCategory || parsed?.insight?.category) || fallbackCategory;
 
@@ -445,6 +573,13 @@ const normalizeCreateAnalyzeResult = (parsed, payload) => {
 };
 
 const normalizeImproveAnalyzeResult = (parsed, payload) => {
+  const normalizedIntent = toText(payload?.analysisIntent).toLowerCase();
+  if (normalizedIntent === "prompt") {
+    return {
+      prompt: toText(parsed?.prompt),
+    };
+  }
+
   const fallbackIssues = [
     { key: "design", title: "Слабые стороны дизайна", severity: "high", note: "Визуальная иерархия выглядит несобранно." },
     { key: "readability", title: "Читаемость", severity: "medium", note: "Главное сообщение считывается недостаточно быстро." },
@@ -511,11 +646,26 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
 
 const createOpenAIProvider = (config) => {
   const endpoint = String(config?.baseUrl || "").replace(/\/+$/, "") + "/chat/completions";
-  const model = toText(config?.model) || "gpt-4.1-mini";
+  const defaultModel = toText(config?.model) || "gpt-5.4-mini";
+  const defaultReasoningEffort = toText(config?.reasoningEffort) || "medium";
   const apiKey = toText(config?.apiKey);
   const timeoutMs = clamp(config?.timeoutMs, 1000, 300000, 300000);
 
-  const callChatJson = async (messages) => {
+  const resolveModelProfile = (payload) => {
+    if (toText(payload?.aiModelTier).toLowerCase() === "best") {
+      return {
+        model: "gpt-5.4",
+        reasoningEffort: "high",
+      };
+    }
+
+    return {
+      model: toText(payload?.openAiModel) || defaultModel,
+      reasoningEffort: toText(payload?.openAiReasoningEffort) || defaultReasoningEffort,
+    };
+  };
+
+  const callChatJson = async (messages, profile) => {
     if (!apiKey) {
       throw new OpenAIProviderError({
         status: 500,
@@ -534,8 +684,8 @@ const createOpenAIProvider = (config) => {
           Authorization: "Bearer " + apiKey,
         },
         body: {
-          model,
-          reasoning_effort: "xhigh",
+          model: toText(profile?.model) || defaultModel,
+          reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
           response_format: { type: "json_object" },
           messages,
         },
@@ -575,6 +725,7 @@ const createOpenAIProvider = (config) => {
   };
 
   const createAnalyze = async (payload) => {
+    const modelProfile = resolveModelProfile(payload);
     if (isCreateInstructionPromptRequestV2(payload)) {
       const messages = [
         {
@@ -608,10 +759,47 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages);
+      const parsed = await callChatJson(messages, modelProfile);
       return {
         prompt: toText(parsed?.prompt),
       };
+    }
+
+    if (isCreateAutofillTextRequestV2(payload)) {
+      const messages = [
+        {
+          role: "system",
+          content: "Ты пишешь тексты для карточек товаров. Возвращай только строгий JSON.",
+        },
+      ];
+
+      const userContent = [
+        {
+          type: "text",
+          text: buildCreateAutofillInstructionUserText(payload),
+        },
+      ];
+
+      const imageDataUrls = Array.isArray(payload?.imageDataUrls)
+        ? payload.imageDataUrls.filter((value) => toText(value))
+        : [];
+      for (const imageUrl of imageDataUrls.slice(0, 5)) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: "high",
+          },
+        });
+      }
+
+      messages.push({
+        role: "user",
+        content: userContent,
+      });
+
+      const parsed = await callChatJson(messages, modelProfile);
+      return normalizeCreateAnalyzeResultV2(parsed, payload);
     }
 
     {
@@ -659,7 +847,7 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages);
+      const parsed = await callChatJson(messages, modelProfile);
       return normalizeCreateAnalyzeResultV2(parsed, payload);
     }
 
@@ -696,11 +884,51 @@ const createOpenAIProvider = (config) => {
       content: userContent,
     });
 
-    const parsed = await callChatJson(messages);
+    const parsed = await callChatJson(messages, modelProfile);
     return normalizeCreateAnalyzeResult(parsed, payload);
   };
 
   const improveAnalyze = async (payload) => {
+    const modelProfile = resolveModelProfile(payload);
+    if (isImprovePromptRequest(payload)) {
+      const messages = [
+        {
+          role: "system",
+          content: "Ты собираешь один готовый prompt для image AI. Возвращай только строгий JSON.",
+        },
+      ];
+
+      const userContent = [
+        {
+          type: "text",
+          text: buildImprovePromptUserText(payload),
+        },
+      ];
+
+      const previewCandidates = [
+        toText(payload?.imageDataUrl),
+        toText(payload?.sourcePreviewUrl),
+        toText(payload?.referencePreviewUrl),
+      ].filter(Boolean);
+      for (const imageUrl of previewCandidates.slice(0, 2)) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: "high",
+          },
+        });
+      }
+
+      messages.push({
+        role: "user",
+        content: userContent,
+      });
+
+      const parsed = await callChatJson(messages, modelProfile);
+      return normalizeImproveAnalyzeResult(parsed, payload);
+    }
+
     const messages = [
       {
         role: "system",
@@ -735,7 +963,7 @@ const createOpenAIProvider = (config) => {
       content: userContent,
     });
 
-    const parsed = await callChatJson(messages);
+    const parsed = await callChatJson(messages, modelProfile);
     return normalizeImproveAnalyzeResult(parsed, payload);
   };
 

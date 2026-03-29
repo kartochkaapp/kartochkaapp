@@ -3,8 +3,7 @@
 const { toText } = require("../utils");
 const { ApiRouteError } = require("./kartochka");
 
-const DEFAULT_NANO_BANANA_PROMPT =
-  "Professional product card. Pure minimalist background, studio lighting, highly detailed, vibrant colors, clear drop shadow. Keep the original product shape intact, but make it look premium and conversion-focused. Do not show marketplace names, marketplace badges, or words like marketplace, маркетплейс, Ozon, Wildberries, or WB on the card unless they are part of the actual product branding.";
+const IMPROVE_INSTRUCTION_PATH = "server/prompts/improve-card-instruction.md";
 
 const ensureObject = (value, message) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -24,10 +23,14 @@ const isSupportedImageDataUrl = (value) => {
 
 const createEnhanceCardHandler = (deps) => {
   const nanoBananaService = deps?.nanoBananaService;
+  const openaiBrainService = deps?.openaiBrainService;
   const billingService = deps?.billingService;
 
   if (!nanoBananaService || typeof nanoBananaService.enhanceCard !== "function") {
     throw new Error("Nano Banana service is not configured correctly");
+  }
+  if (!openaiBrainService || typeof openaiBrainService.improveAnalyze !== "function") {
+    throw new Error("OpenAI brain service is not configured correctly");
   }
   if (!billingService || typeof billingService.runBillableAction !== "function") {
     throw new Error("Billing service is not configured correctly");
@@ -57,20 +60,43 @@ const createEnhanceCardHandler = (deps) => {
       });
     }
 
-    const prompt = toText(requestBody.prompt).trim() || DEFAULT_NANO_BANANA_PROMPT;
+    const userPrompt = toText(requestBody.userPrompt || requestBody.prompt).trim();
     return billingService.runBillableAction({
       actionCode: "enhance_card",
       requestContext,
       requestId: requestBody.requestId,
-      operation: async () => nanoBananaService.enhanceCard({
-        imageDataUrl,
-        prompt,
-      }),
+      meta: {
+        flow: "improve_prompt_then_generate",
+      },
+      operation: async () => {
+        const promptResult = await openaiBrainService.improveAnalyze({
+          analysisIntent: "prompt",
+          improveInstructionPromptPath: IMPROVE_INSTRUCTION_PATH,
+          imageDataUrl,
+          sourcePreviewUrl: imageDataUrl,
+          userPrompt,
+          prompt: userPrompt,
+        });
+
+        const prompt = toText(promptResult?.prompt).trim();
+        if (!prompt) {
+          throw new ApiRouteError({
+            status: 502,
+            code: "missing_improve_prompt",
+            message: "OpenAI did not return an improve prompt",
+          });
+        }
+
+        return nanoBananaService.enhanceCard({
+          imageDataUrl,
+          prompt,
+        });
+      },
     });
   };
 };
 
 module.exports = {
-  DEFAULT_NANO_BANANA_PROMPT,
+  IMPROVE_INSTRUCTION_PATH,
   createEnhanceCardHandler,
 };

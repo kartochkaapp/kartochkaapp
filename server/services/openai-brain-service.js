@@ -164,6 +164,7 @@ const normalizeCreateAnalyzeResult = (result, payload, intent) => {
       headlineIdeas,
       subjectOnScreen,
       autofill,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -175,6 +176,7 @@ const normalizeCreateAnalyzeResult = (result, payload, intent) => {
       headlineIdeas,
       subjectOnScreen,
       autofill,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -186,6 +188,7 @@ const normalizeCreateAnalyzeResult = (result, payload, intent) => {
       headlineIdeas,
       subjectOnScreen,
       autofill,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -196,6 +199,7 @@ const normalizeCreateAnalyzeResult = (result, payload, intent) => {
     headlineIdeas,
     subjectOnScreen,
     autofill,
+    cardTextLevels: safeResult.cardTextLevels || null,
   };
 };
 
@@ -229,7 +233,7 @@ const createOpenAIBrainService = (deps) => {
     },
     async improveAnalyze(payload) {
       const result = await adapter.analyzeImproveInput(payload || {});
-      return normalizeImproveAnalyzeResult(result);
+      return normalizeImproveAnalyzeResult(result, payload || {});
     },
   };
 };

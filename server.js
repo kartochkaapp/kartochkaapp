@@ -89,6 +89,7 @@ const kartochkaHandlers = createKartochkaHandlers({
 });
 const enhanceCardHandler = createEnhanceCardHandler({
   nanoBananaService,
+  openaiBrainService,
   billingService,
 });
 

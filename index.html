@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260329-11" />
+    <link rel="stylesheet" href="./styles.css?v=20260329-27" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
   </head>
@@ -227,12 +227,12 @@
               <div class="roi-row">
                 <span>KARTOCHKA Pro</span>
                 <div class="roi-track success"><i style="--value: 30%"></i></div>
-                <b>1 490 ₽</b>
+                <b>900 ₽</b>
               </div>
               <div class="roi-row">
                 <span>Экономия</span>
                 <div class="roi-track accent"><i style="--value: 70%"></i></div>
-                <b>3 510 ₽</b>
+                <b>4 100 ₽</b>
               </div>
             </div>
           </div>
@@ -242,7 +242,7 @@
               <p class="plan-price">0 ₽</p>
               <p class="plan-subtitle">Для быстрого старта и теста гипотез</p>
               <ul>
-                <li>5 генераций в месяц</li>
+                <li>12 стартовых токенов</li>
                 <li>Готовые пресеты</li>
                 <li>Выгрузка PNG</li>
               </ul>
@@ -250,10 +250,10 @@
             </article>
             <article class="pricing-card featured">
               <p class="plan-label">Pro</p>
-              <p class="plan-price">1 490 ₽<span>/мес</span></p>
-              <p class="plan-subtitle">Оптимальный план для активных продаж</p>
+              <p class="plan-price">900 ₽<span>/мес</span></p>
+              <p class="plan-subtitle">100 токенов ежемесячно для постоянной работы</p>
               <ul>
-                <li>100 генераций в месяц</li>
+                <li>100 токенов в месяц</li>
                 <li>Свои промпты и стили</li>
                 <li>Приоритетная очередь</li>
               </ul>
@@ -264,7 +264,7 @@
               <p class="plan-price">4 990 ₽<span>/мес</span></p>
               <p class="plan-subtitle">Для команд, агентств и масштабирования</p>
               <ul>
-                <li>От 300 генераций</li>
+                <li>От 300 токенов</li>
                 <li>До 5 пользователей</li>
                 <li>История проектов и шаблоны</li>
               </ul>
@@ -483,14 +483,38 @@
                     <span class="create-selected-template-body">
                       <strong id="createSelectedTemplateTitle">Выберите шаблон</strong>
                       <span id="createSelectedTemplateDescription">Выберите режим генерации.</span>
-                      <span class="create-selected-template-meta" id="createSelectedTemplateMeta">Режим</span>
                       <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
                     </span>
                   </button>
 
                   <div class="create-instruction-template-panel hidden" id="createInstructionTemplatePanel">
                     <div class="create-instruction-toolbar">
-                      <span class="create-instruction-state" id="createInstructionState"></span>
+                      <label class="create-best-model-control" for="createBestModelSelect">
+                        <select id="createBestModelSelect" aria-label="Модель генерации текста для шаблона Лучший">
+                          <option value="good" selected>Хорошая модель</option>
+                          <option value="best">Лучшая модель</option>
+                        </select>
+                      </label>
+
+                      <button
+                        class="btn btn-outline create-generation-notes-toggle"
+                        id="createGenerationNotesToggle"
+                        type="button"
+                        aria-controls="createGenerationNotesPanel"
+                        aria-expanded="false"
+                      >
+                        Пожелания к генерации
+                      </button>
+                    </div>
+
+                    <div class="create-generation-notes-panel hidden" id="createGenerationNotesPanel">
+                      <div class="create-generation-notes-body">
+                        <textarea
+                          id="createGenerationNotes"
+                          placeholder="Например: сделать акцент на минимализме, светлом фоне и крупном товаре."
+                          spellcheck="false"
+                        ></textarea>
+                      </div>
                     </div>
                     <input
                       class="hidden"
@@ -498,19 +522,6 @@
                       type="file"
                       accept=".md,.txt,text/markdown,text/plain"
                     />
-                  </div>
-
-                  <div class="create-generation-notes-panel hidden" id="createGenerationNotesPanel">
-                    <details class="create-generation-notes-details" id="createGenerationNotesDetails">
-                      <summary>Пожелания к генерации</summary>
-                      <div class="create-generation-notes-body">
-                        <textarea
-                          id="createGenerationNotes"
-                          placeholder="Например: светлый фон, без людей, акцент на материале товара и чистой типографике."
-                          spellcheck="false"
-                        ></textarea>
-                      </div>
-                    </details>
                   </div>
 
                   <div class="create-custom-prompt-panel hidden" id="createCustomPromptPanel">
@@ -576,6 +587,9 @@
                   <div class="create-preview-actions">
                     <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
                       Сгенерировать карточку
+                    </button>
+                    <button class="btn btn-outline create-improve-btn hidden" id="createImproveBtn" type="button">
+                      Улучшить
                     </button>
                     <a class="btn btn-outline create-export-btn is-disabled hidden" id="createExportBtn" href="#" aria-disabled="true">
                       Экспортировать
@@ -724,7 +738,7 @@
           </article>
 
           <article class="step-card step2-mode hidden improve-mode-screen" data-app-mode-panel="improve">
-            <div class="hidden" aria-hidden="true">
+            <div class="create-screen-head improve-screen-head">
               <div class="step-title-row">
                 <h2>Улучшить карточку</h2>
                 <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
@@ -734,14 +748,19 @@
               </p>
             </div>
 
-            <section class="enhance-card-shell" aria-label="Улучшение карточки товара">
-              <div class="enhance-card-panel">
-                <div class="enhance-card-head">
-                  <span class="enhance-card-chip">KARTOCHKA</span>
+            <section class="enhance-card-shell improve-workbench" aria-label="Улучшение карточки товара">
+              <div class="create-form-card enhance-card-panel improve-workbench-card">
+                <div class="create-card-head improve-workbench-head">
                   <h3>Улучшить карточку товара</h3>
-                  <p>
-                    Один экран, один сценарий: загрузите карточку, дождитесь обработки и скачайте улучшенную версию.
-                  </p>
+                  <span>AI-улучшение • 3 токена</span>
+                </div>
+
+                <div class="improve-workbench-prompt">
+                  <label class="field-label" for="enhanceCardPrompt">Пожелания к улучшению</label>
+                  <textarea
+                    id="enhanceCardPrompt"
+                    placeholder="Например: сделать текст крупнее, усилить контраст заголовка, оставить фон светлым и чище подать товар."
+                  ></textarea>
                 </div>
 
                 <div class="enhance-card-stage" id="enhanceCardStage"></div>
@@ -931,55 +950,59 @@
           </article>
 
           <article class="step-card step2-mode hidden animate-mode-screen" data-app-mode-panel="animate">
-            <div class="animate-screen-head">
+            <div class="create-screen-head animate-screen-head">
               <div class="step-title-row">
                 <h2>Анимировать</h2>
                 <span class="preview-badge">Скоро</span>
               </div>
               <p class="section-subtitle">
-                Motion-режим уже в roadmap KARTOCHKA. Здесь появится быстрый AI workflow для анимированных маркетплейс-креативов.
+                Раздел в разработке. Здесь появится быстрый workflow для анимированных маркетплейс-креативов.
               </p>
             </div>
 
-            <section class="workspace-soon-card animate-roadmap-card">
-              <div class="animate-roadmap-head">
-                <h3>Ближайшие use case</h3>
-                <span class="animate-roadmap-badge">Roadmap</span>
-              </div>
+            <section class="animate-dev-layout">
+              <section class="create-form-card animate-dev-card">
+                <div class="create-card-head">
+                  <h3>Раздел в разработке</h3>
+                  <span>Скоро</span>
+                </div>
+                <div class="animate-dev-stage">
+                  <div class="animate-dev-empty">
+                    <strong>Готовим AI-анимацию карточек</strong>
+                    <p>Скоро здесь можно будет собирать motion-ролики из готовых карточек товара.</p>
+                  </div>
+                </div>
+              </section>
 
-              <div class="animate-usecase-grid">
-                <article class="animate-usecase-item">
-                  <strong>Анимация карточек</strong>
-                  <p>Динамическая подача ключевых выгод и оффера на базе готовой карточки.</p>
-                </article>
-                <article class="animate-usecase-item">
-                  <strong>Motion для marketplace creatives</strong>
-                  <p>Короткие motion-сцены для marketplace creatives с фокусом на конверсию.</p>
-                </article>
-                <article class="animate-usecase-item">
-                  <strong>Short promo loops</strong>
-                  <p>Зацикленные промо-ролики для быстрых запусков в рекламе и соцплощадках.</p>
-                </article>
-              </div>
-
-              <p class="animate-roadmap-note">Раздел в активной разработке. Интерфейс и экспорт появятся в ближайшем релизе.</p>
+              <aside class="create-form-card animate-dev-side">
+                <div class="create-card-head">
+                  <h3>Что появится</h3>
+                  <span>Ближайший релиз</span>
+                </div>
+                <div class="animate-dev-list">
+                  <article class="animate-dev-item">
+                    <strong>Motion-подача оффера</strong>
+                    <p>Короткие динамические ролики на основе готовой карточки.</p>
+                  </article>
+                  <article class="animate-dev-item">
+                    <strong>Анимация выгод</strong>
+                    <p>Плавная подача главного текста, преимуществ и акцентов.</p>
+                  </article>
+                  <article class="animate-dev-item">
+                    <strong>Экспорт под маркетплейсы</strong>
+                    <p>Форматы для рекламы, карточек и коротких promo-loop роликов.</p>
+                  </article>
+                </div>
+                <button class="btn btn-primary animate-dev-cta" type="button" disabled>Скоро</button>
+              </aside>
             </section>
-
-            <div class="workspace-panel-actions animate-soon-actions">
-              <button class="btn btn-primary" type="button" disabled>Скоро</button>
-              <span class="animate-soon-meta">Пока можно работать в режимах «Создать» и «Улучшить».</span>
-            </div>
           </article>
 
           <article class="step-card step2-mode hidden history-mode-screen" data-app-mode-panel="history">
             <div class="step-title-row history-mode-head">
               <div>
                 <h2>История генераций</h2>
-                <p class="section-subtitle">
-                  Сохраненные сессии создания и улучшения с превью, датой и кратким описанием промпта.
-                </p>
               </div>
-              <span class="preview-badge">Сохранено</span>
             </div>
 
             <section class="create-form-card history-mode-list-card">
@@ -1020,12 +1043,6 @@
                   <p class="history-mode-details-summary" id="historyDetailsSummary">-</p>
                 </div>
 
-                <div class="history-mode-details-actions">
-                  <button class="btn btn-primary history-reuse-btn" id="historyReuseBtn" type="button">
-                    Использовать как основу снова
-                  </button>
-                </div>
-
                 <section class="history-mode-block">
                   <h4>Исходные входные данные</h4>
                   <div class="history-mode-kv-grid" id="historyDetailsInputs"></div>
@@ -1057,6 +1074,35 @@
                 </section>
               </div>
             </section>
+
+            <section class="history-preview-modal hidden" id="historyPreviewModal" aria-hidden="true">
+              <button class="history-preview-backdrop" type="button" data-history-preview-close aria-label="Закрыть просмотр"></button>
+              <div class="create-form-card history-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="historyPreviewTitle">
+                <div class="history-preview-head">
+                  <div>
+                    <h3 id="historyPreviewTitle">Превью</h3>
+                    <p class="history-preview-meta" id="historyPreviewMeta">-</p>
+                  </div>
+                  <div class="history-preview-actions">
+                    <a class="btn btn-primary history-preview-export" id="historyPreviewExportBtn" href="#" download>
+                      Экспортировать
+                    </a>
+                    <button
+                      class="history-mode-modal-close"
+                      id="historyPreviewCloseBtn"
+                      type="button"
+                      aria-label="Закрыть просмотр"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div class="history-preview-stage">
+                  <img id="historyPreviewImage" alt="Превью результата из истории" />
+                </div>
+              </div>
+            </section>
           </article>
         </section>
 
@@ -1066,9 +1112,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="./services/kartochka-services.js?v=20260329-2"></script>
+    <script src="./services/kartochka-services.js?v=20260329-3"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260329-2"></script>
-    <script src="./improve-card-flow.js?v=20260329-1"></script>
+    <script src="./app.js?v=20260329-10"></script>
+    <script src="./improve-card-flow.js?v=20260329-4"></script>
   </body>
 </html>

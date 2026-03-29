@@ -67,6 +67,7 @@ const getRuntimeServices = () => {
     }),
     enhanceCardHandler: createEnhanceCardHandler({
       nanoBananaService,
+      openaiBrainService,
       billingService,
     }),
   };

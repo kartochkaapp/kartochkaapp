@@ -46,6 +46,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       headlineIdeas,
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -57,6 +58,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       headlineIdeas,
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -68,6 +70,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       headlineIdeas,
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
+      cardTextLevels: safeResult.cardTextLevels || null,
     };
   }
 
@@ -78,6 +81,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
     headlineIdeas,
     subjectOnScreen: safeResult.subjectOnScreen || null,
     autofill: safeResult.autofill || null,
+    cardTextLevels: safeResult.cardTextLevels || null,
   };
 };
 
@@ -95,7 +99,10 @@ const resolveCreateAnalyzeBillingAction = (context) => {
 
 const resolveCreateGenerateBillingAction = (payload) => {
   const promptMode = toText(payload?.promptMode).toLowerCase();
-  return promptMode === "custom" ? "create_generate_custom" : "create_generate_best";
+  if (promptMode === "custom") return "create_generate_custom";
+  return toText(payload?.aiModelTier).toLowerCase() === "best"
+    ? "create_generate_best_best"
+    : "create_generate_best_good";
 };
 
 const createKartochkaHandlers = (deps) => {

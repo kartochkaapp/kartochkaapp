@@ -26,6 +26,7 @@ const FILE_STORE_SHAPE = Object.freeze({
 });
 
 const DEFAULT_STARTER_TOKENS = 12;
+const OPERATION_RESULT_TTL_MS = 10 * 60 * 1000;
 
 const ensureObject = (value) => {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -92,6 +93,8 @@ const createBillingService = (deps) => {
   const firestore = getFirebaseAdminFirestore(firebaseConfig);
   const useFirestore = storeMode === "firestore" || (storeMode !== "file" && Boolean(firestore && adminApp));
   const adminAuth = adminApp ? adminApp.auth() : null;
+  const inFlightOperations = new Map();
+  const completedOperations = new Map();
 
   const ensureFileStoreDir = () => {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -157,6 +160,36 @@ const createBillingService = (deps) => {
       return prefix + ":" + safeAction + ":" + safeRequestId;
     }
     return prefix + ":" + safeAction + ":" + Date.now() + ":" + Math.random().toString(36).slice(2, 8);
+  };
+
+  const buildOperationExecutionKey = (uid, actionCode, requestId) => {
+    const safeUid = normalizeUid(uid) || "anonymous";
+    const safeAction = toText(actionCode).replace(/[^a-zA-Z0-9._:@-]+/g, "_").slice(0, 80) || "action";
+    const safeRequestId = toText(requestId).replace(/[^a-zA-Z0-9._:@-]+/g, "_").slice(0, 120) || "request";
+    return safeUid + "::" + safeAction + "::" + safeRequestId;
+  };
+
+  const pruneCompletedOperations = () => {
+    const now = Date.now();
+    completedOperations.forEach((entry, key) => {
+      if (!entry || !Number.isFinite(entry.expiresAt) || entry.expiresAt <= now) {
+        completedOperations.delete(key);
+      }
+    });
+  };
+
+  const getCompletedOperationResult = (operationKey) => {
+    pruneCompletedOperations();
+    const entry = completedOperations.get(operationKey);
+    return entry ? entry.result : undefined;
+  };
+
+  const rememberCompletedOperationResult = (operationKey, result) => {
+    pruneCompletedOperations();
+    completedOperations.set(operationKey, {
+      result,
+      expiresAt: Date.now() + OPERATION_RESULT_TTL_MS,
+    });
   };
 
   const buildAccountSummary = (account) => {
@@ -900,27 +933,54 @@ const createBillingService = (deps) => {
 
     const actor = await resolveUser(params?.requestContext);
     const requestId = toText(params?.requestId) || Date.now() + "-" + Math.random().toString(36).slice(2, 8);
-    const debitResult = useFirestore
-      ? await debitFirestoreTokens(actor.uid, action, requestId, params?.meta)
-      : debitFileTokens(actor.uid, action, requestId, params?.meta);
+    const operationKey = buildOperationExecutionKey(actor.uid, action.code, requestId);
+    const cachedResult = getCompletedOperationResult(operationKey);
+    if (cachedResult !== undefined) {
+      return cachedResult;
+    }
 
-    try {
-      return await params.operation({
-        actor,
-        action,
-        requestId,
-        debitResult,
-      });
-    } catch (error) {
-      if (!debitResult?.duplicated) {
-        if (useFirestore) {
-          await refundFirestoreTokens(actor.uid, action, requestId, error?.code || error?.message);
-        } else {
-          refundFileTokens(actor.uid, action, requestId, error?.code || error?.message);
+    const activeOperation = inFlightOperations.get(operationKey);
+    if (activeOperation) {
+      return activeOperation;
+    }
+
+    const operationPromise = (async () => {
+      const debitResult = useFirestore
+        ? await debitFirestoreTokens(actor.uid, action, requestId, params?.meta)
+        : debitFileTokens(actor.uid, action, requestId, params?.meta);
+
+      if (debitResult?.duplicated) {
+        const duplicatedResult = getCompletedOperationResult(operationKey);
+        if (duplicatedResult !== undefined) {
+          return duplicatedResult;
         }
       }
-      throw error;
-    }
+
+      try {
+        const result = await params.operation({
+          actor,
+          action,
+          requestId,
+          debitResult,
+        });
+        rememberCompletedOperationResult(operationKey, result);
+        return result;
+      } catch (error) {
+        if (!debitResult?.duplicated) {
+          if (useFirestore) {
+            await refundFirestoreTokens(actor.uid, action, requestId, error?.code || error?.message);
+          } else {
+            refundFileTokens(actor.uid, action, requestId, error?.code || error?.message);
+          }
+        }
+        throw error;
+      } finally {
+        inFlightOperations.delete(operationKey);
+      }
+    })();
+
+    inFlightOperations.set(operationKey, operationPromise);
+    return operationPromise;
   };
 
   return {

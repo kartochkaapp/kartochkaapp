@@ -69,7 +69,8 @@ const getRuntimeConfig = () => {
     openai: {
       apiKey: toText(process.env.OPENAI_API_KEY),
       baseUrl: toText(process.env.OPENAI_BASE_URL) || "https://api.openai.com/v1",
-      model: toText(process.env.OPENAI_MODEL) || "gpt-4.1-mini",
+      model: toText(process.env.OPENAI_MODEL) || "gpt-5.4-mini",
+      reasoningEffort: toText(process.env.OPENAI_REASONING_EFFORT) || "medium",
     },
     openrouter: {
       apiKey: toText(process.env.OPENROUTER_API_KEY),

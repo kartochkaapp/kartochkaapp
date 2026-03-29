@@ -113,8 +113,9 @@
   const createSelectedTemplateMeta = document.getElementById("createSelectedTemplateMeta");
   const createSelectedTemplateTags = document.getElementById("createSelectedTemplateTags");
   const createInstructionTemplatePanel = document.getElementById("createInstructionTemplatePanel");
+  const createBestModelSelect = document.getElementById("createBestModelSelect");
+  const createGenerationNotesToggle = document.getElementById("createGenerationNotesToggle");
   const createGenerationNotesPanel = document.getElementById("createGenerationNotesPanel");
-  const createGenerationNotesDetails = document.getElementById("createGenerationNotesDetails");
   const createGenerationNotes = document.getElementById("createGenerationNotes");
   const createCustomPromptPanel = document.getElementById("createCustomPromptPanel");
   const createInstructionAttachBtn = document.getElementById("createInstructionAttachBtn");
@@ -136,6 +137,7 @@
   const createPreviewBadge = document.getElementById("createPreviewBadge");
   const createPreviewTitle = document.getElementById("createPreviewTitle");
   const createPreviewMeta = document.getElementById("createPreviewMeta");
+  const createImproveBtn = document.getElementById("createImproveBtn");
   const createExportBtn = document.getElementById("createExportBtn");
   const createSettingAccentColor = document.getElementById("createSettingAccentColor");
   const createSettingReferenceStrength = document.getElementById("createSettingReferenceStrength");
@@ -206,6 +208,13 @@
   const historyDetailsHighlights = document.getElementById("historyDetailsHighlights");
   const historyDetailsAi = document.getElementById("historyDetailsAi");
   const historyDetailsResults = document.getElementById("historyDetailsResults");
+  const historyPreviewModal = document.getElementById("historyPreviewModal");
+  const historyPreviewCloseBtn = document.getElementById("historyPreviewCloseBtn");
+  const historyPreviewBackdrop = historyPreviewModal?.querySelector("[data-history-preview-close]") || null;
+  const historyPreviewTitle = document.getElementById("historyPreviewTitle");
+  const historyPreviewMeta = document.getElementById("historyPreviewMeta");
+  const historyPreviewImage = document.getElementById("historyPreviewImage");
+  const historyPreviewExportBtn = document.getElementById("historyPreviewExportBtn");
 
   const mountWorkspaceOverlay = (element) => {
     if (!element || !workspace || element.parentElement === workspace) return;
@@ -215,6 +224,7 @@
   mountWorkspaceOverlay(createReferenceModal);
   mountWorkspaceOverlay(createImageManagerModal);
   mountWorkspaceOverlay(billingModal);
+  mountWorkspaceOverlay(historyPreviewModal);
 
   const APP_ROUTE_PREFIX = "#app/";
   const APP_MODES = ["create", "improve", "animate", "history"];
@@ -608,6 +618,7 @@
   ]);
   const CREATE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/best-template-instruction.md";
   const CREATE_INSTRUCTION_TEMPLATE_LABEL = "best-template-instruction.md";
+  const CREATE_AUTOFILL_TEXTS_INSTRUCTION_PATH = "server/prompts/autofill-marketplace-card-texts-v5.md";
   const CREATE_BEST_INSTRUCTION_TEMPLATE = Object.freeze({
     id: "tpl-best-instruction",
     title: "Лучший",
@@ -645,6 +656,22 @@
     accentFormat: "benefit",
     backgroundMode: "clean",
     preserveReferenceLayout: false,
+  });
+  const CREATE_BEST_MODEL_OPTIONS = Object.freeze({
+    good: Object.freeze({
+      id: "good",
+      label: "Хорошая модель",
+      billingActionCode: "create_generate_best_good",
+      openAiModel: "gpt-5.4-mini",
+      reasoningEffort: "medium",
+    }),
+    best: Object.freeze({
+      id: "best",
+      label: "Лучшая модель",
+      billingActionCode: "create_generate_best_best",
+      openAiModel: "gpt-5.4",
+      reasoningEffort: "high",
+    }),
   });
   const CREATE_ACCENT_COLOR_MAP = Object.freeze({
     emerald: "#10b981",
@@ -804,6 +831,8 @@
   let createActivePreviewResultId = "";
   let createInstructionDocumentText = "";
   let createInstructionDocumentName = "";
+  let createBestModelTier = "good";
+  let createGenerationNotesExpanded = false;
   const createSelectedFiles = [];
   let createActiveTemplateTab = "all";
   let createTemplateSearchQuery = "";
@@ -833,6 +862,8 @@
   let selectedHistoryEntryId = "";
   let historyReuseInProgress = false;
   let historyDetailsVisible = false;
+  let historyPreviewVisible = false;
+  let selectedHistoryPreviewEntryId = "";
   let billingModalOpen = false;
   let billingSummary = null;
   let billingSummaryLoading = false;
@@ -901,6 +932,20 @@
     return String(value) + " " + formatTokenWord(value);
   };
 
+  const CLIENT_REQUEST_SESSION_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+
+  const buildClientRequestId = (prefix, requestId) => {
+    return String(prefix || "request") + "-" + CLIENT_REQUEST_SESSION_ID + "-" + String(requestId || 0);
+  };
+
+  const buildImproveSourceNameFromResult = (result) => {
+    const preferredName = String(result?.downloadName || "").trim();
+    if (preferredName) return preferredName;
+
+    const titleName = String(result?.title || "").trim().replace(/[^\w\u0400-\u04FF-]+/g, "-");
+    return (titleName || "generated-card") + ".png";
+  };
+
   const getBillingCatalog = () => {
     return billingSummary?.catalog || null;
   };
@@ -932,7 +977,50 @@
       : null;
     return isCreateDirectPromptTemplate(selectedTemplate)
       ? "create_generate_custom"
-      : "create_generate_best";
+      : ((CREATE_BEST_MODEL_OPTIONS[createBestModelTier] || CREATE_BEST_MODEL_OPTIONS.good).billingActionCode);
+  };
+
+  const getCreateBestModelOption = () => {
+    return CREATE_BEST_MODEL_OPTIONS[createBestModelTier] || CREATE_BEST_MODEL_OPTIONS.good;
+  };
+
+  const syncCreateBestModelState = () => {
+    const selectedTemplate = typeof getCreateSelectedTemplate === "function"
+      ? getCreateSelectedTemplate()
+      : null;
+    const isInstructionTemplate = isCreateInstructionTemplate(selectedTemplate);
+
+    if (createBestModelSelect) {
+      createBestModelSelect.closest(".create-best-model-control")?.classList.toggle("hidden", !isInstructionTemplate);
+      createBestModelSelect.value = createBestModelTier;
+      createBestModelSelect.toggleAttribute("disabled", !isInstructionTemplate || createIsGenerating || createAiPromptPhase === "loading" || createAutofillPhase === "loading");
+    }
+  };
+
+  const syncCreateGenerationNotesState = () => {
+    const selectedTemplate = typeof getCreateSelectedTemplate === "function"
+      ? getCreateSelectedTemplate()
+      : null;
+    const isInstructionTemplate = isCreateInstructionTemplate(selectedTemplate);
+    const controlsLocked = createIsGenerating || createAiPromptPhase === "loading" || createAutofillPhase === "loading";
+
+    createGenerationNotesPanel?.classList.toggle("hidden", !isInstructionTemplate || !createGenerationNotesExpanded);
+    createGenerationNotesToggle?.classList.toggle("hidden", !isInstructionTemplate);
+    createGenerationNotesToggle?.classList.toggle("is-active", Boolean(createGenerationNotesExpanded));
+    createGenerationNotesToggle?.setAttribute("aria-expanded", createGenerationNotesExpanded ? "true" : "false");
+    if (createGenerationNotesToggle) {
+      createGenerationNotesToggle.toggleAttribute("disabled", !isInstructionTemplate || controlsLocked);
+    }
+  };
+
+  const setCreateGenerationNotesExpanded = (nextExpanded, options = {}) => {
+    createGenerationNotesExpanded = Boolean(nextExpanded);
+    syncCreateGenerationNotesState();
+    if (createGenerationNotesExpanded && options.focus) {
+      window.setTimeout(() => {
+        createGenerationNotes?.focus();
+      }, 0);
+    }
   };
 
   const dispatchBillingUpdate = () => {
@@ -1640,12 +1728,6 @@
 
   const syncCreateInstructionState = () => {
     if (!createInstructionState) return;
-
-    if (createInstructionDocumentName) {
-      createInstructionState.textContent = createInstructionDocumentName;
-      return;
-    }
-
     createInstructionState.textContent = "";
   };
 
@@ -2019,6 +2101,35 @@
     return toText(analysis?.detectedCategory || analysis?.insight?.category || "Товар");
   };
 
+  const normalizeCreateAutofillLevelLines = (value) => {
+    const sourceItems = Array.isArray(value)
+      ? value
+      : String(value || "").split(/\r?\n+/g);
+
+    return sourceItems
+      .map((item) => toText(item))
+      .map((item) => item.replace(/^level\s*[123]\s*:?\s*/i, ""))
+      .map((item) => item.replace(/^[-*•–—\d.)\s]+/, ""))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const buildCreateAutofillTextLevels = (analysis, payload) => {
+    const explicitLevels = analysis?.cardTextLevels && typeof analysis.cardTextLevels === "object"
+      ? analysis.cardTextLevels
+      : {};
+
+    const primaryLines = normalizeCreateAutofillLevelLines(explicitLevels.primary || analysis?.level1 || analysis?.levelOne);
+    const secondaryLines = normalizeCreateAutofillLevelLines(explicitLevels.secondary || analysis?.level2 || analysis?.levelTwo);
+    const tertiaryLines = normalizeCreateAutofillLevelLines(explicitLevels.tertiary || analysis?.level3 || analysis?.levelThree);
+
+    return {
+      primary: primaryLines.join("\n") || buildCreateAutofillTitle(analysis, payload),
+      secondary: secondaryLines.join("\n") || buildCreateAutofillDescription(analysis, payload),
+      tertiary: tertiaryLines.join("\n"),
+    };
+  };
+
   const buildCreateAutofillDescription = (analysis, payload) => {
     const aiDescription = resolveCreateProductDescriptionCandidate(
       analysis?.autofill?.shortDescription,
@@ -2138,14 +2249,17 @@
   };
 
   const buildCreateAutofillPayload = async () => {
-    const payload = await buildCreateInsightPayload();
+    const imageDataUrls = await buildCreateImageDataUrls();
     return {
-      ...payload,
       analysisIntent: "full",
-      promptMode: createPromptMode,
-      prompt: toText(createCustomPrompt?.value),
-      customPrompt: toText(createCustomPrompt?.value),
-      characteristics: getCreateCharacteristicRows(),
+      autofillInstructionPromptPath: CREATE_AUTOFILL_TEXTS_INSTRUCTION_PATH,
+      files: createSelectedFiles.map((file) => ({
+        name: file.name,
+        type: file.type,
+        sizeBytes: file.size,
+      })),
+      imagePreviewUrls: imageDataUrls,
+      imageDataUrls,
     };
   };
 
@@ -2409,9 +2523,6 @@
       createSelectedTemplateDescription.textContent = template?.description
         || "Выберите режим генерации.";
     }
-    if (createSelectedTemplateMeta) {
-      createSelectedTemplateMeta.textContent = getCreateTemplateKindLabel(template);
-    }
     if (createReferenceLibraryBtn) {
       createReferenceLibraryBtn.textContent = template ? "Сменить режим" : "Выбрать режим";
     }
@@ -2426,6 +2537,7 @@
     }
     if (createSelectedTemplateTags) {
       createSelectedTemplateTags.textContent = "";
+      createSelectedTemplateTags.classList.add("hidden");
     }
 
     if (createSelectedTemplateCard) {
@@ -2436,14 +2548,19 @@
           : (template?.sourceUrl || template?.title || "Открыть библиотеку шаблонов");
       createSelectedTemplateCard.classList.toggle("hidden", isDirectPrompt);
       createSelectedTemplateCard.classList.remove("is-text-only");
+      createSelectedTemplateCard.classList.toggle("is-with-parameters", isInstructionTemplate);
     }
-    createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate || !createInstructionDocumentName);
-    createGenerationNotesPanel?.classList.toggle("hidden", !isInstructionTemplate);
-    if (createGenerationNotesDetails && isInstructionTemplate && buildCreateGenerationNotesValue()) {
-      createGenerationNotesDetails.open = true;
+    createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
+    if (!isInstructionTemplate) {
+      createGenerationNotesExpanded = false;
+    } else if (buildCreateGenerationNotesValue()) {
+      createGenerationNotesExpanded = true;
     }
+    syncCreateGenerationNotesState();
     createCustomPromptPanel?.classList.toggle("hidden", !isDirectPrompt);
     syncCreateInstructionState();
+    syncCreateBestModelState();
+    syncCreateGenerationNotesState();
   };
 
   const syncCreateOverlayScrollLock = () => {
@@ -2530,10 +2647,6 @@
       const body = document.createElement("span");
       body.className = "create-template-item-body";
 
-      const meta = document.createElement("span");
-      meta.className = "create-template-item-meta";
-      meta.textContent = getCreateTemplateKindLabel(template);
-
       const title = document.createElement("strong");
       title.textContent = template.title;
 
@@ -2545,7 +2658,7 @@
       action.className = "create-template-item-action";
       action.textContent = template.id === createSelectedTemplateId ? "Выбрано" : "Выбрать режим";
 
-      body.append(meta, title, description, action);
+      body.append(title, description, action);
       card.append(thumb, body);
       createTemplateGrid.append(card);
     });
@@ -2648,6 +2761,28 @@
       createExportBtn.href = canExport ? activeResult.previewUrl : "#";
       createExportBtn.download = canExport ? activeResult.downloadName || "kartochka-prevyu.png" : "";
     }
+
+    if (createImproveBtn) {
+      const canImprove = Boolean(activeResult?.previewUrl);
+      createImproveBtn.classList.toggle("hidden", !canImprove);
+      createImproveBtn.toggleAttribute("disabled", !canImprove);
+    }
+  };
+
+  const openImproveFromCreateResult = (result) => {
+    const previewUrl = String(result?.previewUrl || "").trim();
+    if (!previewUrl) {
+      setStatusMessage(createStatus, "Сначала сгенерируйте карточку, чтобы перейти к улучшению.", "");
+      return;
+    }
+
+    navigateToAppMode("improve");
+    window.dispatchEvent(new CustomEvent("kartochka:improve:prefill", {
+      detail: {
+        previewUrl,
+        fileName: buildImproveSourceNameFromResult(result),
+      },
+    }));
   };
 
   const clearCreateResultsData = () => {
@@ -3079,7 +3214,11 @@
     const requestId = ++createInsightRequestId;
     setDoneState(createDoneBadge, false);
     setStatusMessage(createInsightStatus, "AI собирает insight...", "");
-    setRequestMeta(createMeta, "Статус запроса:", "AI-анализ: выполняется");
+    setRequestMeta(
+      createMeta,
+      "Статус запроса:",
+      source === "generation" ? "Анализируем ваш товар" : "AI-анализ: выполняется"
+    );
     syncCreateFormState();
 
     try {
@@ -3150,6 +3289,9 @@
       contentCardText: buildCreateContentCardText(),
       instructionDocumentText: createInstructionDocumentText,
       instructionDocumentName: createInstructionDocumentName,
+      aiModelTier: getCreateBestModelOption().id,
+      openAiModel: getCreateBestModelOption().openAiModel,
+      openAiReasoningEffort: getCreateBestModelOption().reasoningEffort,
       userText: buildCreateUserText(),
       settings: buildCreateSettingsPayload(),
       characteristics: getCreateCharacteristicRows(),
@@ -3311,7 +3453,7 @@
 
     try {
       const payload = await buildCreateAiPromptPayload();
-      payload.requestId = "create-prompt-" + String(requestId);
+      payload.requestId = buildClientRequestId("create-prompt", requestId);
       const generatedPrompt = await requestCreateAiPrompt(payload);
       if (requestId !== createAiPromptRequestId) return;
 
@@ -3345,7 +3487,13 @@
     if (serviceClient?.createAnalyze) {
       const response = await serviceClient.createAnalyze(payload, { intent: "full" });
       const hasHeadlineIdeas = Array.isArray(response?.headlineIdeas) && response.headlineIdeas.length > 0;
-      if (response?.detectedCategory || response?.insight || response?.prompt || hasHeadlineIdeas) {
+      const hasTextLevels = Boolean(
+        response?.cardTextLevels
+        || response?.level1
+        || response?.level2
+        || response?.level3
+      );
+      if (response?.detectedCategory || response?.insight || response?.prompt || hasHeadlineIdeas || hasTextLevels) {
         return response;
       }
       throw new Error("Invalid createAnalyze response: autofill data is missing.");
@@ -3366,46 +3514,36 @@
   };
 
   const applyCreateAutofillResult = (analysis, payload) => {
+    const nextLevels = buildCreateAutofillTextLevels(analysis, payload);
     let titleFilled = false;
     let descriptionFilled = false;
-    const currentShortDescription = getCreateProductShortDescriptionValue();
-    const shouldReplaceShortDescription = currentShortDescription.length < 12
-      || containsCreateCardDescriptionLanguage(currentShortDescription);
+    let thirdLevelFilled = false;
 
-    if (createProductTitle && getCreateProductTitleValue().length < 3) {
-      const nextTitle = buildCreateAutofillTitle(analysis, payload);
-      if (nextTitle) {
-        createProductTitle.value = nextTitle;
-        titleFilled = true;
-      }
+    if (createProductTitle && nextLevels.primary) {
+      createProductTitle.value = nextLevels.primary;
+      titleFilled = true;
     }
 
-    if (createProductShortDescription && shouldReplaceShortDescription) {
-      const nextDescription = buildCreateAutofillDescription(analysis, payload);
-      if (nextDescription) {
-        createProductShortDescription.value = nextDescription;
-        descriptionFilled = true;
-      }
+    if (createProductShortDescription && nextLevels.secondary) {
+      createProductShortDescription.value = nextLevels.secondary;
+      descriptionFilled = true;
     }
 
-    const nextCharacteristics = buildCreateAutofillCharacteristics(analysis, payload);
-    const characteristicsBefore = getCreateCharacteristicRows().length;
-    setCreateCharacteristicsState(nextCharacteristics);
-    createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
-    const characteristicsAfter = getCreateCharacteristicRows().length;
-
-    if (analysis?.insight) {
-      createInsightData = { ...analysis.insight };
-      createInsightFingerprint = getCreateInsightFingerprint();
-      createInsightPhase = "success";
-      renderCreateInsightValues(createInsightData);
-      syncCreateInsightState();
+    if (createProductThirdLevelText && nextLevels.tertiary) {
+      createProductThirdLevelText.value = nextLevels.tertiary;
+      thirdLevelFilled = true;
     }
+
+    createInsightData = null;
+    createInsightFingerprint = "";
+    createInsightPhase = "empty";
+    renderCreateInsightValues(null);
+    syncCreateInsightState();
 
     if (createAiPromptOutput) {
-      createAiPromptOutput.value = toText(analysis?.prompt);
+      createAiPromptOutput.value = "";
     }
-    createAiPromptPhase = toText(analysis?.prompt) ? "success" : "empty";
+    createAiPromptPhase = "empty";
     syncCreateAiPromptState();
 
     if (
@@ -3430,9 +3568,8 @@
 
     const feedbackParts = [];
     if (titleFilled) feedbackParts.push("название");
-    if (descriptionFilled) feedbackParts.push("описание товара");
-    if (characteristicsAfter > characteristicsBefore) feedbackParts.push("характеристики");
-    if (toText(analysis?.prompt)) feedbackParts.push("AI-промпт");
+    if (descriptionFilled) feedbackParts.push("второй уровень");
+    if (thirdLevelFilled) feedbackParts.push("третий уровень");
 
     setStatusMessage(
       createStatus,
@@ -3461,7 +3598,7 @@
 
     try {
       const payload = await buildCreateAutofillPayload();
-      payload.requestId = "create-autofill-" + String(requestId);
+      payload.requestId = buildClientRequestId("create-autofill", requestId);
       const analysis = await requestCreateAutofillAnalysis(payload);
       if (requestId !== createAutofillRequestId) return;
 
@@ -3515,6 +3652,8 @@
       createAutofillBtn.toggleAttribute("disabled", controlsLocked || Boolean(autofillInputError) || createAutofillTokenLocked);
       createAutofillBtn.classList.toggle("is-loading", createAutofillPhase === "loading");
     }
+
+    syncCreateBestModelState();
 
     createPromptModeButtons.forEach((button) => {
       button.toggleAttribute("disabled", controlsLocked);
@@ -3618,7 +3757,7 @@
       } else if (validationError) {
         createCtaHint.textContent = validationError;
       } else if (createGeneratedResults.length) {
-        createCtaHint.textContent = "Выберите лучший вариант ниже или экспортируйте активное превью.";
+        createCtaHint.textContent = "Готово. Можно экспортировать карточку или запустить новую генерацию.";
       } else if (createPromptMode === "custom") {
         createCtaHint.textContent = "Шаг 4: запускайте генерацию по своему промту.";
       } else if (
@@ -4316,6 +4455,52 @@
     document.body.classList.remove("history-modal-open");
   };
 
+  const closeHistoryPreviewModal = () => {
+    historyPreviewVisible = false;
+    selectedHistoryPreviewEntryId = "";
+    if (!historyPreviewModal) return;
+    historyPreviewModal.classList.add("hidden");
+    historyPreviewModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("history-preview-open");
+    if (historyPreviewImage) {
+      historyPreviewImage.removeAttribute("src");
+    }
+    if (historyPreviewExportBtn) {
+      historyPreviewExportBtn.setAttribute("href", "#");
+      historyPreviewExportBtn.removeAttribute("download");
+    }
+  };
+
+  const openHistoryPreviewModal = (entryId) => {
+    const entry = getHistoryEntryById(entryId);
+    if (!entry || !historyPreviewModal) return;
+
+    const previewUrl = sanitizeHistoryPreviewUrl(entry.previewUrl, entry.mode);
+    selectedHistoryPreviewEntryId = entry.id;
+    historyPreviewVisible = true;
+
+    if (historyPreviewTitle) historyPreviewTitle.textContent = entry.title || "Превью";
+    if (historyPreviewMeta) {
+      historyPreviewMeta.textContent =
+        formatHistoryDate(entry.createdAt) +
+        " • " +
+        String(entry.resultsCount || 1) +
+        " " +
+        formatCardsWord(entry.resultsCount || 1);
+    }
+    if (historyPreviewImage) {
+      historyPreviewImage.src = previewUrl;
+    }
+    if (historyPreviewExportBtn) {
+      historyPreviewExportBtn.href = previewUrl;
+      historyPreviewExportBtn.setAttribute("download", buildHistoryExportName(entry));
+    }
+
+    historyPreviewModal.classList.remove("hidden");
+    historyPreviewModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("history-preview-open");
+  };
+
   const openHistoryDetailsModal = () => {
     historyDetailsVisible = true;
     if (!historyModeDetails) return;
@@ -4393,13 +4578,11 @@
     historyEntries.forEach((entry) => {
       const item = document.createElement("article");
       item.className = "history-mode-item";
-      item.classList.toggle("is-active", entry.id === selectedHistoryEntryId);
-      item.dataset.historyOpenId = entry.id;
 
       const previewWrap = document.createElement("button");
       previewWrap.type = "button";
       previewWrap.className = "history-mode-item-preview";
-      previewWrap.dataset.historyOpenId = entry.id;
+      previewWrap.dataset.historyPreviewId = entry.id;
 
       const previewImage = document.createElement("img");
       previewImage.src = sanitizeHistoryPreviewUrl(entry.previewUrl, entry.mode);
@@ -4429,13 +4612,7 @@
         " " +
         formatCardsWord(entry.resultsCount);
 
-      const openButton = document.createElement("button");
-      openButton.type = "button";
-      openButton.className = "history-mode-open";
-      openButton.dataset.historyOpenId = entry.id;
-      openButton.textContent = "Открыть подробнее";
-
-      item.append(previewWrap, title, meta, openButton);
+      item.append(previewWrap, title, meta);
       historyModeList.append(item);
     });
   };
@@ -4920,6 +5097,15 @@
     return many;
   };
 
+  const buildHistoryExportName = (entry) => {
+    const safeName = String(entry?.title || "history-preview")
+      .trim()
+      .replace(/[^\w\u0400-\u04FF-]+/g, "-")
+      .replace(/-{2,}/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return (safeName || "history-preview") + ".png";
+  };
+
   const setCreateResultsProcessing = (isProcessing) => {
     if (!createResultsSection || !createResultsProcessing || !createResultsGrid) return;
     createResultsSection.classList.remove("hidden");
@@ -4985,6 +5171,9 @@
       densityMode: settings.infoDensity || CREATE_USEFUL_SETTINGS_DEFAULTS.infoDensity,
       productCategory: hasInsight && !insightIsStale ? createInsightData?.category || "" : "",
       userNotes: createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : "",
+      aiModelTier: getCreateBestModelOption().id,
+      openAiModel: getCreateBestModelOption().openAiModel,
+      openAiReasoningEffort: getCreateBestModelOption().reasoningEffort,
       settings,
       selectedTemplate: serializedTemplate,
       reference: serializedTemplate,
@@ -5543,6 +5732,7 @@
 
     try {
       const payload = buildImproveAnalysisPayload();
+      payload.requestId = buildClientRequestId("improve-analyze", requestId);
       const analysis = await requestImproveAnalysis(payload);
       if (requestId !== improveAnalysisRequestId) return false;
 
@@ -6269,6 +6459,30 @@
     }
   });
 
+  createImproveBtn?.addEventListener("click", () => {
+    const activeResult = getActiveCreateResult();
+    openImproveFromCreateResult(activeResult);
+  });
+
+  createBestModelSelect?.addEventListener("change", () => {
+    const nextTier = toText(createBestModelSelect.value);
+    if (!CREATE_BEST_MODEL_OPTIONS[nextTier] || nextTier === createBestModelTier) return;
+    createBestModelTier = nextTier;
+    syncCreateBestModelState();
+    syncCreateFormState();
+  });
+
+  createGenerationNotesToggle?.addEventListener("click", () => {
+    setCreateGenerationNotesExpanded(!createGenerationNotesExpanded, { focus: !createGenerationNotesExpanded });
+  });
+
+  createGenerationNotes?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !createGenerationNotesExpanded) return;
+    event.preventDefault();
+    setCreateGenerationNotesExpanded(false);
+    createGenerationNotesToggle?.focus();
+  });
+
   createGenerateBtn?.addEventListener("click", async () => {
     const validationError = getCreateValidationError();
     if (validationError) {
@@ -6284,8 +6498,8 @@
     createActivePreviewResultId = "";
     setCreateResultsProcessing(true);
     setDoneState(createDoneBadge, false);
-    setStatusMessage(createStatus, "Генерируем карточки и подготавливаем results...", "");
-    setRequestMeta(createMeta, "Статус запроса:", "Генерация карточек: подготовка");
+    setStatusMessage(createStatus, "Анализируем ваш товар...", "");
+    setRequestMeta(createMeta, "Статус запроса:", "Анализируем ваш товар");
     if (createResultsCaption) {
       createResultsCaption.textContent = "AI подготавливает варианты карточек...";
     }
@@ -6301,12 +6515,12 @@
 
       if (usesInstructionPromptFlow) {
         createAiPromptPhase = "loading";
-        setStatusMessage(createStatus, "Шаг 1/2. GPT собирает финальный промт по инструкции шаблона, фото товара и тексту для карточки...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Шаг 1/2: GPT собирает prompt");
+        setStatusMessage(createStatus, "Анализируем ваш товар...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Анализируем ваш товар");
         syncCreateFormState();
 
         const promptPayload = await buildCreateAiPromptPayload();
-        promptPayload.requestId = "create-generate-prompt-" + String(requestId);
+        promptPayload.requestId = buildClientRequestId("create-generate-prompt", requestId);
         const generatedPrompt = await requestCreateAiPrompt(promptPayload, {
           billingSource: "create_generate",
           requestId: promptPayload.requestId,
@@ -6317,8 +6531,8 @@
           createAiPromptOutput.value = generatedPrompt;
         }
         createAiPromptPhase = "success";
-        setStatusMessage(createStatus, "Шаг 2/2. Prompt от GPT готов. Передаем его вместе с фото товара в image AI...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Шаг 2/2: prompt готов, старт image AI");
+        setStatusMessage(createStatus, "Создаем карточку...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
         syncCreateFormState();
       } else if (!isDirectPromptTemplate) {
         const insightNeedsRefresh = !createInsightData || createInsightFingerprint !== getCreateInsightFingerprint();
@@ -6329,22 +6543,22 @@
           }
         }
       } else {
-        setStatusMessage(createStatus, "Шаг 1/1. Отправляем ваш промт и фото товара в image AI без переписывания...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Шаг 1/1: прямой prompt -> image AI");
+        setStatusMessage(createStatus, "Создаем карточку...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
       }
 
       if (usesInstructionPromptFlow) {
-        setStatusMessage(createStatus, "Image AI генерирует карточку по prompt от GPT и фото товара...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Image AI: генерация по prompt от GPT");
+        setStatusMessage(createStatus, "Создаем карточку...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
       } else if (isDirectPromptTemplate) {
-        setStatusMessage(createStatus, "Image AI генерирует карточку по вашему промту и фото товара...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Image AI: генерация по пользовательскому prompt");
+        setStatusMessage(createStatus, "Создаем карточку...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
       } else {
-        setStatusMessage(createStatus, "Генерируем изображения по подготовленному промпту...", "");
-        setRequestMeta(createMeta, "Статус запроса:", "Генерация изображения");
+        setStatusMessage(createStatus, "Создаем карточку...", "");
+        setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
       }
       const payload = await buildCreateGenerationPayload();
-      payload.requestId = "create-generate-" + String(requestId);
+      payload.requestId = buildClientRequestId("create-generate", requestId);
       const results = await requestCreateGeneration(payload);
       if (requestId !== createGenerationRequestId) return;
 
@@ -6634,6 +6848,7 @@
       }
 
       const payload = buildImproveGenerationPayload();
+      payload.requestId = buildClientRequestId("improve-generate", requestId);
       const results = await requestImproveGeneration(payload);
       if (requestId !== improveGenerationRequestId) return;
 
@@ -6713,10 +6928,10 @@
   historyModeList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const actionButton = target.closest("[data-history-open-id]");
-    if (!(actionButton instanceof HTMLElement)) return;
-    const entryId = actionButton.dataset.historyOpenId || "";
-    openHistoryEntry(entryId);
+    const previewButton = target.closest("[data-history-preview-id]");
+    if (!(previewButton instanceof HTMLElement)) return;
+    const entryId = previewButton.dataset.historyPreviewId || "";
+    openHistoryPreviewModal(entryId);
   });
 
   historyModeDetailsCloseBtn?.addEventListener("click", () => {
@@ -6725,6 +6940,14 @@
 
   historyModeDetailsBackdrop?.addEventListener("click", () => {
     closeHistoryDetailsModal();
+  });
+
+  historyPreviewCloseBtn?.addEventListener("click", () => {
+    closeHistoryPreviewModal();
+  });
+
+  historyPreviewBackdrop?.addEventListener("click", () => {
+    closeHistoryPreviewModal();
   });
 
   historyReuseBtn?.addEventListener("click", async () => {
@@ -6773,6 +6996,7 @@
       closeCreateImageManagerModal();
       closeBillingModal();
       closeHistoryDetailsModal();
+      closeHistoryPreviewModal();
       closeMobileMenu();
       closeAuthModal();
     }
