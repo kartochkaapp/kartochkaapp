@@ -10,6 +10,7 @@ const { createOpenAIBrainService } = require("./services/openai-brain-service");
 const { createGenerationService } = require("./services/generation-service");
 const { createHistoryService } = require("./services/history-service");
 const { createNanoBananaService } = require("./services/nano-banana-service");
+const { createBillingService } = require("./services/billing-service");
 const { createEnhanceCardHandler } = require("./routes/enhance-card");
 const { createKartochkaHandlers } = require("./routes/kartochka");
 
@@ -45,6 +46,13 @@ const getRuntimeServices = () => {
     filePath: resolveHistoryStoreFilePath(runtime),
     maxItems: 30,
   });
+  const billingService = createBillingService({
+    rootDir: runtime.app.rootDir,
+    starterTokens: runtime.billing.starterTokens,
+    storeMode: runtime.billing.storeMode,
+    promoSeedsRaw: runtime.billing.promoSeeds,
+    firebaseAdmin: runtime.firebaseAdmin,
+  });
   const nanoBananaService = createNanoBananaService({
     generationService,
   });
@@ -55,9 +63,11 @@ const getRuntimeServices = () => {
       openaiBrainService,
       generationService,
       historyService,
+      billingService,
     }),
     enhanceCardHandler: createEnhanceCardHandler({
       nanoBananaService,
+      billingService,
     }),
   };
 

@@ -24,12 +24,16 @@ const isSupportedImageDataUrl = (value) => {
 
 const createEnhanceCardHandler = (deps) => {
   const nanoBananaService = deps?.nanoBananaService;
+  const billingService = deps?.billingService;
 
   if (!nanoBananaService || typeof nanoBananaService.enhanceCard !== "function") {
     throw new Error("Nano Banana service is not configured correctly");
   }
+  if (!billingService || typeof billingService.runBillableAction !== "function") {
+    throw new Error("Billing service is not configured correctly");
+  }
 
-  return async (body) => {
+  return async (body, requestContext) => {
     const requestBody = ensureObject(body, "Invalid enhance-card request body");
     const imageDataUrl = toText(
       requestBody.imageDataUrl
@@ -54,9 +58,14 @@ const createEnhanceCardHandler = (deps) => {
     }
 
     const prompt = toText(requestBody.prompt).trim() || DEFAULT_NANO_BANANA_PROMPT;
-    return nanoBananaService.enhanceCard({
-      imageDataUrl,
-      prompt,
+    return billingService.runBillableAction({
+      actionCode: "enhance_card",
+      requestContext,
+      requestId: requestBody.requestId,
+      operation: async () => nanoBananaService.enhanceCard({
+        imageDataUrl,
+        prompt,
+      }),
     });
   };
 };

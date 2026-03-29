@@ -47,6 +47,8 @@
     historyGetById: "",
     historySave: "",
     templatePreview: "",
+    billingSummary: "",
+    redeemPromo: "",
   });
 
   const ERROR_CODES = Object.freeze({
@@ -376,9 +378,20 @@
     };
   };
 
+  const validateBillingSummaryResponse = (rawValue) => {
+    const data = unwrapEnvelope(rawValue);
+    return ensureObject(data, "billingSummary response must be an object");
+  };
+
+  const validateRedeemPromoResponse = (rawValue) => {
+    const data = unwrapEnvelope(rawValue);
+    return ensureObject(data, "redeemPromo response must be an object");
+  };
+
   const createHttpClient = (options) => {
     const baseUrl = toText(options?.baseUrl).replace(/\/+$/, "");
     const timeoutMs = clampInt(options?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS);
+    const getHeaders = typeof options?.getHeaders === "function" ? options.getHeaders : null;
     const defaultHeaders = {
       Accept: "application/json",
       ...(isPlainObject(options?.headers) ? options.headers : {}),
@@ -450,6 +463,20 @@
         ...defaultHeaders,
         ...(isPlainObject(config?.headers) ? config.headers : {}),
       };
+
+      if (getHeaders) {
+        try {
+          const dynamicHeaders = await getHeaders({
+            url,
+            method,
+          });
+          if (isPlainObject(dynamicHeaders)) {
+            Object.assign(headers, dynamicHeaders);
+          }
+        } catch (error) {
+          // Ignore header-provider failures and continue with the base request.
+        }
+      }
 
       let body;
       if (Object.prototype.hasOwnProperty.call(config || {}, "body") && config.body !== undefined) {
@@ -944,6 +971,38 @@
         const pool = config.previewPools.create;
         return pool[Math.floor(Math.random() * pool.length)] || "";
       },
+
+      async billingSummary() {
+        return {
+          account: {
+            uid: "mock-user",
+            planId: "start",
+            balanceTokens: 12,
+            totalGrantedTokens: 12,
+            totalSpentTokens: 0,
+            totalPromoTokens: 0,
+          },
+          ledger: [],
+          catalog: {
+            actions: [
+              { code: "create_autofill", label: "Автозаполнить AI", tokens: 1 },
+              { code: "create_generate_best", label: "Сгенерировать карточку", tokens: 6 },
+              { code: "create_generate_custom", label: "Сгенерировать карточку", tokens: 4 },
+              { code: "enhance_card", label: "Улучшить", tokens: 4 },
+            ],
+            plans: [],
+            tokenPackages: [],
+          },
+        };
+      },
+
+      async redeemPromo() {
+        throw new ServiceError({
+          code: ERROR_CODES.notConfigured,
+          message: "Promo redemption is not available in mock mode",
+          retryable: false,
+        });
+      },
     };
   };
   const createRealGateway = (config) => {
@@ -1017,6 +1076,16 @@
         }
         return url;
       },
+
+      async billingSummary(payload) {
+        const raw = await postJson("billingSummary", payload || {});
+        return validateBillingSummaryResponse(raw);
+      },
+
+      async redeemPromo(payload) {
+        const raw = await postJson("redeemPromo", payload || {});
+        return validateRedeemPromoResponse(raw);
+      },
     };
   };
 
@@ -1047,6 +1116,7 @@
         baseUrl: toText(options?.request?.baseUrl),
         timeoutMs: clampInt(options?.request?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS),
         headers: isPlainObject(options?.request?.headers) ? options.request.headers : {},
+        getHeaders: typeof options?.request?.getHeaders === "function" ? options.request.getHeaders : null,
       },
     };
 
@@ -1127,6 +1197,14 @@
 
       async templatePreview(payload) {
         return callGateway("templatePreview", [payload]);
+      },
+
+      async billingSummary(payload) {
+        return callGateway("billingSummary", [payload]);
+      },
+
+      async redeemPromo(payload) {
+        return callGateway("redeemPromo", [payload]);
       },
     };
     client.ai = Object.freeze({

@@ -5,6 +5,7 @@
   if (!stage || !toast) return;
 
   const ENHANCE_ENDPOINT = "/api/enhance-card";
+  const BILLING_ACTION_CODE = "enhance_card";
   const REQUEST_TIMEOUT_MS = 65000;
   const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
   const MAX_IMAGE_DIMENSION = 1600;
@@ -30,6 +31,49 @@
     if (className) element.className = className;
     if (typeof text === "string") element.textContent = text;
     return element;
+  };
+
+  const toText = (value) => String(value || "").trim();
+
+  const formatTokenWord = (count) => {
+    const value = Math.abs(Number(count) || 0);
+    const mod10 = value % 10;
+    const mod100 = value % 100;
+    if (mod10 === 1 && mod100 !== 11) return "токен";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "токена";
+    return "токенов";
+  };
+
+  const formatTokenCount = (count) => {
+    const value = Number(count) || 0;
+    return String(value) + " " + formatTokenWord(value);
+  };
+
+  const getBillingState = () => window.KARTOCHKA_BILLING_STATE || {};
+
+  const getActionCost = () => {
+    const actions = Array.isArray(getBillingState()?.catalog?.actions) ? getBillingState().catalog.actions : [];
+    const action = actions.find((item) => toText(item?.code) === BILLING_ACTION_CODE);
+    return Number(action?.tokens) || 0;
+  };
+
+  const hasEnoughTokens = () => {
+    const cost = getActionCost();
+    if (!cost || !getBillingState()?.summary) return true;
+    const balance = Number(getBillingState()?.summary?.account?.balanceTokens) || 0;
+    return balance >= cost;
+  };
+
+  const createEnhanceButtonCopy = (text) => {
+    const wrapper = createElement("span", "enhance-card-button-copy");
+    wrapper.append(createElement("span", "enhance-card-button-label", text));
+
+    const cost = getActionCost();
+    if (cost) {
+      wrapper.append(createElement("span", "enhance-card-button-cost", formatTokenCount(cost)));
+    }
+
+    return wrapper;
   };
 
   const getErrorMessage = (error) => {
@@ -222,7 +266,9 @@
       "p",
       "enhance-card-status-note",
       state.sourcePreviewUrl
-        ? "Проверьте превью и запустите улучшение."
+        ? !hasEnoughTokens() && getBillingState()?.summary
+          ? "Недостаточно токенов для улучшения. Откройте баланс и пополните его."
+          : "Проверьте превью и запустите улучшение."
         : "Интерфейс начнёт работу сразу после загрузки изображения."
     );
 
@@ -231,6 +277,9 @@
       const submitButton = createElement("button", "btn btn-primary enhance-card-primary", "Улучшить");
       submitButton.type = "button";
       submitButton.id = "enhanceCardSubmitBtn";
+      submitButton.textContent = "";
+      submitButton.append(createEnhanceButtonCopy("Улучшить"));
+      submitButton.toggleAttribute("disabled", !hasEnoughTokens());
 
       const replaceButton = createElement("button", "enhance-card-secondary", "Загрузить другую");
       replaceButton.type = "button";
@@ -279,6 +328,8 @@
     const busyButton = createElement("button", "btn btn-primary enhance-card-primary", "Улучшаем...");
     busyButton.type = "button";
     busyButton.disabled = true;
+    busyButton.textContent = "";
+    busyButton.append(createEnhanceButtonCopy("Улучшаем..."));
     actions.append(busyButton);
 
     view.append(frame, actions);
@@ -434,6 +485,10 @@
     if (!state.uploadDataUrl || state.phase === "loading") {
       return;
     }
+    if (!hasEnoughTokens() && getBillingState()?.summary) {
+      showToast("Недостаточно токенов для улучшения.");
+      return;
+    }
 
     const requestId = ++state.requestId;
     const controller = new AbortController();
@@ -443,14 +498,19 @@
     render();
 
     try {
+      const authHeaders = window.KARTOCHKA_AUTH_SESSION?.getHeaders
+        ? await window.KARTOCHKA_AUTH_SESSION.getHeaders()
+        : {};
       const response = await fetch(ENHANCE_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(authHeaders && typeof authHeaders === "object" ? authHeaders : {}),
         },
         body: JSON.stringify({
           imageDataUrl: state.uploadDataUrl,
           prompt: REQUEST_PROMPT,
+          requestId: "enhance-card-" + String(requestId),
         }),
         signal: controller.signal,
       });
@@ -470,11 +530,13 @@
       state.resultUrl = resultUrl;
       state.phase = "result";
       render();
+      window.dispatchEvent(new CustomEvent("kartochka:billing:refresh"));
     } catch (error) {
       if (requestId !== state.requestId) return;
       state.phase = "upload";
       render();
       showToast(getErrorMessage(error));
+      window.dispatchEvent(new CustomEvent("kartochka:billing:refresh"));
     } finally {
       window.clearTimeout(timeoutId);
     }
@@ -483,6 +545,12 @@
   if (prefersReducedMotion) {
     toast.style.transitionDuration = "0.01ms";
   }
+
+  window.addEventListener("kartochka:billing:update", () => {
+    if (state.phase === "upload") {
+      render();
+    }
+  });
 
   render();
 })();

@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260328-19" />
+    <link rel="stylesheet" href="./styles.css?v=20260329-3" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
   </head>
@@ -378,6 +378,13 @@
               <strong id="workspaceUserName">Гость</strong>
               <small id="workspaceUserCaption">Личный кабинет KARTOCHKA</small>
             </div>
+            <button class="workspace-wallet-btn" id="billingOpenBtn" type="button">
+              <span class="workspace-wallet-balance" id="billingBalanceValue">--</span>
+              <span class="workspace-wallet-meta">
+                <strong id="billingBalanceLabel">Start</strong>
+                <small id="billingPlanLabel">токенов</small>
+              </span>
+            </button>
             <button class="btn btn-outline workspace-signout" id="appSignOutBtn" type="button">Выйти</button>
           </div>
         </aside>
@@ -633,6 +640,86 @@
                   <div class="create-upload-list create-image-manager-list" id="createImagesList"></div>
                 </div>
               </div>
+
+              <section class="billing-modal hidden" id="billingModal" aria-hidden="true">
+                <button class="billing-modal-backdrop" type="button" data-billing-close aria-label="Закрыть окно токенов"></button>
+                <div class="billing-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="billingModalTitle">
+                  <div class="billing-modal-head">
+                    <div>
+                      <h3 id="billingModalTitle">Токены и подписка</h3>
+                    </div>
+                    <button class="billing-modal-close" id="billingModalClose" type="button" aria-label="Закрыть окно токенов">×</button>
+                  </div>
+
+                  <div class="billing-modal-layout">
+                    <section class="billing-summary-card">
+                      <div class="billing-summary-main">
+                        <span class="billing-summary-kicker">Доступно сейчас</span>
+                        <strong id="billingSummaryTokens">--</strong>
+                      </div>
+                      <div class="billing-summary-stats">
+                        <div class="billing-stat">
+                          <span>План</span>
+                          <strong id="billingSummaryPlan">Start</strong>
+                        </div>
+                        <div class="billing-stat">
+                          <span>Получено всего</span>
+                          <strong id="billingSummaryGranted">0</strong>
+                        </div>
+                        <div class="billing-stat">
+                          <span>Потрачено</span>
+                          <strong id="billingSummarySpent">0</strong>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="billing-block">
+                      <div class="billing-block-head">
+                        <div>
+                          <h4>Промокод</h4>
+                        </div>
+                      </div>
+                      <div class="billing-promo-row">
+                        <input id="billingPromoInput" type="text" placeholder="Введите промокод" autocomplete="off" />
+                        <button class="btn btn-primary billing-promo-btn" id="billingPromoBtn" type="button">Активировать</button>
+                      </div>
+                      <p class="status-message hidden" id="billingPromoStatus" aria-live="polite"></p>
+                    </section>
+
+                    <div class="billing-grid">
+                      <section class="billing-block">
+                        <div class="billing-block-head">
+                          <div>
+                            <h4>Тарифы</h4>
+                            <p>UI уже готов, подключение реальной оплаты следующим этапом.</p>
+                          </div>
+                        </div>
+                        <div class="billing-plan-grid" id="billingPlans"></div>
+                      </section>
+
+                      <section class="billing-block">
+                        <div class="billing-block-head">
+                          <div>
+                            <h4>Пакеты токенов</h4>
+                            <p>Подготовили интерфейс пополнения без провайдера оплаты.</p>
+                          </div>
+                        </div>
+                        <div class="billing-package-grid" id="billingPackages"></div>
+                      </section>
+                    </div>
+
+                    <section class="billing-block">
+                      <div class="billing-block-head">
+                        <div>
+                          <h4>История операций</h4>
+                          <p>Последние списания, бонусы и активации промокодов.</p>
+                        </div>
+                      </div>
+                      <div class="billing-ledger-list" id="billingLedger"></div>
+                    </section>
+                  </div>
+                </div>
+              </section>
             </div>
           </article>
 
@@ -979,9 +1066,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="./services/kartochka-services.js?v=20260328-5"></script>
+    <script src="./services/kartochka-services.js?v=20260329-2"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260328-11"></script>
-    <script src="./improve-card-flow.js?v=20260328-5"></script>
+    <script src="./app.js?v=20260329-2"></script>
+    <script src="./improve-card-flow.js?v=20260329-1"></script>
   </body>
 </html>

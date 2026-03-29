@@ -7,5 +7,8 @@ tmp_server_out.log
 tmp_server_err.log
 __head_app.js
 server/data/history-store.json
+server/data/billing-store.json
+.DS_Store
+**/.DS_Store
 
 .vercel

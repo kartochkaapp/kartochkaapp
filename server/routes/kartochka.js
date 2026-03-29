@@ -81,10 +81,28 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
   };
 };
 
+const resolveCreateAnalyzeBillingAction = (context) => {
+  const intent = toText(context?.intent).toLowerCase();
+  const billingSource = toText(context?.billingSource).toLowerCase();
+
+  if (intent === "prompt" && billingSource === "create_generate") return "";
+  if (intent === "full") return "create_autofill";
+  if (intent === "prompt") return "create_prompt_assist";
+  if (intent === "insight") return "create_insight";
+  if (intent === "category") return "create_category";
+  return "";
+};
+
+const resolveCreateGenerateBillingAction = (payload) => {
+  const promptMode = toText(payload?.promptMode).toLowerCase();
+  return promptMode === "custom" ? "create_generate_custom" : "create_generate_best";
+};
+
 const createKartochkaHandlers = (deps) => {
   const openaiBrainService = deps?.openaiBrainService;
   const generationService = deps?.generationService;
   const historyService = deps?.historyService;
+  const billingService = deps?.billingService;
 
   if (
     !openaiBrainService
@@ -108,32 +126,77 @@ const createKartochkaHandlers = (deps) => {
   ) {
     throw new Error("History service is not configured correctly");
   }
+  if (
+    !billingService
+    || typeof billingService.getBillingSummary !== "function"
+    || typeof billingService.redeemPromoCode !== "function"
+    || typeof billingService.runBillableAction !== "function"
+  ) {
+    throw new Error("Billing service is not configured correctly");
+  }
 
   return {
-    async createAnalyze(body) {
+    async createAnalyze(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid createAnalyze request body");
       const payload = ensureObject(requestBody.payload || {}, "createAnalyze payload must be an object");
       const context = requestBody.context && typeof requestBody.context === "object" ? requestBody.context : {};
-      const result = await openaiBrainService.createAnalyze(payload, context);
-      return normalizeCreateAnalyzeResult(result, context.intent);
+      const billingActionCode = resolveCreateAnalyzeBillingAction(context);
+      const operation = async () => {
+        const result = await openaiBrainService.createAnalyze(payload, context);
+        return normalizeCreateAnalyzeResult(result, context.intent);
+      };
+
+      if (!billingActionCode) {
+        return operation();
+      }
+
+      return billingService.runBillableAction({
+        actionCode: billingActionCode,
+        requestContext,
+        requestId: requestBody.requestId || payload.requestId || context.requestId,
+        meta: {
+          intent: toText(context.intent),
+          billingSource: toText(context.billingSource),
+        },
+        operation,
+      });
     },
 
-    async createGenerate(body) {
+    async createGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid createGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "createGenerate payload must be an object");
-      return generationService.createGenerate(payload);
+      return billingService.runBillableAction({
+        actionCode: resolveCreateGenerateBillingAction(payload),
+        requestContext,
+        requestId: requestBody.requestId || payload.requestId,
+        meta: {
+          promptMode: toText(payload.promptMode),
+          templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
+        },
+        operation: async () => generationService.createGenerate(payload),
+      });
     },
 
-    async improveAnalyze(body) {
+    async improveAnalyze(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveAnalyze request body");
       const payload = ensureObject(requestBody.payload || {}, "improveAnalyze payload must be an object");
-      return openaiBrainService.improveAnalyze(payload);
+      return billingService.runBillableAction({
+        actionCode: "improve_analyze",
+        requestContext,
+        requestId: requestBody.requestId || payload.requestId,
+        operation: async () => openaiBrainService.improveAnalyze(payload),
+      });
     },
 
-    async improveGenerate(body) {
+    async improveGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "improveGenerate payload must be an object");
-      return generationService.improveGenerate(payload);
+      return billingService.runBillableAction({
+        actionCode: "improve_generate",
+        requestContext,
+        requestId: requestBody.requestId || payload.requestId,
+        operation: async () => generationService.improveGenerate(payload),
+      });
     },
 
     async templatePreview(body) {
@@ -164,6 +227,16 @@ const createKartochkaHandlers = (deps) => {
     async historySave(body) {
       const requestBody = ensureObject(body || {}, "Invalid historySave request body");
       return historyService.save(requestBody);
+    },
+
+    async billingSummary(body, requestContext) {
+      ensureObject(body || {}, "Invalid billingSummary request body");
+      return billingService.getBillingSummary(requestContext);
+    },
+
+    async redeemPromo(body, requestContext) {
+      const requestBody = ensureObject(body || {}, "Invalid redeemPromo request body");
+      return billingService.redeemPromoCode(requestContext, requestBody.code);
     },
   };
 };

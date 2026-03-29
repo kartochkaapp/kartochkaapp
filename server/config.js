@@ -78,6 +78,16 @@ const getRuntimeConfig = () => {
       referer: toText(process.env.OPENROUTER_REFERER) || "http://localhost:2020",
       title: toText(process.env.OPENROUTER_TITLE) || "KARTOCHKA",
     },
+    billing: {
+      starterTokens: toNumber(process.env.BILLING_STARTER_TOKENS, 12),
+      storeMode: toText(process.env.BILLING_STORE_MODE) || "auto",
+      promoSeeds: toText(process.env.BILLING_PROMO_SEEDS),
+    },
+    firebaseAdmin: {
+      projectId: toText(process.env.FIREBASE_ADMIN_PROJECT_ID),
+      clientEmail: toText(process.env.FIREBASE_ADMIN_CLIENT_EMAIL),
+      privateKey: toText(process.env.FIREBASE_ADMIN_PRIVATE_KEY),
+    },
   };
 };
 

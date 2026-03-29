@@ -12,6 +12,25 @@
   const workspaceUserName = document.getElementById("workspaceUserName");
   const workspaceUserCaption = document.getElementById("workspaceUserCaption");
   const workspaceUserAvatar = document.getElementById("workspaceUserAvatar");
+  const billingOpenBtn = document.getElementById("billingOpenBtn");
+  const billingBalanceValue = document.getElementById("billingBalanceValue");
+  const billingBalanceLabel = document.getElementById("billingBalanceLabel");
+  const billingPlanLabel = document.getElementById("billingPlanLabel");
+  const billingModal = document.getElementById("billingModal");
+  const billingModalClose = document.getElementById("billingModalClose");
+  const billingModalBackdrop = billingModal?.querySelector("[data-billing-close]") || null;
+  const billingSummaryTokens = document.getElementById("billingSummaryTokens");
+  const billingSummaryNote = document.getElementById("billingSummaryNote");
+  const billingSummaryPlan = document.getElementById("billingSummaryPlan");
+  const billingSummaryGranted = document.getElementById("billingSummaryGranted");
+  const billingSummarySpent = document.getElementById("billingSummarySpent");
+  const billingPromoInput = document.getElementById("billingPromoInput");
+  const billingPromoBtn = document.getElementById("billingPromoBtn");
+  const billingPromoStatus = document.getElementById("billingPromoStatus");
+  const billingPlans = document.getElementById("billingPlans");
+  const billingPackages = document.getElementById("billingPackages");
+  const billingActionCosts = document.getElementById("billingActionCosts");
+  const billingLedger = document.getElementById("billingLedger");
 
   const authSection = document.getElementById("authSection");
   const authCloseBtn = document.getElementById("authCloseBtn");
@@ -195,6 +214,7 @@
 
   mountWorkspaceOverlay(createReferenceModal);
   mountWorkspaceOverlay(createImageManagerModal);
+  mountWorkspaceOverlay(billingModal);
 
   const APP_ROUTE_PREFIX = "#app/";
   const APP_MODES = ["create", "improve", "animate", "history"];
@@ -714,6 +734,8 @@
     return "real";
   })();
 
+  let activeUser = null;
+
   const serviceClient = window.KARTOCHKA_SERVICES?.createClient
     ? window.KARTOCHKA_SERVICES.createClient({
         mode: SERVICE_MODE,
@@ -733,6 +755,24 @@
         request: {
           baseUrl: "",
           timeoutMs: 300000,
+          getHeaders: async () => {
+            if (!activeUser) return {};
+            try {
+              const token = typeof activeUser.getIdToken === "function"
+                ? await activeUser.getIdToken()
+                : "";
+              return {
+                ...(token ? { Authorization: "Bearer " + token } : {}),
+                "X-Kartochka-User-Id": activeUser.uid || "",
+                "X-Kartochka-User-Email": activeUser.email || "",
+              };
+            } catch (error) {
+              return {
+                "X-Kartochka-User-Id": activeUser.uid || "",
+                "X-Kartochka-User-Email": activeUser.email || "",
+              };
+            }
+          },
         },
         endpoints: {
           createAnalyze: "/api/kartochka/createAnalyze",
@@ -742,11 +782,11 @@
           historyList: "/api/kartochka/historyList",
           historyGetById: "/api/kartochka/historyGetById",
           historySave: "/api/kartochka/historySave",
+          billingSummary: "/api/kartochka/billingSummary",
+          redeemPromo: "/api/kartochka/redeemPromo",
         },
       })
     : null;
-
-  let activeUser = null;
   let activeMode = "create";
   let createPromptMode = "ai";
   let createIsGenerating = false;
@@ -793,6 +833,34 @@
   let selectedHistoryEntryId = "";
   let historyReuseInProgress = false;
   let historyDetailsVisible = false;
+  let billingModalOpen = false;
+  let billingSummary = null;
+  let billingSummaryLoading = false;
+  let billingPromoLoading = false;
+
+  window.KARTOCHKA_AUTH_SESSION = {
+    async getHeaders() {
+      if (!activeUser) return {};
+      try {
+        const token = typeof activeUser.getIdToken === "function"
+          ? await activeUser.getIdToken()
+          : "";
+        return {
+          ...(token ? { Authorization: "Bearer " + token } : {}),
+          "X-Kartochka-User-Id": activeUser.uid || "",
+          "X-Kartochka-User-Email": activeUser.email || "",
+        };
+      } catch (error) {
+        return {
+          "X-Kartochka-User-Id": activeUser.uid || "",
+          "X-Kartochka-User-Email": activeUser.email || "",
+        };
+      }
+    },
+    getUserId() {
+      return activeUser?.uid || "";
+    },
+  };
 
   const openMobileMenu = () => {
     mobileMenu?.classList.remove("hidden");
@@ -817,6 +885,330 @@
     if (node === createStatus && createMeta) {
       setRequestMeta(createMeta, "Статус запроса:", text || "Ожидание данных", type);
     }
+  };
+
+  const formatTokenWord = (count) => {
+    const value = Math.abs(Number(count) || 0);
+    const mod10 = value % 10;
+    const mod100 = value % 100;
+    if (mod10 === 1 && mod100 !== 11) return "токен";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "токена";
+    return "токенов";
+  };
+
+  const formatTokenCount = (count) => {
+    const value = Number(count) || 0;
+    return String(value) + " " + formatTokenWord(value);
+  };
+
+  const getBillingCatalog = () => {
+    return billingSummary?.catalog || null;
+  };
+
+  const getBillingActionCost = (actionCode) => {
+    const safeCode = toText(actionCode);
+    if (!safeCode) return 0;
+    const catalog = getBillingCatalog();
+    const action = Array.isArray(catalog?.actions)
+      ? catalog.actions.find((item) => toText(item?.code) === safeCode)
+      : null;
+    return Number(action?.tokens) || 0;
+  };
+
+  const getBillingBalanceTokens = () => {
+    return Number(billingSummary?.account?.balanceTokens) || 0;
+  };
+
+  const hasEnoughTokens = (actionCode) => {
+    const cost = getBillingActionCost(actionCode);
+    if (!cost) return true;
+    if (!billingSummary) return true;
+    return getBillingBalanceTokens() >= cost;
+  };
+
+  const getCreateGenerateBillingActionCode = () => {
+    const selectedTemplate = typeof getCreateSelectedTemplate === "function"
+      ? getCreateSelectedTemplate()
+      : null;
+    return isCreateDirectPromptTemplate(selectedTemplate)
+      ? "create_generate_custom"
+      : "create_generate_best";
+  };
+
+  const dispatchBillingUpdate = () => {
+    window.KARTOCHKA_BILLING_STATE = {
+      summary: billingSummary,
+      catalog: getBillingCatalog(),
+    };
+
+    window.dispatchEvent(new CustomEvent("kartochka:billing:update", {
+      detail: window.KARTOCHKA_BILLING_STATE,
+    }));
+  };
+
+  const setButtonCostLabel = (button, labelText, actionCode, options) => {
+    if (!button) return;
+
+    const buttonLabel = labelText || button.textContent || "";
+    const cost = getBillingActionCost(actionCode);
+    const balanceKnown = Boolean(billingSummary);
+    const isDisabledForTokens = Boolean(actionCode) && balanceKnown && !hasEnoughTokens(actionCode);
+
+    button.classList.toggle("btn-has-cost", Boolean(cost));
+    button.classList.toggle("is-token-locked", isDisabledForTokens);
+    button.dataset.billingActionCode = actionCode || "";
+
+    button.textContent = "";
+
+    const label = document.createElement("span");
+    label.className = "btn-label";
+    label.textContent = buttonLabel;
+    button.append(label);
+
+    if (cost) {
+      const costNode = document.createElement("span");
+      costNode.className = "btn-cost";
+      costNode.textContent = formatTokenCount(cost);
+      button.append(costNode);
+    }
+
+    if (options?.preserveDisabled !== false && isDisabledForTokens) {
+      button.setAttribute("disabled", "disabled");
+    }
+  };
+
+  const setBillingPromoStatus = (text, type) => {
+    setStatusMessage(billingPromoStatus, text, type);
+    billingPromoStatus?.classList.toggle("hidden", !text);
+  };
+
+  const syncBillingHeader = () => {
+    const balance = getBillingBalanceTokens();
+    const planId = toText(billingSummary?.account?.planId).toLowerCase() || "start";
+    const plan = Array.isArray(getBillingCatalog()?.plans)
+      ? getBillingCatalog().plans.find((entry) => toText(entry?.id).toLowerCase() === planId)
+      : null;
+
+    if (billingBalanceValue) {
+      billingBalanceValue.textContent = billingSummaryLoading ? "..." : String(balance);
+    }
+    if (billingBalanceLabel) {
+      billingBalanceLabel.textContent = activeUser ? (plan?.title || "Start") : "Подписка";
+    }
+    if (billingPlanLabel) {
+      if (!activeUser) {
+        billingPlanLabel.textContent = "Нужен вход";
+      } else if (billingSummaryLoading) {
+        billingPlanLabel.textContent = "токенов";
+      } else {
+        billingPlanLabel.textContent = "токенов";
+      }
+    }
+    billingOpenBtn?.toggleAttribute("disabled", !activeUser);
+  };
+
+  const renderBillingPlans = () => {
+    if (!billingPlans) return;
+    billingPlans.textContent = "";
+
+    const plans = Array.isArray(getBillingCatalog()?.plans) ? getBillingCatalog().plans : [];
+    plans.forEach((plan) => {
+      const card = document.createElement("article");
+      card.className = "billing-option-card";
+      card.classList.toggle("is-current", toText(plan.id) === toText(billingSummary?.account?.planId));
+
+      const title = document.createElement("strong");
+      title.textContent = plan.title || "План";
+
+      const price = document.createElement("span");
+      price.className = "billing-option-price";
+      price.textContent = plan.priceLabel || "Скоро";
+
+      const description = document.createElement("p");
+      description.textContent = plan.description || "";
+
+      const status = document.createElement("span");
+      status.className = "billing-chip";
+      status.textContent = card.classList.contains("is-current")
+        ? "Текущий"
+        : (plan.statusLabel || "Скоро");
+
+      const action = document.createElement("button");
+      action.className = "btn btn-outline billing-option-btn";
+      action.type = "button";
+      action.textContent = card.classList.contains("is-current")
+        ? "Активен"
+        : (plan.ctaLabel || "Скоро");
+      action.setAttribute("disabled", "disabled");
+
+      card.append(status, title, price, description, action);
+      billingPlans.append(card);
+    });
+  };
+
+  const renderBillingPackages = () => {
+    if (!billingPackages) return;
+    billingPackages.textContent = "";
+
+    const items = Array.isArray(getBillingCatalog()?.tokenPackages) ? getBillingCatalog().tokenPackages : [];
+    items.forEach((item) => {
+      const card = document.createElement("article");
+      card.className = "billing-option-card";
+
+      const title = document.createElement("strong");
+      title.textContent = item.title || formatTokenCount(item.tokens);
+
+      const price = document.createElement("span");
+      price.className = "billing-option-price";
+      price.textContent = item.priceLabel || "Скоро";
+
+      const description = document.createElement("p");
+      description.textContent = item.description || "";
+
+      const tokenChip = document.createElement("span");
+      tokenChip.className = "billing-chip";
+      tokenChip.textContent = formatTokenCount(item.tokens);
+
+      const action = document.createElement("button");
+      action.className = "btn btn-outline billing-option-btn";
+      action.type = "button";
+      action.textContent = item.ctaLabel || "Скоро";
+      action.setAttribute("disabled", "disabled");
+
+      card.append(tokenChip, title, price, description, action);
+      billingPackages.append(card);
+    });
+  };
+
+  const renderBillingActionCosts = () => {
+    if (!billingActionCosts) return;
+    billingActionCosts.textContent = "";
+
+    const actions = Array.isArray(getBillingCatalog()?.actions) ? getBillingCatalog().actions : [];
+    actions.forEach((action) => {
+      const row = document.createElement("div");
+      row.className = "billing-action-row";
+
+      const label = document.createElement("span");
+      label.textContent = action.label || action.code || "Действие";
+
+      const cost = document.createElement("strong");
+      cost.textContent = formatTokenCount(action.tokens);
+
+      row.append(label, cost);
+      billingActionCosts.append(row);
+    });
+  };
+
+  const renderBillingLedger = () => {
+    if (!billingLedger) return;
+    billingLedger.textContent = "";
+
+    const entries = Array.isArray(billingSummary?.ledger) ? billingSummary.ledger : [];
+    if (!entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "billing-empty";
+      empty.textContent = "Операции появятся после первых списаний или активации промокода.";
+      billingLedger.append(empty);
+      return;
+    }
+
+    entries.slice(0, 8).forEach((entry) => {
+      const row = document.createElement("div");
+      row.className = "billing-ledger-row";
+
+      const main = document.createElement("div");
+      main.className = "billing-ledger-main";
+
+      const title = document.createElement("strong");
+      title.textContent = entry?.label || "Операция";
+
+      const meta = document.createElement("span");
+      const createdAt = entry?.createdAt
+        ? new Date(entry.createdAt).toLocaleString("ru-RU", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      meta.textContent = createdAt || "—";
+
+      const delta = document.createElement("strong");
+      delta.className = "billing-ledger-delta";
+      const tokensDelta = Number(entry?.tokensDelta) || 0;
+      delta.textContent = (tokensDelta > 0 ? "+" : "") + String(tokensDelta) + " " + formatTokenWord(tokensDelta);
+      delta.classList.toggle("is-positive", tokensDelta > 0);
+      delta.classList.toggle("is-negative", tokensDelta < 0);
+
+      main.append(title, meta);
+      row.append(main, delta);
+      billingLedger.append(row);
+    });
+  };
+
+  const renderBillingSummary = () => {
+    const account = billingSummary?.account || null;
+    const balance = Number(account?.balanceTokens) || 0;
+    const granted = Number(account?.totalGrantedTokens) || 0;
+    const spent = Number(account?.totalSpentTokens) || 0;
+    const planId = toText(account?.planId).toLowerCase() || "start";
+    const plan = Array.isArray(getBillingCatalog()?.plans)
+      ? getBillingCatalog().plans.find((entry) => toText(entry?.id).toLowerCase() === planId)
+      : null;
+
+    if (billingSummaryTokens) billingSummaryTokens.textContent = formatTokenCount(balance);
+    if (billingSummaryPlan) billingSummaryPlan.textContent = plan?.title || "Start";
+    if (billingSummaryGranted) billingSummaryGranted.textContent = String(granted);
+    if (billingSummarySpent) billingSummarySpent.textContent = String(spent);
+
+    renderBillingPlans();
+    renderBillingPackages();
+    renderBillingLedger();
+    syncBillingHeader();
+    dispatchBillingUpdate();
+  };
+
+  const refreshBillingSummary = async () => {
+    if (!activeUser || !serviceClient?.billingSummary) {
+      billingSummary = null;
+      renderBillingSummary();
+      return null;
+    }
+
+    billingSummaryLoading = true;
+    syncBillingHeader();
+
+    try {
+      billingSummary = await serviceClient.billingSummary({});
+      renderBillingSummary();
+      return billingSummary;
+    } catch (error) {
+      billingSummary = null;
+      renderBillingSummary();
+      setBillingPromoStatus("", "");
+      return null;
+    } finally {
+      billingSummaryLoading = false;
+      syncBillingHeader();
+      dispatchBillingUpdate();
+    }
+  };
+
+  const openBillingModal = () => {
+    if (!billingModal) return;
+    billingModal.classList.remove("hidden");
+    billingModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("billing-open");
+    billingModalOpen = true;
+  };
+
+  const closeBillingModal = () => {
+    if (!billingModal) return;
+    billingModal.classList.add("hidden");
+    billingModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("billing-open");
+    billingModalOpen = false;
   };
 
   const setCreateSecondaryBadge = (node, text, tone) => {
@@ -959,6 +1351,7 @@
     closeHistoryDetailsModal();
     closeCreateReferenceLibrary();
     closeCreateImageManagerModal();
+    closeBillingModal();
 
     workspace.classList.add("hidden");
     workspace.setAttribute("aria-hidden", "true");
@@ -2718,6 +3111,9 @@
       return false;
     } finally {
       if (requestId === createInsightRequestId) {
+        if (activeUser) {
+          void refreshBillingSummary();
+        }
         syncCreateFormState();
       }
     }
@@ -2811,9 +3207,12 @@
       .join("\n");
   };
 
-  const requestCreateAiPrompt = async (payload) => {
+  const requestCreateAiPrompt = async (payload, contextExtras) => {
     if (serviceClient?.createAnalyze) {
-      const response = await serviceClient.createAnalyze(payload, { intent: "prompt" });
+      const response = await serviceClient.createAnalyze(payload, {
+        intent: "prompt",
+        ...(contextExtras && typeof contextExtras === "object" ? contextExtras : {}),
+      });
       const prompt = (response?.prompt || "").trim();
       if (prompt) return prompt;
       throw new Error("Некорректный ответ createAnalyze: отсутствует промпт.");
@@ -2912,6 +3311,7 @@
 
     try {
       const payload = await buildCreateAiPromptPayload();
+      payload.requestId = "create-prompt-" + String(requestId);
       const generatedPrompt = await requestCreateAiPrompt(payload);
       if (requestId !== createAiPromptRequestId) return;
 
@@ -2933,6 +3333,9 @@
       setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI-промпта");
     } finally {
       if (requestId === createAiPromptRequestId) {
+        if (activeUser) {
+          void refreshBillingSummary();
+        }
         syncCreateFormState();
       }
     }
@@ -3058,6 +3461,7 @@
 
     try {
       const payload = await buildCreateAutofillPayload();
+      payload.requestId = "create-autofill-" + String(requestId);
       const analysis = await requestCreateAutofillAnalysis(payload);
       if (requestId !== createAutofillRequestId) return;
 
@@ -3071,6 +3475,9 @@
       setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI автозаполнения");
     } finally {
       if (requestId === createAutofillRequestId && createAutofillPhase !== "loading") {
+        if (activeUser) {
+          void refreshBillingSummary();
+        }
         syncCreateFormState();
       }
     }
@@ -3081,23 +3488,31 @@
 
     const validationError = getCreateValidationError();
     const autofillInputError = getCreateAutofillInputError();
+    const createGenerateActionCode = getCreateGenerateBillingActionCode();
+    const createGenerateTokenLocked = !hasEnoughTokens(createGenerateActionCode);
+    const createAutofillTokenLocked = !hasEnoughTokens("create_autofill");
     const controlsLocked =
       createIsGenerating ||
       createAutofillPhase === "loading" ||
       createInsightPhase === "loading" ||
       createAiPromptPhase === "loading";
-    const isDisabled = Boolean(validationError) || controlsLocked;
+    const isDisabled = Boolean(validationError) || controlsLocked || createGenerateTokenLocked;
     const aiPromptValue = (createAiPromptOutput?.value || "").trim();
     const customPromptValue = (createCustomPrompt?.value || "").trim();
 
     if (createGenerateBtn) {
-      createGenerateBtn.textContent = createGeneratedResults.length ? "Перегенерировать" : "Сгенерировать карточку";
+      setButtonCostLabel(
+        createGenerateBtn,
+        createGeneratedResults.length ? "Перегенерировать" : "Сгенерировать карточку",
+        createGenerateActionCode
+      );
       createGenerateBtn.toggleAttribute("disabled", isDisabled);
       createGenerateBtn.classList.toggle("is-loading", createIsGenerating);
     }
 
     if (createAutofillBtn) {
-      createAutofillBtn.toggleAttribute("disabled", controlsLocked || Boolean(autofillInputError));
+      setButtonCostLabel(createAutofillBtn, "Автозаполнить AI", "create_autofill");
+      createAutofillBtn.toggleAttribute("disabled", controlsLocked || Boolean(autofillInputError) || createAutofillTokenLocked);
       createAutofillBtn.classList.toggle("is-loading", createAutofillPhase === "loading");
     }
 
@@ -3192,6 +3607,10 @@
         createCtaHint.textContent = "AI подготавливает текстовые уровни для карточки...";
       } else if (createIsGenerating) {
         createCtaHint.textContent = "Генерация в процессе...";
+      } else if (createGenerateTokenLocked && billingSummary) {
+        createCtaHint.textContent =
+          "Недостаточно токенов. Нужно " + formatTokenCount(getBillingActionCost(createGenerateActionCode))
+          + ", доступно " + formatTokenCount(getBillingBalanceTokens()) + ".";
       } else if (createSelectedFiles.length < 1) {
         createCtaHint.textContent = "Шаг 1: добавьте фото товара.";
       } else if (createPromptMode === "custom" && customPromptValue.length < 12) {
@@ -5887,7 +6306,11 @@
         syncCreateFormState();
 
         const promptPayload = await buildCreateAiPromptPayload();
-        const generatedPrompt = await requestCreateAiPrompt(promptPayload);
+        promptPayload.requestId = "create-generate-prompt-" + String(requestId);
+        const generatedPrompt = await requestCreateAiPrompt(promptPayload, {
+          billingSource: "create_generate",
+          requestId: promptPayload.requestId,
+        });
         if (requestId !== createGenerationRequestId) return;
 
         if (createAiPromptOutput) {
@@ -5921,6 +6344,7 @@
         setRequestMeta(createMeta, "Статус запроса:", "Генерация изображения");
       }
       const payload = await buildCreateGenerationPayload();
+      payload.requestId = "create-generate-" + String(requestId);
       const results = await requestCreateGeneration(payload);
       if (requestId !== createGenerationRequestId) return;
 
@@ -5971,6 +6395,9 @@
     } finally {
       if (requestId === createGenerationRequestId) {
         createIsGenerating = false;
+        if (activeUser) {
+          void refreshBillingSummary();
+        }
         syncCreateFormState();
       }
     }
@@ -6322,6 +6749,8 @@
   renderCreateResults();
   setRequestMeta(createMeta, "Статус запроса:", "Ожидание данных");
   syncCreateFormState();
+  renderBillingSummary();
+  syncBillingHeader();
 
   syncImproveMode("ai");
   renderImproveAnalysisValues(null);
@@ -6330,15 +6759,69 @@
   syncImproveFormState();
 
   void refreshHistory();
+  void refreshBillingSummary();
   window.addEventListener("hashchange", handleAppHashRoute);
+  window.addEventListener("kartochka:billing:refresh", () => {
+    if (activeUser) {
+      void refreshBillingSummary();
+    }
+  });
 
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeCreateReferenceLibrary();
       closeCreateImageManagerModal();
+      closeBillingModal();
       closeHistoryDetailsModal();
       closeMobileMenu();
       closeAuthModal();
+    }
+  });
+
+  billingOpenBtn?.addEventListener("click", async () => {
+    if (!activeUser) {
+      openAuthModal();
+      return;
+    }
+    openBillingModal();
+    if (!billingSummary) {
+      await refreshBillingSummary();
+    }
+  });
+
+  billingModalClose?.addEventListener("click", closeBillingModal);
+  billingModalBackdrop?.addEventListener("click", closeBillingModal);
+
+  billingPromoBtn?.addEventListener("click", async () => {
+    if (!activeUser) {
+      openAuthModal();
+      return;
+    }
+    const code = (billingPromoInput?.value || "").trim();
+    if (!code) {
+      setBillingPromoStatus("Введите промокод.", "error");
+      return;
+    }
+    if (!serviceClient?.redeemPromo) {
+      setBillingPromoStatus("Промокоды пока недоступны.", "error");
+      return;
+    }
+
+    billingPromoLoading = true;
+    billingPromoBtn.setAttribute("disabled", "disabled");
+    setBillingPromoStatus("Проверяем промокод...", "");
+
+    try {
+      billingSummary = await serviceClient.redeemPromo({ code });
+      if (billingPromoInput) billingPromoInput.value = "";
+      renderBillingSummary();
+      setBillingPromoStatus("Промокод применен. Баланс обновлен.", "success");
+      syncCreateFormState();
+    } catch (error) {
+      setBillingPromoStatus(error instanceof Error ? error.message : "Не удалось применить промокод.", "error");
+    } finally {
+      billingPromoLoading = false;
+      billingPromoBtn.removeAttribute("disabled");
     }
   });
 
@@ -6428,6 +6911,7 @@
       activeUser = result.user;
       await persistUserProfile(result.user);
       syncCabinetButton(result.user);
+      await refreshBillingSummary();
       setAuthMessage("Вход через Google выполнен", "success");
       closeAuthModal();
       navigateToAppMode("create", { replace: true });
@@ -6452,6 +6936,7 @@
       syncCabinetButton(null);
       syncWorkspaceUser(null);
       void refreshHistory();
+      void refreshBillingSummary();
       closeWorkspaceView();
       if (parseAppModeFromHash()) {
         replaceHash("#top");
@@ -6479,6 +6964,7 @@
       syncCabinetButton(user);
       syncWorkspaceUser(user);
       await refreshHistory();
+      await refreshBillingSummary();
 
       if (!user) {
         if (parseAppModeFromHash()) {
@@ -6504,6 +6990,7 @@
     syncCabinetButton(null);
     syncWorkspaceUser(null);
     void refreshHistory();
+    void refreshBillingSummary();
     if (parseAppModeFromHash()) {
       handleAppHashRoute();
     } else {

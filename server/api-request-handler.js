@@ -8,7 +8,9 @@ const { OpenAIBrainServiceError } = require("./services/openai-brain-service");
 const { GenerationServiceError } = require("./services/generation-service");
 const { HistoryServiceError } = require("./services/history-service");
 const { NanoBananaServiceError } = require("./services/nano-banana-service");
+const { BillingServiceError } = require("./services/billing-service");
 const { getRuntimeServices } = require("./runtime-services");
+const { extractRequestContext } = require("./request-context");
 
 class RequestBodyError extends Error {
   /**
@@ -124,6 +126,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof GenerationServiceError
     || error instanceof HistoryServiceError
     || error instanceof NanoBananaServiceError
+    || error instanceof BillingServiceError
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
@@ -156,6 +159,12 @@ const toApiErrorPayload = (error) => {
       userMessage = "Серверная история временно недоступна. Попробуйте снова.";
     } else if (code.startsWith("nano_")) {
       userMessage = "Не удалось улучшить карточку. Попробуйте ещё раз.";
+    } else if (code === "billing_unauthorized") {
+      userMessage = "Войдите в аккаунт, чтобы использовать AI.";
+    } else if (code === "billing_insufficient_tokens") {
+      userMessage = toText(error.userMessage) || "Недостаточно токенов для действия.";
+    } else if (code.startsWith("promo_")) {
+      userMessage = toText(error.userMessage) || "Не удалось применить промокод.";
     }
 
     return {
@@ -192,7 +201,8 @@ const handleKartochkaAction = async (request, response, actionName) => {
     }
 
     const body = await parseJsonBody(request, runtime.app.requestBodyLimitBytes);
-    const data = await kartochkaHandlers[actionName](body);
+    const requestContext = extractRequestContext(request);
+    const data = await kartochkaHandlers[actionName](body, requestContext);
     sendJson(response, 200, data);
   } catch (error) {
     const apiError = toApiErrorPayload(error);
@@ -229,7 +239,8 @@ const handleEnhanceCardRequest = async (request, response) => {
     }
 
     const body = await parseJsonBody(request, runtime.app.requestBodyLimitBytes);
-    const data = await enhanceCardHandler(body);
+    const requestContext = extractRequestContext(request);
+    const data = await enhanceCardHandler(body, requestContext);
     sendJson(response, 200, data);
   } catch (error) {
     const apiError = toApiErrorPayload(error);

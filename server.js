@@ -15,8 +15,10 @@ const { OpenAIBrainServiceError, createOpenAIBrainService } = require("./server/
 const { GenerationServiceError, createGenerationService } = require("./server/services/generation-service");
 const { HistoryServiceError, createHistoryService } = require("./server/services/history-service");
 const { NanoBananaServiceError, createNanoBananaService } = require("./server/services/nano-banana-service");
+const { BillingServiceError, createBillingService } = require("./server/services/billing-service");
 const { OpenAIProviderError } = require("./server/providers/openai");
 const { OpenRouterProviderError } = require("./server/providers/openrouter");
+const { extractRequestContext } = require("./server/request-context");
 
 class RequestBodyError extends Error {
   /**
@@ -69,6 +71,13 @@ const historyService = createHistoryService({
   filePath: path.join(runtime.app.rootDir, "server", "data", "history-store.json"),
   maxItems: 30,
 });
+const billingService = createBillingService({
+  rootDir: runtime.app.rootDir,
+  starterTokens: runtime.billing.starterTokens,
+  storeMode: runtime.billing.storeMode,
+  promoSeedsRaw: runtime.billing.promoSeeds,
+  firebaseAdmin: runtime.firebaseAdmin,
+});
 const nanoBananaService = createNanoBananaService({
   generationService,
 });
@@ -76,9 +85,11 @@ const kartochkaHandlers = createKartochkaHandlers({
   openaiBrainService,
   generationService,
   historyService,
+  billingService,
 });
 const enhanceCardHandler = createEnhanceCardHandler({
   nanoBananaService,
+  billingService,
 });
 
 const sendJson = (response, statusCode, payload) => {
@@ -251,6 +262,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof GenerationServiceError
     || error instanceof HistoryServiceError
     || error instanceof NanoBananaServiceError
+    || error instanceof BillingServiceError
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
@@ -281,6 +293,12 @@ const toApiErrorPayload = (error) => {
       userMessage = "Серверная конфигурация AI не завершена. Проверьте переменные окружения.";
     } else if (code.startsWith("nano_")) {
       userMessage = "Не удалось улучшить карточку. Попробуйте ещё раз.";
+    } else if (code === "billing_unauthorized") {
+      userMessage = "Войдите в аккаунт, чтобы использовать AI.";
+    } else if (code === "billing_insufficient_tokens") {
+      userMessage = toText(error.userMessage) || "Недостаточно токенов для действия.";
+    } else if (code.startsWith("promo_")) {
+      userMessage = toText(error.userMessage) || "Не удалось применить промокод.";
     }
 
     return {
@@ -295,26 +313,30 @@ const toApiErrorPayload = (error) => {
   return fallback;
 };
 
-const dispatchKartochkaApi = async (pathname, body) => {
+const dispatchKartochkaApi = async (pathname, body, requestContext) => {
   switch (pathname) {
     case "/api/enhance-card":
-      return enhanceCardHandler(body);
+      return enhanceCardHandler(body, requestContext);
     case "/api/kartochka/createAnalyze":
-      return kartochkaHandlers.createAnalyze(body);
+      return kartochkaHandlers.createAnalyze(body, requestContext);
     case "/api/kartochka/createGenerate":
-      return kartochkaHandlers.createGenerate(body);
+      return kartochkaHandlers.createGenerate(body, requestContext);
     case "/api/kartochka/improveAnalyze":
-      return kartochkaHandlers.improveAnalyze(body);
+      return kartochkaHandlers.improveAnalyze(body, requestContext);
     case "/api/kartochka/improveGenerate":
-      return kartochkaHandlers.improveGenerate(body);
+      return kartochkaHandlers.improveGenerate(body, requestContext);
     case "/api/kartochka/templatePreview":
-      return kartochkaHandlers.templatePreview(body);
+      return kartochkaHandlers.templatePreview(body, requestContext);
     case "/api/kartochka/historyList":
-      return kartochkaHandlers.historyList(body);
+      return kartochkaHandlers.historyList(body, requestContext);
     case "/api/kartochka/historyGetById":
-      return kartochkaHandlers.historyGetById(body);
+      return kartochkaHandlers.historyGetById(body, requestContext);
     case "/api/kartochka/historySave":
-      return kartochkaHandlers.historySave(body);
+      return kartochkaHandlers.historySave(body, requestContext);
+    case "/api/kartochka/billingSummary":
+      return kartochkaHandlers.billingSummary(body, requestContext);
+    case "/api/kartochka/redeemPromo":
+      return kartochkaHandlers.redeemPromo(body, requestContext);
     default:
       throw new ApiRouteError({
         status: 404,
@@ -348,7 +370,8 @@ const server = http.createServer(async (request, response) => {
       }
 
       const body = await parseJsonBody(request, runtime.app.requestBodyLimitBytes);
-      const data = await dispatchKartochkaApi(pathname, body);
+      const requestContext = extractRequestContext(request);
+      const data = await dispatchKartochkaApi(pathname, body, requestContext);
       sendJson(response, 200, data);
       return;
     }
