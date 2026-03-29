@@ -75,7 +75,7 @@ const getRuntimeConfig = () => {
     openrouter: {
       apiKey: toText(process.env.OPENROUTER_API_KEY),
       baseUrl: toText(process.env.OPENROUTER_BASE_URL) || "https://openrouter.ai/api/v1",
-      model: toText(process.env.OPENROUTER_MODEL) || "google/gemini-3-pro-image-preview",
+      model: toText(process.env.OPENROUTER_MODEL) || "google/gemini-3.1-flash-image-preview",
       referer: toText(process.env.OPENROUTER_REFERER) || "http://localhost:2020",
       title: toText(process.env.OPENROUTER_TITLE) || "KARTOCHKA",
     },
