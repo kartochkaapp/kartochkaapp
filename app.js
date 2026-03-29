@@ -233,7 +233,9 @@
   const HISTORY_IMAGE_MAX_DIMENSION = 960;
   const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
   const API_IMAGE_MAX_DIMENSION = 1280;
+  const API_AI_IMAGE_MAX_DIMENSION = 1024;
   const API_IMAGE_JPEG_QUALITY = 0.84;
+  const API_AI_IMAGE_MIME_TYPE = "image/png";
   const CREATE_UPLOAD_MAX_FILES = 5;
   const CREATE_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
   const CREATE_ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -1573,6 +1575,7 @@
     const fallbackUrl = String(options?.fallbackUrl || safeUrl).trim();
     const maxDimension = Number(options?.maxDimension) > 0 ? Number(options.maxDimension) : API_IMAGE_MAX_DIMENSION;
     const quality = Number(options?.quality) > 0 ? Number(options.quality) : API_IMAGE_JPEG_QUALITY;
+    const outputMimeType = String(options?.outputMimeType || "image/jpeg").trim().toLowerCase();
 
     try {
       const image = await loadImageElement(safeUrl, options?.errorMessage || "Не удалось подготовить изображение.");
@@ -1591,6 +1594,10 @@
       if (!context) return fallbackUrl;
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
 
+      if (outputMimeType === "image/png") {
+        return canvas.toDataURL("image/png");
+      }
+
       return canvas.toDataURL("image/jpeg", quality);
     } catch (error) {
       return fallbackUrl;
@@ -1605,6 +1612,8 @@
       const optimized = await buildOptimizedImageDataUrl(objectUrl, {
         errorMessage,
         fallbackUrl: "",
+        maxDimension: API_AI_IMAGE_MAX_DIMENSION,
+        outputMimeType: API_AI_IMAGE_MIME_TYPE,
       });
       if (optimized) return optimized;
     } finally {
@@ -6605,7 +6614,7 @@
       setDoneState(createDoneBadge, false);
       const message = error instanceof Error ? error.message : "Ошибка генерации карточек. Повторите попытку.";
       setStatusMessage(createStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка генерации карточек");
+      setRequestMeta(createMeta, "Статус запроса:", message);
     } finally {
       if (requestId === createGenerationRequestId) {
         createIsGenerating = false;

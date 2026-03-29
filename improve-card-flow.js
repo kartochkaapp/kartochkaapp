@@ -9,8 +9,9 @@
   const BILLING_ACTION_CODE = "enhance_card";
   const REQUEST_TIMEOUT_MS = 65000;
   const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-  const MAX_IMAGE_DIMENSION = 1600;
+  const MAX_IMAGE_DIMENSION = 1024;
   const JPEG_QUALITY = 0.84;
+  const AI_IMAGE_MIME_TYPE = "image/png";
   const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const CLIENT_REQUEST_SESSION_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
@@ -156,6 +157,9 @@
       }
 
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      if (AI_IMAGE_MIME_TYPE === "image/png") {
+        return canvas.toDataURL("image/png");
+      }
       return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
     } finally {
       URL.revokeObjectURL(sourceUrl);
