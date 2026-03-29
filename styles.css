@@ -11835,3 +11835,668 @@ body.billing-open {
 #workspace .billing-option-btn {
   margin-top: 10px;
 }
+
+/* Mobile responsive pass for workspace create flow */
+@media (max-width: 960px) {
+  #workspace .workspace-tools {
+    gap: 10px;
+    padding: 12px;
+    border-radius: 24px;
+  }
+
+  #workspace .workspace-tools-head {
+    justify-content: flex-start;
+  }
+
+  #workspace .workspace-screen-tabs {
+    width: 100%;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 5px;
+  }
+
+  #workspace .workspace-screen-tabs .tab-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 0.71rem;
+    letter-spacing: 0.05em;
+  }
+
+  #workspace .workspace-user-area {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 24px;
+  }
+
+  #workspace .workspace-user-meta {
+    max-width: none;
+  }
+
+  #workspace .workspace-wallet-btn {
+    order: 4;
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  #workspace .workspace-signout {
+    justify-self: end;
+  }
+
+  #workspace .create-flow-guide {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    padding-bottom: 2px;
+    margin-bottom: 12px;
+    scroll-snap-type: x proximity;
+  }
+
+  #workspace .create-flow-guide::-webkit-scrollbar {
+    display: none;
+  }
+
+  #workspace .create-flow-step {
+    flex: 0 0 158px;
+    min-height: 56px;
+    scroll-snap-align: start;
+  }
+
+  #workspace .create-single-flow {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  #workspace .create-column-left,
+  #workspace .create-column-center,
+  #workspace .create-column-right {
+    gap: 14px;
+  }
+
+  #workspace .create-column-right {
+    order: 3;
+  }
+
+  #workspace .create-form-card {
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  #workspace .create-card-head,
+  #workspace .create-reference-summary-head,
+  #workspace .create-product-card-head {
+    align-items: center;
+  }
+
+  #workspace .create-upload-dropzone {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  #workspace .create-upload-preview-frame {
+    width: min(100%, 176px);
+  }
+
+  #workspace #createSourcePreviewEmpty {
+    transform: none;
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+  }
+
+  #workspace .create-selected-template-card {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  #workspace .create-preview-card {
+    position: static;
+    top: auto;
+  }
+
+  #workspace .create-preview-stage {
+    min-height: 360px;
+  }
+
+  #workspace .create-preview-actions {
+    grid-template-columns: 1fr;
+  }
+
+  #workspace .create-generate-btn,
+  #workspace .create-export-btn {
+    width: 100%;
+  }
+
+  #workspace .create-reference-modal {
+    padding: 14px;
+  }
+
+  #workspace .create-reference-modal-dialog,
+  #workspace .create-image-manager-dialog,
+  #workspace .billing-modal-dialog {
+    width: min(100%, 720px);
+    max-height: calc(100vh - 28px);
+    margin: 14px auto;
+    padding: 18px;
+    border-radius: 26px;
+  }
+
+  #workspace .create-reference-modal-dialog {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  #workspace .create-template-grid-modal {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  #workspace .create-template-item {
+    min-height: 0;
+  }
+
+  #workspace .create-template-item-action {
+    min-height: 46px;
+  }
+
+  #workspace .create-image-manager-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  #workspace .billing-modal-layout {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 719px) {
+  body.workspace-active #workspace.section-wrap {
+    padding: 10px;
+  }
+
+  #workspace .workspace-tools {
+    padding: 10px;
+    border-radius: 22px;
+  }
+
+  #workspace .workspace-screen-tabs {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  #workspace .workspace-screen-tabs .tab-btn {
+    min-height: 36px;
+    padding: 0 13px;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  #workspace .workspace-user-area {
+    grid-template-columns: auto minmax(0, 1fr);
+    border-radius: 22px;
+  }
+
+  #workspace .workspace-user-meta small {
+    display: none;
+  }
+
+  #workspace .workspace-wallet-btn {
+    min-height: 48px;
+  }
+
+  #workspace .workspace-signout {
+    grid-column: 2;
+    justify-self: stretch;
+  }
+
+  #workspace .step-card {
+    padding: 18px 14px;
+    border-radius: 24px;
+  }
+
+  #workspace .create-screen-head {
+    margin-bottom: 10px;
+  }
+
+  #workspace .create-screen-head h2 {
+    font-size: 1.85rem;
+    line-height: 1.02;
+  }
+
+  #workspace .create-flow-step {
+    flex-basis: 148px;
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  #workspace .create-card-head,
+  #workspace .create-reference-summary-head,
+  #workspace .create-product-card-head {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  #workspace .create-card-head > .btn,
+  #workspace .create-reference-summary-head > .btn,
+  #workspace .create-product-card-head > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #workspace .create-form-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  #workspace .create-upload-dropzone {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  #workspace .create-upload-preview-frame {
+    width: min(100%, 156px);
+    border-radius: 20px;
+  }
+
+  #workspace .create-upload-dropzone strong {
+    font-size: 0.94rem;
+  }
+
+  #workspace .create-upload-dropzone small {
+    font-size: 0.74rem;
+  }
+
+  #workspace .create-selected-template-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  #workspace .create-selected-template-thumb {
+    border-radius: 16px;
+  }
+
+  #workspace .create-selected-template-body strong {
+    font-size: 0.92rem;
+  }
+
+  #workspace #createSelectedTemplateDescription {
+    font-size: 0.76rem;
+    -webkit-line-clamp: 3;
+  }
+
+  #workspace .create-generation-notes-details {
+    border-radius: 18px;
+  }
+
+  #workspace .create-generation-notes-details summary {
+    padding: 12px;
+    font-size: 0.78rem;
+  }
+
+  #workspace .create-generation-notes-body {
+    padding: 0 12px 12px;
+  }
+
+  #workspace .create-product-card textarea,
+  #workspace .create-custom-prompt-panel textarea,
+  #workspace .create-generation-notes-body textarea,
+  #workspace .billing-promo-row input {
+    font-size: 16px;
+  }
+
+  #workspace .create-preview-stage {
+    min-height: min(76vw, 420px);
+    aspect-ratio: 3 / 4;
+  }
+
+  #workspace .create-preview-empty {
+    max-width: 220px;
+    padding: 0 12px;
+  }
+
+  #workspace .create-preview-empty strong {
+    font-size: 0.9rem;
+  }
+
+  #workspace .create-preview-empty p {
+    font-size: 0.76rem;
+  }
+
+  #workspace .create-reference-modal {
+    padding: 8px;
+  }
+
+  #workspace .create-reference-modal-dialog,
+  #workspace .create-image-manager-dialog,
+  #workspace .billing-modal-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    margin: 8px auto;
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  #workspace .create-reference-modal-head,
+  #workspace .billing-modal-head {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  #workspace .create-reference-modal-head h3,
+  #workspace .billing-modal-head h3 {
+    font-size: 1.06rem;
+  }
+
+  #workspace .create-reference-modal-close,
+  #workspace .billing-modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  #workspace .create-library-hero {
+    padding: 14px;
+    margin-bottom: 12px;
+    border-radius: 20px;
+  }
+
+  #workspace .create-library-hero-copy strong {
+    font-size: 0.94rem;
+  }
+
+  #workspace .create-library-hero-copy p {
+    font-size: 0.78rem;
+  }
+
+  #workspace .create-template-item {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  #workspace .create-template-grid-modal .create-template-thumb {
+    border-radius: 18px;
+  }
+
+  #workspace .create-template-item-body strong {
+    font-size: 0.94rem;
+  }
+
+  #workspace .create-template-item-description {
+    -webkit-line-clamp: 3;
+    font-size: 0.78rem;
+  }
+
+  #workspace .create-template-item-action {
+    width: 100%;
+    min-height: 44px;
+    font-size: 0.8rem;
+  }
+
+  #workspace .billing-summary-card,
+  #workspace .billing-block {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  #workspace .billing-summary-main strong {
+    font-size: clamp(2.2rem, 12vw, 3.4rem);
+  }
+
+  #workspace .billing-promo-row {
+    grid-template-columns: 1fr;
+  }
+
+  #workspace .billing-plan-grid,
+  #workspace .billing-package-grid {
+    grid-auto-columns: minmax(240px, 82vw);
+  }
+}
+
+/* Mobile bugfix polish */
+@media (max-width: 719px) {
+  #workspace .workspace-tools {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand user"
+      "tabs tabs";
+    align-items: center;
+    gap: 10px 8px;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  #workspace .workspace-tools-head {
+    order: initial;
+    grid-area: brand;
+    align-self: center;
+  }
+
+  #workspace .workspace-app-brand {
+    gap: 0;
+  }
+
+  #workspace .workspace-app-brand .logo-text {
+    display: none;
+  }
+
+  #workspace .workspace-user-area {
+    order: initial;
+    grid-area: user;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  #workspace .workspace-screen-tabs {
+    order: initial;
+    grid-area: tabs;
+    justify-content: center;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  #workspace .workspace-user-avatar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #workspace .workspace-user-meta {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  #workspace .workspace-wallet-btn {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    min-height: 40px;
+    justify-self: start;
+    padding: 6px 10px 6px 6px;
+    gap: 6px;
+  }
+
+  #workspace .workspace-wallet-balance {
+    min-width: 34px;
+    height: 28px;
+    padding: 0 9px;
+  }
+
+  #workspace .workspace-wallet-meta strong {
+    font-size: 0.74rem;
+  }
+
+  #workspace .workspace-wallet-meta small {
+    font-size: 0.66rem;
+  }
+
+  #workspace .workspace-signout {
+    grid-column: 4;
+    grid-row: 1;
+    width: auto;
+    min-height: 40px;
+    justify-self: end;
+    padding-inline: 12px;
+  }
+
+  #workspace .create-preview-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #workspace .create-preview-empty {
+    width: 100%;
+    max-width: 232px;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  #workspace .create-template-grid-modal .create-template-thumb {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+    align-self: stretch;
+    aspect-ratio: 16 / 7.2;
+  }
+
+  #workspace .create-template-item {
+    display: grid;
+    grid-template-rows: auto auto;
+    min-height: 0;
+    gap: 12px;
+    padding: 12px;
+    padding-bottom: 14px;
+    align-content: start;
+    overflow: hidden;
+  }
+
+  #workspace .create-template-item-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    flex: 0 0 auto;
+    gap: 8px;
+    width: 100%;
+  }
+
+  #workspace .create-template-item-meta {
+    min-height: 26px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #workspace .create-template-item-body strong {
+    overflow-wrap: anywhere;
+  }
+
+  #workspace .create-template-item-description {
+    display: block;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: unset;
+  }
+
+  #workspace .create-template-item-action {
+    position: static;
+    margin-top: 2px;
+    min-height: 42px;
+    white-space: normal;
+    overflow: hidden;
+  }
+
+  #workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"] .create-template-item-action {
+    background: linear-gradient(180deg, #202938, #141b26);
+    color: #ffffff;
+  }
+
+  #workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"].is-active .create-template-item-action {
+    background: linear-gradient(180deg, #ef8b74, #df7562);
+    color: #ffffff;
+  }
+}
+
+/* Template library readability fix */
+#workspace .create-template-grid-modal .create-template-thumb.is-title-only {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+}
+
+#workspace .create-template-grid-modal .create-template-thumb.is-title-only .create-template-thumb-placeholder {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1f2a38;
+  font-size: 1.28rem;
+  font-weight: 760;
+  letter-spacing: -0.03em;
+  text-transform: none;
+}
+
+#workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"] .create-template-thumb.is-title-only .create-template-thumb-placeholder {
+  min-width: 92px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(214, 102, 81, 0.12);
+  color: #8d5448;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#workspace .create-template-item .create-template-item-description {
+  color: #667280;
+}
+
+#workspace .create-template-item .create-template-item-action {
+  color: #465160;
+}
+
+#workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"] .create-template-item-body > .create-template-item-action {
+  background: linear-gradient(180deg, #202938, #141b26);
+  color: #ffffff;
+}
+
+#workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"].is-active .create-template-item-body > .create-template-item-action {
+  background: linear-gradient(180deg, #ef8b74, #df7562);
+  color: #ffffff;
+}
+
+@media (max-width: 719px) {
+  #workspace .create-template-grid-modal .create-template-thumb.is-title-only {
+    min-height: 148px;
+  }
+
+  #workspace .create-template-grid-modal .create-template-thumb.is-title-only .create-template-thumb-placeholder {
+    font-size: 1.12rem;
+  }
+
+  #workspace .create-template-item[data-template-id="tpl-direct-custom-prompt"] .create-template-thumb.is-title-only .create-template-thumb-placeholder {
+    min-width: 84px;
+    min-height: 34px;
+    padding: 0 14px;
+    font-size: 0.72rem;
+  }
+}
