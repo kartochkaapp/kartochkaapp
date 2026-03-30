@@ -1,11 +1,71 @@
 "use strict";
 
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
 const { HttpClientError, requestJson } = require("../http-client");
 const { getBundledPromptText } = require("../prompts/prompt-registry");
 const { toText, extractJsonObject, clamp } = require("../utils");
+
+const hashText = (value) => {
+  const source = String(value || "");
+  if (!source) return "";
+  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
+};
+
+const resolveInstructionDocument = ({ inlineText, instructionPath }) => {
+  const normalizedInlineText = toText(inlineText);
+  if (normalizedInlineText) {
+    return {
+      text: normalizedInlineText,
+      source: "inline",
+      path: "",
+      hash: hashText(normalizedInlineText),
+    };
+  }
+
+  const normalizedInstructionPath = toText(instructionPath);
+  if (!normalizedInstructionPath) {
+    return {
+      text: "",
+      source: "missing",
+      path: "",
+      hash: "",
+    };
+  }
+
+  const bundledPromptText = getBundledPromptText(normalizedInstructionPath);
+  if (bundledPromptText) {
+    return {
+      text: bundledPromptText,
+      source: "bundled",
+      path: normalizedInstructionPath,
+      hash: hashText(bundledPromptText),
+    };
+  }
+
+  const resolvedPath = path.isAbsolute(normalizedInstructionPath)
+    ? normalizedInstructionPath
+    : path.resolve(__dirname, "..", "..", normalizedInstructionPath);
+
+  try {
+    const resolvedText = toText(fs.readFileSync(resolvedPath, "utf8"));
+    return {
+      text: resolvedText,
+      source: "fs",
+      path: resolvedPath,
+      hash: hashText(resolvedText),
+    };
+  } catch (error) {
+    return {
+      text: "",
+      source: "missing",
+      path: resolvedPath,
+      hash: "",
+    };
+  }
+};
 
 class OpenAIProviderError extends Error {
   /**
@@ -126,21 +186,10 @@ const formatCreateAnalyzeReferenceV2 = (payload) => {
 
 const formatCreateTemplateInstructionTextV2 = (payload) => {
   const reference = payload?.reference || payload?.selectedTemplate || null;
-  const inlineInstructionPrompt = toText(payload?.instructionDocumentText || reference?.instructionPrompt);
-  const instructionPrompt = inlineInstructionPrompt || (() => {
-    const instructionPath = toText(reference?.instructionPromptPath);
-    if (!instructionPath) return "";
-    const bundledPromptText = getBundledPromptText(instructionPath);
-    if (bundledPromptText) return bundledPromptText;
-    const resolvedPath = path.isAbsolute(instructionPath)
-      ? instructionPath
-      : path.resolve(__dirname, "..", "..", instructionPath);
-    try {
-      return toText(fs.readFileSync(resolvedPath, "utf8"));
-    } catch (error) {
-      return "";
-    }
-  })();
+  const instructionPrompt = resolveInstructionDocument({
+    inlineText: payload?.instructionDocumentText || reference?.instructionPrompt,
+    instructionPath: reference?.instructionPromptPath,
+  }).text;
   if (!instructionPrompt) return "";
 
   const userText = toText(payload?.contentCardText || payload?.userText || payload?.prompt || payload?.customPrompt) || "(пусто)";
@@ -148,39 +197,17 @@ const formatCreateTemplateInstructionTextV2 = (payload) => {
 };
 
 const formatCreateAutofillInstructionText = (payload) => {
-  const instructionPath = toText(payload?.autofillInstructionPromptPath);
-  if (!instructionPath) return "";
-
-  const bundledPromptText = getBundledPromptText(instructionPath);
-  if (bundledPromptText) return bundledPromptText;
-
-  const resolvedPath = path.isAbsolute(instructionPath)
-    ? instructionPath
-    : path.resolve(__dirname, "..", "..", instructionPath);
-
-  try {
-    return toText(fs.readFileSync(resolvedPath, "utf8"));
-  } catch (error) {
-    return "";
-  }
+  return resolveInstructionDocument({
+    inlineText: "",
+    instructionPath: payload?.autofillInstructionPromptPath,
+  }).text;
 };
 
 const formatImproveInstructionText = (payload) => {
-  const inlineInstructionPrompt = toText(payload?.improveInstructionText || payload?.instructionDocumentText);
-  const instructionPrompt = inlineInstructionPrompt || (() => {
-    const instructionPath = toText(payload?.improveInstructionPromptPath || payload?.instructionPromptPath);
-    if (!instructionPath) return "";
-    const bundledPromptText = getBundledPromptText(instructionPath);
-    if (bundledPromptText) return bundledPromptText;
-    const resolvedPath = path.isAbsolute(instructionPath)
-      ? instructionPath
-      : path.resolve(__dirname, "..", "..", instructionPath);
-    try {
-      return toText(fs.readFileSync(resolvedPath, "utf8"));
-    } catch (error) {
-      return "";
-    }
-  })();
+  const instructionPrompt = resolveInstructionDocument({
+    inlineText: payload?.improveInstructionText || payload?.instructionDocumentText,
+    instructionPath: payload?.improveInstructionPromptPath || payload?.instructionPromptPath,
+  }).text;
   if (!instructionPrompt) return "";
 
   const userText = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt || payload?.userText) || "(пусто)";
@@ -279,6 +306,42 @@ const buildCreateInstructionPromptUserTextV2 = (payload) => {
     "Пожелания к генерации:",
     generationNotes,
   ].join("\n");
+};
+
+const buildCreateInstructionDebug = (payload, modelProfile) => {
+  const reference = payload?.reference || payload?.selectedTemplate || null;
+  const instructionDocument = resolveInstructionDocument({
+    inlineText: payload?.instructionDocumentText || reference?.instructionPrompt,
+    instructionPath: reference?.instructionPromptPath,
+  });
+  return {
+    flow: "create_instruction_prompt",
+    model: toText(modelProfile?.model),
+    reasoningEffort: toText(modelProfile?.reasoningEffort),
+    aiModelTier: toText(payload?.aiModelTier),
+    instructionSource: instructionDocument.source,
+    instructionPath: instructionDocument.path,
+    instructionHash: instructionDocument.hash,
+    generationNotesHash: hashText(toText(payload?.generationNotes)),
+    cardTextLevelsHash: hashText(JSON.stringify(payload?.cardTextLevels || {})),
+    imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
+  };
+};
+
+const buildCreateAutofillDebug = (payload, modelProfile) => {
+  const instructionDocument = resolveInstructionDocument({
+    inlineText: "",
+    instructionPath: payload?.autofillInstructionPromptPath,
+  });
+  return {
+    flow: "create_autofill",
+    model: toText(modelProfile?.model),
+    reasoningEffort: toText(modelProfile?.reasoningEffort),
+    instructionSource: instructionDocument.source,
+    instructionPath: instructionDocument.path,
+    instructionHash: instructionDocument.hash,
+    imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
+  };
 };
 
 const isImprovePromptRequest = (payload) => {
@@ -768,9 +831,16 @@ const createOpenAIProvider = (config) => {
       });
 
       const parsed = await callChatJson(messages, modelProfile);
-      return {
+      const result = {
         prompt: toText(parsed?.prompt),
       };
+      if (payload?.debugMode) {
+        result.__debug = {
+          ...buildCreateInstructionDebug(payload, modelProfile),
+          promptHash: hashText(toText(parsed?.prompt)),
+        };
+      }
+      return result;
     }
 
     if (isCreateAutofillTextRequestV2(payload)) {
@@ -807,7 +877,16 @@ const createOpenAIProvider = (config) => {
       });
 
       const parsed = await callChatJson(messages, modelProfile);
-      return normalizeCreateAnalyzeResultV2(parsed, payload);
+      const result = normalizeCreateAnalyzeResultV2(parsed, payload);
+      if (payload?.debugMode) {
+        result.__debug = {
+          ...buildCreateAutofillDebug(payload, modelProfile),
+          level1Hash: hashText(JSON.stringify(parsed?.level1 || [])),
+          level2Hash: hashText(JSON.stringify(parsed?.level2 || [])),
+          level3Hash: hashText(JSON.stringify(parsed?.level3 || [])),
+        };
+      }
+      return result;
     }
 
     {

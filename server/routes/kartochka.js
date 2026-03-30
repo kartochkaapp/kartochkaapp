@@ -47,6 +47,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
       cardTextLevels: safeResult.cardTextLevels || null,
+      __debug: safeResult.__debug || null,
     };
   }
 
@@ -59,6 +60,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
       cardTextLevels: safeResult.cardTextLevels || null,
+      __debug: safeResult.__debug || null,
     };
   }
 
@@ -71,6 +73,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
       subjectOnScreen: safeResult.subjectOnScreen || null,
       autofill: safeResult.autofill || null,
       cardTextLevels: safeResult.cardTextLevels || null,
+      __debug: safeResult.__debug || null,
     };
   }
 
@@ -82,6 +85,7 @@ const normalizeCreateAnalyzeResult = (result, intent) => {
     subjectOnScreen: safeResult.subjectOnScreen || null,
     autofill: safeResult.autofill || null,
     cardTextLevels: safeResult.cardTextLevels || null,
+    __debug: safeResult.__debug || null,
   };
 };
 

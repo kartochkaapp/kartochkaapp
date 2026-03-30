@@ -1,7 +1,15 @@
 "use strict";
 
+const crypto = require("node:crypto");
+
 const { HttpClientError, requestJson } = require("../http-client");
 const { toText, extractJsonObject, clamp } = require("../utils");
+
+const hashText = (value) => {
+  const source = String(value || "");
+  if (!source) return "";
+  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
+};
 
 class OpenRouterProviderError extends Error {
   /**
@@ -742,6 +750,16 @@ const createGenerate = async (payload) => {
           : "Пользовательский промпт отправлен в image AI как есть",
         promptPreview,
         downloadName: (instructionPromptMode ? "kartochka-best-" : "kartochka-custom-prompt-") + String(variantNumber) + ".png",
+        __debug: payload?.debugMode
+          ? {
+            flow: "create_generate",
+            imageModel: model,
+            promptMode: toText(payload?.promptMode),
+            aiModelTier: toText(payload?.aiModelTier),
+            promptHash: hashText(rawPrompt),
+            imageCount: inputImages.filter(Boolean).length,
+          }
+          : undefined,
       });
     }
 
@@ -789,6 +807,14 @@ const createGenerate = async (payload) => {
         changes: toText(source?.changes),
         promptPreview,
         downloadName: "kartochka-variant-" + String(variantNumber) + ".png",
+        __debug: payload?.debugMode
+          ? {
+            flow: "create_generate_planner",
+            imageModel: model,
+            promptHash: hashText(toText(payload?.prompt)),
+            imageCount: resolveCreatePreviewCandidatesV2(payload).filter(Boolean).length,
+          }
+          : undefined,
       });
     }
 
@@ -844,6 +870,14 @@ const createGenerate = async (payload) => {
           || "Готовый формат для маркетплейса с чистым CTA.",
         promptPreview,
         downloadName: "kartochka-improved-" + String(variantNumber) + ".png",
+        __debug: payload?.debugMode
+          ? {
+            flow: "improve_generate",
+            imageModel: model,
+            promptHash: hashText(toText(payload?.prompt)),
+            imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
+          }
+          : undefined,
       });
     }
 
