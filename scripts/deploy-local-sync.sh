@@ -42,5 +42,6 @@ EOF
 
 cd "$tmpdir"
 
+npx vercel pull --yes --environment=production --scope "$SCOPE"
 npx vercel build --prod --scope "$SCOPE"
 npx vercel deploy --prebuilt --archive=tgz --prod --yes --scope "$SCOPE"

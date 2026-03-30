@@ -665,7 +665,7 @@
       label: "Хорошая модель",
       billingActionCode: "create_generate_best_good",
       openAiModel: "gpt-5.4-mini",
-      reasoningEffort: "medium",
+      reasoningEffort: "high",
     }),
     best: Object.freeze({
       id: "best",
@@ -3296,6 +3296,7 @@
       customPrompt: customPromptText,
       cardTextLevels: buildCreateCardTextLevelsPayload(),
       contentCardText: buildCreateContentCardText(),
+      generationNotes: buildCreateGenerationNotesValue(),
       instructionDocumentText: createInstructionDocumentText,
       instructionDocumentName: createInstructionDocumentName,
       aiModelTier: getCreateBestModelOption().id,
@@ -3364,8 +3365,8 @@
         intent: "prompt",
         ...(contextExtras && typeof contextExtras === "object" ? contextExtras : {}),
       });
-      const prompt = (response?.prompt || "").trim();
-      if (prompt) return prompt;
+      const prompt = typeof response?.prompt === "string" ? response.prompt : "";
+      if (prompt.trim()) return prompt;
       throw new Error("Некорректный ответ createAnalyze: отсутствует промпт.");
     }
     if (serviceClient?.ai?.generatePrompt) {
@@ -5126,8 +5127,9 @@
     syncCreateLegacyFields();
     const selectedTemplate = getCreateSelectedTemplate();
     if (usesCreateInstructionPromptFlow(selectedTemplate)) {
-      const aiPrompt = (createAiPromptOutput?.value || "").trim();
-      if (aiPrompt) return aiPrompt;
+      const aiPrompt = typeof createAiPromptOutput?.value === "string" ? createAiPromptOutput.value : "";
+      if (aiPrompt.trim()) return aiPrompt;
+      return "";
     }
 
     if (isCreateDirectPromptSelected()) {

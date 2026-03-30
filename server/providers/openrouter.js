@@ -227,7 +227,6 @@ const resolveCreatePreviewCandidatesV2 = (payload) => {
   return [
     ...(Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls : []),
     ...(Array.isArray(payload?.imagePreviewUrls) ? payload.imagePreviewUrls : []),
-    toText(payload?.referencePreviewUrl),
   ]
     .map((item) => toText(item))
     .filter(Boolean);
@@ -531,6 +530,17 @@ const buildResponseDebug = (value, maxLength = 1200) => {
     responseHash: hashText(text),
     responsePreview: text.slice(0, maxLength),
     responseLength: text.length,
+    responseText: text,
+  };
+};
+
+const buildRequestDebug = (value, maxLength = 1200) => {
+  const text = toText(value);
+  return {
+    requestHash: hashText(text),
+    requestPreview: text.slice(0, maxLength),
+    requestLength: text.length,
+    requestText: text,
   };
 };
 
@@ -749,6 +759,7 @@ const createGenerate = async (payload) => {
 
     for (let index = 0; index < variantsCount; index += 1) {
       const variantNumber = index + 1;
+      const requestText = rawPrompt;
       const imageResponse = await callImageGeneration([
         {
           role: "user",
@@ -780,9 +791,11 @@ const createGenerate = async (payload) => {
             aiModelTier: toText(payload?.aiModelTier),
             promptHash: hashText(rawPrompt),
             imageCount: inputImages.filter(Boolean).length,
+            ...buildRequestDebug(requestText),
             responseHash: toText(imageResponse?.debug?.responseHash),
             responsePreview: toText(imageResponse?.debug?.responsePreview),
             responseLength: Number(imageResponse?.debug?.responseLength) || 0,
+            responseText: toText(imageResponse?.debug?.responseText),
           }
           : undefined,
       });
@@ -791,14 +804,15 @@ const createGenerate = async (payload) => {
     return results;
   }
 
-  const { parsed, debug: apiResponseDebug } = await callChatJson([
+    const planningRequestText = buildCreateGenerateUserTextV2(payload);
+    const { parsed, debug: apiResponseDebug } = await callChatJson([
       {
         role: "system",
         content: CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 + "\nReturn only strict JSON with the requested planning structure.",
       },
       {
         role: "user",
-        content: buildImageMessageContent(buildCreateGenerateUserTextV2(payload), resolveCreatePreviewCandidatesV2(payload)),
+        content: buildImageMessageContent(planningRequestText, resolveCreatePreviewCandidatesV2(payload)),
       },
     ]);
 
@@ -839,9 +853,17 @@ const createGenerate = async (payload) => {
             imageModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: resolveCreatePreviewCandidatesV2(payload).filter(Boolean).length,
+            ...buildRequestDebug([
+              "SYSTEM:",
+              CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 + "\nReturn only strict JSON with the requested planning structure.",
+              "",
+              "USER:",
+              planningRequestText,
+            ].join("\n")),
             responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash),
             responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview),
             responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || 0,
+            responseText: toText(apiResponseDebug?.responseText || previewResult?.__debug?.responseText),
           }
           : undefined,
       });
@@ -852,6 +874,7 @@ const createGenerate = async (payload) => {
 
   const improveGenerate = async (payload) => {
     const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
+    const improveRequestText = buildImproveGenerateUserText(payload);
     const { parsed, debug: apiResponseDebug } = await callChatJson([
       {
         role: "system",
@@ -859,7 +882,7 @@ const createGenerate = async (payload) => {
       },
       {
         role: "user",
-        content: buildImproveGenerateUserText(payload),
+        content: improveRequestText,
       },
     ]);
 
@@ -906,9 +929,17 @@ const createGenerate = async (payload) => {
             imageModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
+            ...buildRequestDebug([
+              "SYSTEM:",
+              "Ты AI-дизайнер, который улучшает продающие карточки товара. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
+              "",
+              "USER:",
+              improveRequestText,
+            ].join("\n")),
             responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash),
             responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview),
             responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || 0,
+            responseText: toText(apiResponseDebug?.responseText || previewResult?.__debug?.responseText),
           }
           : undefined,
       });

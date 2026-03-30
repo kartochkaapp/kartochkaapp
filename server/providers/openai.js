@@ -20,6 +20,17 @@ const buildResponseDebug = (value, maxLength = 1200) => {
     responseHash: hashText(text),
     responsePreview: text.slice(0, maxLength),
     responseLength: text.length,
+    responseText: text,
+  };
+};
+
+const buildRequestDebug = (value, maxLength = 1200) => {
+  const text = toText(value);
+  return {
+    requestHash: hashText(text),
+    requestPreview: text.slice(0, maxLength),
+    requestLength: text.length,
+    requestText: text,
   };
 };
 
@@ -290,30 +301,19 @@ const normalizeAutofillLevelLines = (value) => {
 
 const buildCreateInstructionPromptUserTextV2 = (payload) => {
   const instructionText = formatCreateTemplateInstructionTextV2(payload) || "(пусто)";
-  const cardPlacementText = formatCreateCardPlacementTextV2(payload);
+  const cardPlacementText = toText(payload?.userText) || formatCreateCardPlacementTextV2(payload);
   const generationNotes = toText(payload?.generationNotes) || "(пусто)";
 
   return [
-    "Задача: по инструкции шаблона, фото товара и пользовательскому тексту для карточки собери один финальный prompt для image AI.",
-    "Верни только валидный JSON со следующей структурой:",
-    "{",
-    '  "prompt": string',
-    "}",
-    "Правила:",
-    "- фото товара — главный источник правды о товаре",
-    "- пользовательский текст ниже нужно разместить на карточке",
-    "- пожелания к генерации ниже считай важной частью итогового prompt и обязательно учти их при сборке финального prompt",
-    "- не добавляй объяснения, комментарии или markdown",
-    "- верни только один готовый prompt для image AI",
-    "",
-    "Инструкция шаблона:",
-    instructionText,
-    "",
-    "Пользовательский текст для размещения на карточке:",
+    "Напиши промт для товара по инструкции.",
+    "Текст для карточки:",
     cardPlacementText,
     "",
     "Пожелания к генерации:",
     generationNotes,
+    "",
+    "Инструкция:",
+    instructionText,
   ].join("\n");
 };
 
@@ -807,20 +807,79 @@ const createOpenAIProvider = (config) => {
     };
   };
 
+  const callChatText = async (messages, profile) => {
+    if (!apiKey) {
+      throw new OpenAIProviderError({
+        status: 500,
+        code: "openai_missing_key",
+        message: "OPENAI_API_KEY is not configured",
+      });
+    }
+
+    let response;
+    try {
+      response = await requestJson({
+        url: endpoint,
+        method: "POST",
+        timeoutMs,
+        headers: {
+          Authorization: "Bearer " + apiKey,
+        },
+        body: {
+          model: toText(profile?.model) || defaultModel,
+          reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
+          messages,
+        },
+      });
+    } catch (error) {
+      if (error instanceof HttpClientError) {
+        throw new OpenAIProviderError({
+          status: error.status || 502,
+          code: error.code || "openai_upstream_error",
+          message: "OpenAI request failed",
+          retryable: error.retryable,
+          details: error.details,
+          cause: error,
+        });
+      }
+      throw new OpenAIProviderError({
+        status: 502,
+        code: "openai_request_failed",
+        message: "OpenAI request failed",
+        cause: error,
+      });
+    }
+
+    const assistantText = extractMessageText(response);
+    if (!assistantText) {
+      throw new OpenAIProviderError({
+        status: 502,
+        code: "openai_empty_text",
+        message: "OpenAI response did not contain text",
+      });
+    }
+
+    return {
+      text: assistantText,
+      debug: buildResponseDebug(assistantText),
+    };
+  };
+
   const createAnalyze = async (payload) => {
     const modelProfile = resolveModelProfile(payload);
     if (isCreateInstructionPromptRequestV2(payload)) {
+      const requestText = buildCreateInstructionPromptUserTextV2(payload);
       const messages = [
         {
           role: "system",
-          content: "Ты собираешь один готовый prompt для image AI. Возвращай только строгий JSON.",
+          content: "Напиши промт по инструкции.",
         },
       ];
 
       const userContent = [
         {
           type: "text",
-          text: buildCreateInstructionPromptUserTextV2(payload),
+          text: requestText,
         },
       ];
 
@@ -842,14 +901,21 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
+      const { text: assistantText, debug: apiResponseDebug } = await callChatText(messages, modelProfile);
       const result = {
-        prompt: toText(parsed?.prompt),
+        prompt: assistantText,
       };
       if (payload?.debugMode) {
         result.__debug = {
           ...buildCreateInstructionDebug(payload, modelProfile),
-          promptHash: hashText(toText(parsed?.prompt)),
+          ...buildRequestDebug([
+            "SYSTEM:",
+            "Напиши промт по инструкции.",
+            "",
+            "USER:",
+            requestText,
+          ].join("\n")),
+          promptHash: hashText(assistantText),
           ...apiResponseDebug,
         };
       }

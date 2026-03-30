@@ -1,7 +1,5 @@
 "use strict";
 
-const crypto = require("node:crypto");
-
 const { toText } = require("../utils");
 const { ApiRouteError } = require("./kartochka");
 
@@ -21,12 +19,6 @@ const ensureObject = (value, message) => {
 
 const isSupportedImageDataUrl = (value) => {
   return /^data:image\/(?:png|jpe?g|webp);base64,/i.test(String(value || "").trim());
-};
-
-const hashText = (value) => {
-  const source = String(value || "");
-  if (!source) return "";
-  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
 };
 
 const recordAiLog = async (aiLogService, entry) => {
@@ -79,6 +71,15 @@ const createEnhanceCardHandler = (deps) => {
     }
 
     const userPrompt = toText(requestBody.userPrompt || requestBody.prompt).trim();
+    const improvePayload = {
+      analysisIntent: "prompt",
+      improveInstructionPromptPath: IMPROVE_INSTRUCTION_PATH,
+      imageDataUrl,
+      sourcePreviewUrl: imageDataUrl,
+      userPrompt,
+      prompt: userPrompt,
+      debugMode: true,
+    };
     try {
       return await billingService.runBillableAction({
         actionCode: "enhance_card",
@@ -88,14 +89,7 @@ const createEnhanceCardHandler = (deps) => {
           flow: "improve_prompt_then_generate",
         },
         operation: async () => {
-          const promptResult = await openaiBrainService.improveAnalyze({
-            analysisIntent: "prompt",
-            improveInstructionPromptPath: IMPROVE_INSTRUCTION_PATH,
-            imageDataUrl,
-            sourcePreviewUrl: imageDataUrl,
-            userPrompt,
-            prompt: userPrompt,
-          });
+          const promptResult = await openaiBrainService.improveAnalyze(improvePayload);
 
           await recordAiLog(aiLogService, {
             action: "enhanceCardPrompt",
@@ -108,12 +102,8 @@ const createEnhanceCardHandler = (deps) => {
             instructionSource: toText(promptResult?.__debug?.instructionSource),
             instructionPath: toText(promptResult?.__debug?.instructionPath || IMPROVE_INSTRUCTION_PATH),
             instructionHash: toText(promptResult?.__debug?.instructionHash),
-            promptHash: toText(promptResult?.__debug?.promptHash || hashText(promptResult?.prompt)),
-            promptPreview: toText(promptResult?.prompt).slice(0, 1200),
-            promptLength: toText(promptResult?.prompt).length,
-            responseHash: toText(promptResult?.__debug?.responseHash),
-            responsePreview: toText(promptResult?.__debug?.responsePreview),
-            responseLength: Number(promptResult?.__debug?.responseLength) || 0,
+            requestText: toText(promptResult?.__debug?.requestText),
+            responseText: toText(promptResult?.__debug?.responseText),
             imageCount: 1,
             userIdHint: toText(requestContext?.userIdHint),
             userEmailHint: toText(requestContext?.userEmailHint),
@@ -139,12 +129,8 @@ const createEnhanceCardHandler = (deps) => {
             provider: "openrouter",
             status: "success",
             requestId: toText(requestBody.requestId),
-            promptHash: hashText(prompt),
-            promptPreview: prompt.slice(0, 1200),
-            promptLength: prompt.length,
-            responseHash: toText(result?.result?.__debug?.responseHash),
-            responsePreview: toText(result?.result?.__debug?.responsePreview),
-            responseLength: Number(result?.result?.__debug?.responseLength) || 0,
+            requestText: toText(result?.result?.__debug?.requestText),
+            responseText: toText(result?.result?.__debug?.responseText),
             imageCount: 1,
             userIdHint: toText(requestContext?.userIdHint),
             userEmailHint: toText(requestContext?.userEmailHint),
@@ -160,9 +146,7 @@ const createEnhanceCardHandler = (deps) => {
         provider: "",
         status: "error",
         requestId: toText(requestBody.requestId),
-        promptHash: hashText(userPrompt),
-        promptPreview: userPrompt.slice(0, 1200),
-        promptLength: userPrompt.length,
+        requestText: userPrompt,
         imageCount: 1,
         errorCode: toText(error?.code),
         errorMessage: toText(error?.message),

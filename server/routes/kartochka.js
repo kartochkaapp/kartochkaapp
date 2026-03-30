@@ -1,7 +1,5 @@
 ﻿"use strict";
 
-const crypto = require("node:crypto");
-
 const { toText } = require("../utils");
 
 class ApiRouteError extends Error {
@@ -33,16 +31,6 @@ const ensureObject = (value, message) => {
   return value;
 };
 
-const hashText = (value) => {
-  const source = String(value || "");
-  if (!source) return "";
-  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
-};
-
-const buildPromptPreview = (value, maxLength = 1200) => {
-  return toText(value).slice(0, maxLength);
-};
-
 const buildActorMeta = (requestContext) => {
   return {
     userIdHint: toText(requestContext?.userIdHint),
@@ -62,7 +50,6 @@ const recordAiLog = async (aiLogService, entry) => {
 const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, error }) => {
   const debug = result?.__debug && typeof result.__debug === "object" ? result.__debug : {};
   const phase = toText(context?.intent || payload?.analysisIntent || "analyze");
-  const prompt = toText(result?.prompt);
 
   return {
     action: "createAnalyze",
@@ -76,12 +63,8 @@ const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, 
     instructionSource: toText(debug.instructionSource),
     instructionPath: toText(debug.instructionPath || payload?.instructionPromptPath || payload?.autofillInstructionPromptPath),
     instructionHash: toText(debug.instructionHash),
-    promptHash: toText(debug.promptHash || hashText(prompt)),
-    promptPreview: buildPromptPreview(prompt),
-    promptLength: prompt.length,
-    responseHash: toText(debug.responseHash),
-    responsePreview: toText(debug.responsePreview),
-    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    requestText: toText(debug.requestText),
+    responseText: toText(debug.responseText),
     imageCount: Number.isFinite(Number(debug.imageCount))
       ? Number(debug.imageCount)
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
@@ -101,7 +84,6 @@ const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, 
 const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }) => {
   const firstResult = Array.isArray(results) ? results[0] : null;
   const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
-  const prompt = toText(payload?.prompt || payload?.customPrompt);
 
   return {
     action: "createGenerate",
@@ -111,13 +93,9 @@ const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }
     requestId: toText(payload?.requestId),
     aiModelTier: toText(payload?.aiModelTier || debug.aiModelTier),
     imageModel: toText(debug.imageModel),
+    requestText: toText(debug.requestText),
     promptMode: toText(payload?.promptMode || debug.promptMode),
-    promptHash: toText(debug.promptHash || hashText(prompt)),
-    promptPreview: buildPromptPreview(prompt),
-    promptLength: prompt.length,
-    responseHash: toText(debug.responseHash),
-    responsePreview: toText(debug.responsePreview),
-    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    responseText: toText(debug.responseText),
     imageCount: Number.isFinite(Number(debug.imageCount))
       ? Number(debug.imageCount)
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
@@ -137,7 +115,6 @@ const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }
 
 const buildImproveAnalyzeLogEntry = ({ payload, requestContext, result, error }) => {
   const debug = result?.__debug && typeof result.__debug === "object" ? result.__debug : {};
-  const prompt = toText(result?.prompt);
 
   return {
     action: "improveAnalyze",
@@ -150,12 +127,8 @@ const buildImproveAnalyzeLogEntry = ({ payload, requestContext, result, error })
     instructionSource: toText(debug.instructionSource),
     instructionPath: toText(debug.instructionPath || payload?.improveInstructionPromptPath || payload?.instructionPromptPath),
     instructionHash: toText(debug.instructionHash),
-    promptHash: toText(debug.promptHash || hashText(prompt)),
-    promptPreview: buildPromptPreview(prompt),
-    promptLength: prompt.length,
-    responseHash: toText(debug.responseHash),
-    responsePreview: toText(debug.responsePreview),
-    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    requestText: toText(debug.requestText),
+    responseText: toText(debug.responseText),
     imageCount: Number.isFinite(Number(debug.imageCount))
       ? Number(debug.imageCount)
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
@@ -168,7 +141,6 @@ const buildImproveAnalyzeLogEntry = ({ payload, requestContext, result, error })
 const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error }) => {
   const firstResult = Array.isArray(results) ? results[0] : null;
   const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
-  const prompt = toText(payload?.prompt || payload?.userPrompt);
 
   return {
     action: "improveGenerate",
@@ -177,12 +149,8 @@ const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error 
     status: error ? "error" : "success",
     requestId: toText(payload?.requestId),
     imageModel: toText(debug.imageModel),
-    promptHash: toText(debug.promptHash || hashText(prompt)),
-    promptPreview: buildPromptPreview(prompt),
-    promptLength: prompt.length,
-    responseHash: toText(debug.responseHash),
-    responsePreview: toText(debug.responsePreview),
-    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    requestText: toText(debug.requestText),
+    responseText: toText(debug.responseText),
     imageCount: Number.isFinite(Number(debug.imageCount))
       ? Number(debug.imageCount)
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
@@ -313,10 +281,11 @@ const createKartochkaHandlers = (deps) => {
     async createAnalyze(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid createAnalyze request body");
       const payload = ensureObject(requestBody.payload || {}, "createAnalyze payload must be an object");
+      const payloadForProvider = { ...payload, debugMode: true };
       const context = requestBody.context && typeof requestBody.context === "object" ? requestBody.context : {};
       const billingActionCode = resolveCreateAnalyzeBillingAction(context);
       const operation = async () => {
-        const result = await openaiBrainService.createAnalyze(payload, context);
+        const result = await openaiBrainService.createAnalyze(payloadForProvider, context);
         return normalizeCreateAnalyzeResult(result, context.intent);
       };
 
@@ -324,7 +293,7 @@ const createKartochkaHandlers = (deps) => {
         try {
           const result = await operation();
           await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
-            payload,
+            payload: payloadForProvider,
             context,
             requestContext,
             result,
@@ -332,7 +301,7 @@ const createKartochkaHandlers = (deps) => {
           return result;
         } catch (error) {
           await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
-            payload,
+            payload: payloadForProvider,
             context,
             requestContext,
             error,
@@ -353,7 +322,7 @@ const createKartochkaHandlers = (deps) => {
           operation,
         });
         await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
-          payload,
+          payload: payloadForProvider,
           context,
           requestContext,
           result,
@@ -361,7 +330,7 @@ const createKartochkaHandlers = (deps) => {
         return result;
       } catch (error) {
         await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
-          payload,
+          payload: payloadForProvider,
           context,
           requestContext,
           error,
@@ -373,26 +342,27 @@ const createKartochkaHandlers = (deps) => {
     async createGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid createGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "createGenerate payload must be an object");
+      const payloadForProvider = { ...payload, debugMode: true };
       try {
         const result = await billingService.runBillableAction({
-          actionCode: resolveCreateGenerateBillingAction(payload),
+          actionCode: resolveCreateGenerateBillingAction(payloadForProvider),
           requestContext,
-          requestId: requestBody.requestId || payload.requestId,
+          requestId: requestBody.requestId || payloadForProvider.requestId,
           meta: {
-            promptMode: toText(payload.promptMode),
-            templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
+            promptMode: toText(payloadForProvider.promptMode),
+            templateId: toText(payloadForProvider?.selectedTemplate?.id || payloadForProvider?.reference?.id),
           },
-          operation: async () => generationService.createGenerate(payload),
+          operation: async () => generationService.createGenerate(payloadForProvider),
         });
         await recordAiLog(aiLogService, buildCreateGenerateLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           results: result,
         }));
         return result;
       } catch (error) {
         await recordAiLog(aiLogService, buildCreateGenerateLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           error,
         }));
@@ -403,22 +373,23 @@ const createKartochkaHandlers = (deps) => {
     async improveAnalyze(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveAnalyze request body");
       const payload = ensureObject(requestBody.payload || {}, "improveAnalyze payload must be an object");
+      const payloadForProvider = { ...payload, debugMode: true };
       try {
         const result = await billingService.runBillableAction({
           actionCode: "improve_analyze",
           requestContext,
-          requestId: requestBody.requestId || payload.requestId,
-          operation: async () => openaiBrainService.improveAnalyze(payload),
+          requestId: requestBody.requestId || payloadForProvider.requestId,
+          operation: async () => openaiBrainService.improveAnalyze(payloadForProvider),
         });
         await recordAiLog(aiLogService, buildImproveAnalyzeLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           result,
         }));
         return result;
       } catch (error) {
         await recordAiLog(aiLogService, buildImproveAnalyzeLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           error,
         }));
@@ -429,22 +400,23 @@ const createKartochkaHandlers = (deps) => {
     async improveGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "improveGenerate payload must be an object");
+      const payloadForProvider = { ...payload, debugMode: true };
       try {
         const result = await billingService.runBillableAction({
           actionCode: "improve_generate",
           requestContext,
-          requestId: requestBody.requestId || payload.requestId,
-          operation: async () => generationService.improveGenerate(payload),
+          requestId: requestBody.requestId || payloadForProvider.requestId,
+          operation: async () => generationService.improveGenerate(payloadForProvider),
         });
         await recordAiLog(aiLogService, buildImproveGenerateLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           results: result,
         }));
         return result;
       } catch (error) {
         await recordAiLog(aiLogService, buildImproveGenerateLogEntry({
-          payload,
+          payload: payloadForProvider,
           requestContext,
           error,
         }));
