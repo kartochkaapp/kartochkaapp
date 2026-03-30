@@ -14,6 +14,15 @@ const hashText = (value) => {
   return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
 };
 
+const buildResponseDebug = (value, maxLength = 1200) => {
+  const text = toText(value);
+  return {
+    responseHash: hashText(text),
+    responsePreview: text.slice(0, maxLength),
+    responseLength: text.length,
+  };
+};
+
 const resolveInstructionDocument = ({ inlineText, instructionPath }) => {
   const normalizedInlineText = toText(inlineText);
   if (normalizedInlineText) {
@@ -792,7 +801,10 @@ const createOpenAIProvider = (config) => {
         },
       });
     }
-    return parsed;
+    return {
+      parsed,
+      debug: buildResponseDebug(assistantText),
+    };
   };
 
   const createAnalyze = async (payload) => {
@@ -830,7 +842,7 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages, modelProfile);
+      const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
       const result = {
         prompt: toText(parsed?.prompt),
       };
@@ -838,6 +850,7 @@ const createOpenAIProvider = (config) => {
         result.__debug = {
           ...buildCreateInstructionDebug(payload, modelProfile),
           promptHash: hashText(toText(parsed?.prompt)),
+          ...apiResponseDebug,
         };
       }
       return result;
@@ -876,7 +889,7 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages, modelProfile);
+      const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
       const result = normalizeCreateAnalyzeResultV2(parsed, payload);
       if (payload?.debugMode) {
         result.__debug = {
@@ -884,6 +897,7 @@ const createOpenAIProvider = (config) => {
           level1Hash: hashText(JSON.stringify(parsed?.level1 || [])),
           level2Hash: hashText(JSON.stringify(parsed?.level2 || [])),
           level3Hash: hashText(JSON.stringify(parsed?.level3 || [])),
+          ...apiResponseDebug,
         };
       }
       return result;
@@ -934,8 +948,15 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages, modelProfile);
-      return normalizeCreateAnalyzeResultV2(parsed, payload);
+      const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
+      const result = normalizeCreateAnalyzeResultV2(parsed, payload);
+      if (payload?.debugMode) {
+        result.__debug = {
+          ...(result.__debug && typeof result.__debug === "object" ? result.__debug : {}),
+          ...apiResponseDebug,
+        };
+      }
+      return result;
     }
 
     const messages = [
@@ -971,8 +992,15 @@ const createOpenAIProvider = (config) => {
       content: userContent,
     });
 
-    const parsed = await callChatJson(messages, modelProfile);
-    return normalizeCreateAnalyzeResult(parsed, payload);
+    const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
+    const result = normalizeCreateAnalyzeResult(parsed, payload);
+    if (payload?.debugMode) {
+      result.__debug = {
+        ...(result.__debug && typeof result.__debug === "object" ? result.__debug : {}),
+        ...apiResponseDebug,
+      };
+    }
+    return result;
   };
 
   const improveAnalyze = async (payload) => {
@@ -1012,8 +1040,15 @@ const createOpenAIProvider = (config) => {
         content: userContent,
       });
 
-      const parsed = await callChatJson(messages, modelProfile);
-      return normalizeImproveAnalyzeResult(parsed, payload);
+      const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
+      const result = normalizeImproveAnalyzeResult(parsed, payload);
+      if (payload?.debugMode) {
+        result.__debug = {
+          ...(result.__debug && typeof result.__debug === "object" ? result.__debug : {}),
+          ...apiResponseDebug,
+        };
+      }
+      return result;
     }
 
     const messages = [
@@ -1050,8 +1085,15 @@ const createOpenAIProvider = (config) => {
       content: userContent,
     });
 
-    const parsed = await callChatJson(messages, modelProfile);
-    return normalizeImproveAnalyzeResult(parsed, payload);
+    const { parsed, debug: apiResponseDebug } = await callChatJson(messages, modelProfile);
+    const result = normalizeImproveAnalyzeResult(parsed, payload);
+    if (payload?.debugMode) {
+      result.__debug = {
+        ...(result.__debug && typeof result.__debug === "object" ? result.__debug : {}),
+        ...apiResponseDebug,
+      };
+    }
+    return result;
   };
 
   return {

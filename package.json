@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy:prod": "zsh ./scripts/deploy-local-sync.sh"
   },
   "engines": {
     "node": ">=18"

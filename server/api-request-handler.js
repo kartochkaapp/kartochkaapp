@@ -7,6 +7,7 @@ const { OpenRouterProviderError } = require("./providers/openrouter");
 const { OpenAIBrainServiceError } = require("./services/openai-brain-service");
 const { GenerationServiceError } = require("./services/generation-service");
 const { HistoryServiceError } = require("./services/history-service");
+const { AiLogServiceError } = require("./services/ai-log-service");
 const { NanoBananaServiceError } = require("./services/nano-banana-service");
 const { BillingServiceError } = require("./services/billing-service");
 const { getRuntimeServices } = require("./runtime-services");
@@ -125,6 +126,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof OpenAIBrainServiceError
     || error instanceof GenerationServiceError
     || error instanceof HistoryServiceError
+    || error instanceof AiLogServiceError
     || error instanceof NanoBananaServiceError
     || error instanceof BillingServiceError
   ) {

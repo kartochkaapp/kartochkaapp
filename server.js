@@ -14,6 +14,7 @@ const { createOpenRouterGenerationAdapter } = require("./server/adapters/openrou
 const { OpenAIBrainServiceError, createOpenAIBrainService } = require("./server/services/openai-brain-service");
 const { GenerationServiceError, createGenerationService } = require("./server/services/generation-service");
 const { HistoryServiceError, createHistoryService } = require("./server/services/history-service");
+const { AiLogServiceError, createAiLogService } = require("./server/services/ai-log-service");
 const { NanoBananaServiceError, createNanoBananaService } = require("./server/services/nano-banana-service");
 const { BillingServiceError, createBillingService } = require("./server/services/billing-service");
 const { OpenAIProviderError } = require("./server/providers/openai");
@@ -71,6 +72,12 @@ const historyService = createHistoryService({
   filePath: path.join(runtime.app.rootDir, "server", "data", "history-store.json"),
   maxItems: 30,
 });
+const aiLogService = createAiLogService({
+  rootDir: runtime.app.rootDir,
+  filePath: path.join(runtime.app.rootDir, "server", "data", "ai-log-store.json"),
+  maxItems: 400,
+  firebaseAdmin: runtime.firebaseAdmin,
+});
 const billingService = createBillingService({
   rootDir: runtime.app.rootDir,
   starterTokens: runtime.billing.starterTokens,
@@ -86,11 +93,13 @@ const kartochkaHandlers = createKartochkaHandlers({
   generationService,
   historyService,
   billingService,
+  aiLogService,
 });
 const enhanceCardHandler = createEnhanceCardHandler({
   nanoBananaService,
   openaiBrainService,
   billingService,
+  aiLogService,
 });
 
 const sendJson = (response, statusCode, payload) => {
@@ -262,6 +271,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof OpenAIBrainServiceError
     || error instanceof GenerationServiceError
     || error instanceof HistoryServiceError
+    || error instanceof AiLogServiceError
     || error instanceof NanoBananaServiceError
     || error instanceof BillingServiceError
   ) {
@@ -338,6 +348,8 @@ const dispatchKartochkaApi = async (pathname, body, requestContext) => {
       return kartochkaHandlers.billingSummary(body, requestContext);
     case "/api/kartochka/redeemPromo":
       return kartochkaHandlers.redeemPromo(body, requestContext);
+    case "/api/kartochka/aiLogs":
+      return kartochkaHandlers.aiLogs(body, requestContext);
     default:
       throw new ApiRouteError({
         status: 404,

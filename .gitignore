@@ -8,7 +8,9 @@ tmp_server_err.log
 __head_app.js
 server/data/history-store.json
 server/data/billing-store.json
+server/data/ai-log-store.json
 .DS_Store
 **/.DS_Store
 
 .vercel
+.tmp-deploy-local-sync.sh

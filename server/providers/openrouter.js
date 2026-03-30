@@ -525,6 +525,15 @@ const normalizeVariantList = (parsed) => {
   return [];
 };
 
+const buildResponseDebug = (value, maxLength = 1200) => {
+  const text = toText(value);
+  return {
+    responseHash: hashText(text),
+    responsePreview: text.slice(0, maxLength),
+    responseLength: text.length,
+  };
+};
+
 const resolvePreviewCandidates = (payload, mode) => {
   if (mode === "improve") {
     return [
@@ -609,7 +618,10 @@ const createOpenRouterProvider = (config) => {
       });
     }
 
-    return parsed;
+    return {
+      parsed,
+      debug: buildResponseDebug(assistantText),
+    };
   };
 
   const callImageGeneration = async (messages) => {
@@ -673,7 +685,14 @@ const createOpenRouterProvider = (config) => {
       });
     }
 
-    return imageUrls;
+    const responseText = extractMessageText(response);
+    return {
+      imageUrls,
+      debug: {
+        ...buildResponseDebug(responseText),
+        imageCount: imageUrls.length,
+      },
+    };
   };
 
   const generateVariantPreview = async (params) => {
@@ -689,7 +708,7 @@ const createOpenRouterProvider = (config) => {
       ? buildImproveVariantImagePrompt(payload, variant, variantNumber)
       : buildCreateVariantImagePromptV2(payload, variant, variantNumber);
 
-    const responseImages = await callImageGeneration([
+    const imageResponse = await callImageGeneration([
       {
         role: "system",
         content: mode === "improve"
@@ -702,7 +721,10 @@ const createOpenRouterProvider = (config) => {
       },
     ]);
 
-    return responseImages[0] || "";
+    return {
+      previewUrl: imageResponse?.imageUrls?.[0] || "",
+      __debug: imageResponse?.debug || null,
+    };
   };
 
 const createGenerate = async (payload) => {
@@ -727,13 +749,13 @@ const createGenerate = async (payload) => {
 
     for (let index = 0; index < variantsCount; index += 1) {
       const variantNumber = index + 1;
-      const responseImages = await callImageGeneration([
+      const imageResponse = await callImageGeneration([
         {
           role: "user",
           content: buildImageMessageContent(rawPrompt, inputImages),
         },
       ]);
-      const previewUrl = responseImages[0] || "";
+      const previewUrl = imageResponse?.imageUrls?.[0] || "";
 
       results.push({
         id: "result-" + String(Date.now()) + "-" + String(variantNumber),
@@ -758,6 +780,9 @@ const createGenerate = async (payload) => {
             aiModelTier: toText(payload?.aiModelTier),
             promptHash: hashText(rawPrompt),
             imageCount: inputImages.filter(Boolean).length,
+            responseHash: toText(imageResponse?.debug?.responseHash),
+            responsePreview: toText(imageResponse?.debug?.responsePreview),
+            responseLength: Number(imageResponse?.debug?.responseLength) || 0,
           }
           : undefined,
       });
@@ -766,7 +791,7 @@ const createGenerate = async (payload) => {
     return results;
   }
 
-  const parsed = await callChatJson([
+  const { parsed, debug: apiResponseDebug } = await callChatJson([
       {
         role: "system",
         content: CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2 + "\nReturn only strict JSON with the requested planning structure.",
@@ -787,12 +812,13 @@ const createGenerate = async (payload) => {
       const source = rawVariants[index] || rawVariants[index % Math.max(rawVariants.length, 1)] || {};
       const title = toText(source?.title) || "Вариант " + String(variantNumber);
 
-      const previewUrl = await generateVariantPreview({
+      const previewResult = await generateVariantPreview({
         mode: "create",
         payload,
         variant: source,
         variantNumber,
       });
+      const previewUrl = toText(previewResult?.previewUrl);
 
       results.push({
         id: "result-" + String(Date.now()) + "-" + String(variantNumber),
@@ -813,6 +839,9 @@ const createGenerate = async (payload) => {
             imageModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: resolveCreatePreviewCandidatesV2(payload).filter(Boolean).length,
+            responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash),
+            responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview),
+            responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || 0,
           }
           : undefined,
       });
@@ -823,7 +852,7 @@ const createGenerate = async (payload) => {
 
   const improveGenerate = async (payload) => {
     const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
-    const parsed = await callChatJson([
+    const { parsed, debug: apiResponseDebug } = await callChatJson([
       {
         role: "system",
         content: "Ты AI-дизайнер, который улучшает продающие карточки товара. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
@@ -844,12 +873,13 @@ const createGenerate = async (payload) => {
       const source = rawVariants[index] || rawVariants[index % Math.max(rawVariants.length, 1)] || {};
       const title = toText(source?.title) || "Улучшенный вариант " + String(variantNumber);
 
-      const previewUrl = await generateVariantPreview({
+      const previewResult = await generateVariantPreview({
         mode: "improve",
         payload,
         variant: source,
         variantNumber,
       });
+      const previewUrl = toText(previewResult?.previewUrl);
 
       results.push({
         id: "improve-result-" + String(Date.now()) + "-" + String(variantNumber),
@@ -876,6 +906,9 @@ const createGenerate = async (payload) => {
             imageModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
+            responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash),
+            responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview),
+            responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || 0,
           }
           : undefined,
       });

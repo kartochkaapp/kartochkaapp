@@ -1,5 +1,7 @@
 ﻿"use strict";
 
+const crypto = require("node:crypto");
+
 const { toText } = require("../utils");
 
 class ApiRouteError extends Error {
@@ -29,6 +31,166 @@ const ensureObject = (value, message) => {
     });
   }
   return value;
+};
+
+const hashText = (value) => {
+  const source = String(value || "");
+  if (!source) return "";
+  return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
+};
+
+const buildPromptPreview = (value, maxLength = 1200) => {
+  return toText(value).slice(0, maxLength);
+};
+
+const buildActorMeta = (requestContext) => {
+  return {
+    userIdHint: toText(requestContext?.userIdHint),
+    userEmailHint: toText(requestContext?.userEmailHint),
+  };
+};
+
+const recordAiLog = async (aiLogService, entry) => {
+  if (!aiLogService || typeof aiLogService.record !== "function") return;
+  try {
+    await aiLogService.record(entry);
+  } catch (error) {
+    // Logging should never break the product flow.
+  }
+};
+
+const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, error }) => {
+  const debug = result?.__debug && typeof result.__debug === "object" ? result.__debug : {};
+  const phase = toText(context?.intent || payload?.analysisIntent || "analyze");
+  const prompt = toText(result?.prompt);
+
+  return {
+    action: "createAnalyze",
+    phase,
+    provider: "openai",
+    status: error ? "error" : "success",
+    requestId: toText(context?.requestId || payload?.requestId),
+    aiModelTier: toText(payload?.aiModelTier || debug.aiModelTier),
+    model: toText(debug.model || payload?.openAiModel),
+    reasoningEffort: toText(debug.reasoningEffort || payload?.openAiReasoningEffort),
+    instructionSource: toText(debug.instructionSource),
+    instructionPath: toText(debug.instructionPath || payload?.instructionPromptPath || payload?.autofillInstructionPromptPath),
+    instructionHash: toText(debug.instructionHash),
+    promptHash: toText(debug.promptHash || hashText(prompt)),
+    promptPreview: buildPromptPreview(prompt),
+    promptLength: prompt.length,
+    responseHash: toText(debug.responseHash),
+    responsePreview: toText(debug.responsePreview),
+    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    imageCount: Number.isFinite(Number(debug.imageCount))
+      ? Number(debug.imageCount)
+      : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
+    errorCode: toText(error?.code),
+    errorMessage: toText(error?.message),
+    details: error
+      ? {
+        billingSource: toText(context?.billingSource),
+      }
+      : {
+        billingSource: toText(context?.billingSource),
+      },
+    ...buildActorMeta(requestContext),
+  };
+};
+
+const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }) => {
+  const firstResult = Array.isArray(results) ? results[0] : null;
+  const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
+  const prompt = toText(payload?.prompt || payload?.customPrompt);
+
+  return {
+    action: "createGenerate",
+    phase: "image_generation",
+    provider: "openrouter",
+    status: error ? "error" : "success",
+    requestId: toText(payload?.requestId),
+    aiModelTier: toText(payload?.aiModelTier || debug.aiModelTier),
+    imageModel: toText(debug.imageModel),
+    promptMode: toText(payload?.promptMode || debug.promptMode),
+    promptHash: toText(debug.promptHash || hashText(prompt)),
+    promptPreview: buildPromptPreview(prompt),
+    promptLength: prompt.length,
+    responseHash: toText(debug.responseHash),
+    responsePreview: toText(debug.responsePreview),
+    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    imageCount: Number.isFinite(Number(debug.imageCount))
+      ? Number(debug.imageCount)
+      : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
+    errorCode: toText(error?.code),
+    errorMessage: toText(error?.message),
+    details: error
+      ? {
+        templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
+      }
+      : {
+        templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
+        resultsCount: Array.isArray(results) ? results.length : 0,
+      },
+    ...buildActorMeta(requestContext),
+  };
+};
+
+const buildImproveAnalyzeLogEntry = ({ payload, requestContext, result, error }) => {
+  const debug = result?.__debug && typeof result.__debug === "object" ? result.__debug : {};
+  const prompt = toText(result?.prompt);
+
+  return {
+    action: "improveAnalyze",
+    phase: "prompt_generation",
+    provider: "openai",
+    status: error ? "error" : "success",
+    requestId: toText(payload?.requestId),
+    model: toText(debug.model || payload?.openAiModel),
+    reasoningEffort: toText(debug.reasoningEffort || payload?.openAiReasoningEffort),
+    instructionSource: toText(debug.instructionSource),
+    instructionPath: toText(debug.instructionPath || payload?.improveInstructionPromptPath || payload?.instructionPromptPath),
+    instructionHash: toText(debug.instructionHash),
+    promptHash: toText(debug.promptHash || hashText(prompt)),
+    promptPreview: buildPromptPreview(prompt),
+    promptLength: prompt.length,
+    responseHash: toText(debug.responseHash),
+    responsePreview: toText(debug.responsePreview),
+    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    imageCount: Number.isFinite(Number(debug.imageCount))
+      ? Number(debug.imageCount)
+      : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
+    errorCode: toText(error?.code),
+    errorMessage: toText(error?.message),
+    ...buildActorMeta(requestContext),
+  };
+};
+
+const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error }) => {
+  const firstResult = Array.isArray(results) ? results[0] : null;
+  const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
+  const prompt = toText(payload?.prompt || payload?.userPrompt);
+
+  return {
+    action: "improveGenerate",
+    phase: "image_generation",
+    provider: "openrouter",
+    status: error ? "error" : "success",
+    requestId: toText(payload?.requestId),
+    imageModel: toText(debug.imageModel),
+    promptHash: toText(debug.promptHash || hashText(prompt)),
+    promptPreview: buildPromptPreview(prompt),
+    promptLength: prompt.length,
+    responseHash: toText(debug.responseHash),
+    responsePreview: toText(debug.responsePreview),
+    responseLength: Number.isFinite(Number(debug.responseLength)) ? Number(debug.responseLength) : 0,
+    imageCount: Number.isFinite(Number(debug.imageCount))
+      ? Number(debug.imageCount)
+      : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
+    errorCode: toText(error?.code),
+    errorMessage: toText(error?.message),
+    details: error ? null : { resultsCount: Array.isArray(results) ? results.length : 0 },
+    ...buildActorMeta(requestContext),
+  };
 };
 
 const normalizeCreateAnalyzeResult = (result, intent) => {
@@ -114,6 +276,7 @@ const createKartochkaHandlers = (deps) => {
   const generationService = deps?.generationService;
   const historyService = deps?.historyService;
   const billingService = deps?.billingService;
+  const aiLogService = deps?.aiLogService;
 
   if (
     !openaiBrainService
@@ -158,56 +321,135 @@ const createKartochkaHandlers = (deps) => {
       };
 
       if (!billingActionCode) {
-        return operation();
+        try {
+          const result = await operation();
+          await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
+            payload,
+            context,
+            requestContext,
+            result,
+          }));
+          return result;
+        } catch (error) {
+          await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
+            payload,
+            context,
+            requestContext,
+            error,
+          }));
+          throw error;
+        }
       }
 
-      return billingService.runBillableAction({
-        actionCode: billingActionCode,
-        requestContext,
-        requestId: requestBody.requestId || payload.requestId || context.requestId,
-        meta: {
-          intent: toText(context.intent),
-          billingSource: toText(context.billingSource),
-        },
-        operation,
-      });
+      try {
+        const result = await billingService.runBillableAction({
+          actionCode: billingActionCode,
+          requestContext,
+          requestId: requestBody.requestId || payload.requestId || context.requestId,
+          meta: {
+            intent: toText(context.intent),
+            billingSource: toText(context.billingSource),
+          },
+          operation,
+        });
+        await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
+          payload,
+          context,
+          requestContext,
+          result,
+        }));
+        return result;
+      } catch (error) {
+        await recordAiLog(aiLogService, buildCreateAnalyzeLogEntry({
+          payload,
+          context,
+          requestContext,
+          error,
+        }));
+        throw error;
+      }
     },
 
     async createGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid createGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "createGenerate payload must be an object");
-      return billingService.runBillableAction({
-        actionCode: resolveCreateGenerateBillingAction(payload),
-        requestContext,
-        requestId: requestBody.requestId || payload.requestId,
-        meta: {
-          promptMode: toText(payload.promptMode),
-          templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
-        },
-        operation: async () => generationService.createGenerate(payload),
-      });
+      try {
+        const result = await billingService.runBillableAction({
+          actionCode: resolveCreateGenerateBillingAction(payload),
+          requestContext,
+          requestId: requestBody.requestId || payload.requestId,
+          meta: {
+            promptMode: toText(payload.promptMode),
+            templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
+          },
+          operation: async () => generationService.createGenerate(payload),
+        });
+        await recordAiLog(aiLogService, buildCreateGenerateLogEntry({
+          payload,
+          requestContext,
+          results: result,
+        }));
+        return result;
+      } catch (error) {
+        await recordAiLog(aiLogService, buildCreateGenerateLogEntry({
+          payload,
+          requestContext,
+          error,
+        }));
+        throw error;
+      }
     },
 
     async improveAnalyze(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveAnalyze request body");
       const payload = ensureObject(requestBody.payload || {}, "improveAnalyze payload must be an object");
-      return billingService.runBillableAction({
-        actionCode: "improve_analyze",
-        requestContext,
-        requestId: requestBody.requestId || payload.requestId,
-        operation: async () => openaiBrainService.improveAnalyze(payload),
-      });
+      try {
+        const result = await billingService.runBillableAction({
+          actionCode: "improve_analyze",
+          requestContext,
+          requestId: requestBody.requestId || payload.requestId,
+          operation: async () => openaiBrainService.improveAnalyze(payload),
+        });
+        await recordAiLog(aiLogService, buildImproveAnalyzeLogEntry({
+          payload,
+          requestContext,
+          result,
+        }));
+        return result;
+      } catch (error) {
+        await recordAiLog(aiLogService, buildImproveAnalyzeLogEntry({
+          payload,
+          requestContext,
+          error,
+        }));
+        throw error;
+      }
     },
 
     async improveGenerate(body, requestContext) {
       const requestBody = ensureObject(body, "Invalid improveGenerate request body");
       const payload = ensureObject(requestBody.payload || {}, "improveGenerate payload must be an object");
-      return billingService.runBillableAction({
-        actionCode: "improve_generate",
-        requestContext,
-        requestId: requestBody.requestId || payload.requestId,
-        operation: async () => generationService.improveGenerate(payload),
-      });
+      try {
+        const result = await billingService.runBillableAction({
+          actionCode: "improve_generate",
+          requestContext,
+          requestId: requestBody.requestId || payload.requestId,
+          operation: async () => generationService.improveGenerate(payload),
+        });
+        await recordAiLog(aiLogService, buildImproveGenerateLogEntry({
+          payload,
+          requestContext,
+          results: result,
+        }));
+        return result;
+      } catch (error) {
+        await recordAiLog(aiLogService, buildImproveGenerateLogEntry({
+          payload,
+          requestContext,
+          error,
+        }));
+        throw error;
+      }
     },
 
     async templatePreview(body) {
@@ -248,6 +490,27 @@ const createKartochkaHandlers = (deps) => {
     async redeemPromo(body, requestContext) {
       const requestBody = ensureObject(body || {}, "Invalid redeemPromo request body");
       return billingService.redeemPromoCode(requestContext, requestBody.code);
+    },
+
+    async aiLogs(body) {
+      const requestBody = ensureObject(body || {}, "Invalid aiLogs request body");
+      if (!aiLogService || typeof aiLogService.list !== "function") {
+        throw new ApiRouteError({
+          status: 500,
+          code: "ai_logs_not_configured",
+          message: "AI logs service is not configured",
+        });
+      }
+
+      if (requestBody.clear) {
+        return aiLogService.clear();
+      }
+
+      return {
+        entries: await aiLogService.list({
+          limit: requestBody.limit,
+        }),
+      };
     },
   };
 };

@@ -9,6 +9,7 @@ const { createOpenRouterGenerationAdapter } = require("./adapters/openrouter-gen
 const { createOpenAIBrainService } = require("./services/openai-brain-service");
 const { createGenerationService } = require("./services/generation-service");
 const { createHistoryService } = require("./services/history-service");
+const { createAiLogService } = require("./services/ai-log-service");
 const { createNanoBananaService } = require("./services/nano-banana-service");
 const { createBillingService } = require("./services/billing-service");
 const { createEnhanceCardHandler } = require("./routes/enhance-card");
@@ -22,6 +23,14 @@ const resolveHistoryStoreFilePath = (runtime) => {
   }
 
   return path.join(runtime.app.rootDir, "server", "data", "history-store.json");
+};
+
+const resolveAiLogStoreFilePath = (runtime) => {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join(os.tmpdir(), "kartochka-ai-log-store.json");
+  }
+
+  return path.join(runtime.app.rootDir, "server", "data", "ai-log-store.json");
 };
 
 const getRuntimeServices = () => {
@@ -46,6 +55,12 @@ const getRuntimeServices = () => {
     filePath: resolveHistoryStoreFilePath(runtime),
     maxItems: 30,
   });
+  const aiLogService = createAiLogService({
+    rootDir: runtime.app.rootDir,
+    filePath: resolveAiLogStoreFilePath(runtime),
+    maxItems: 400,
+    firebaseAdmin: runtime.firebaseAdmin,
+  });
   const billingService = createBillingService({
     rootDir: runtime.app.rootDir,
     starterTokens: runtime.billing.starterTokens,
@@ -64,11 +79,13 @@ const getRuntimeServices = () => {
       generationService,
       historyService,
       billingService,
+      aiLogService,
     }),
     enhanceCardHandler: createEnhanceCardHandler({
       nanoBananaService,
       openaiBrainService,
       billingService,
+      aiLogService,
     }),
   };
 
