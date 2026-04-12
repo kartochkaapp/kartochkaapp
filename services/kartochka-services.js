@@ -12,6 +12,11 @@
   const DEFAULT_TIMEOUT_MS = 300000;
   const DEFAULT_HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
   const DEFAULT_HISTORY_MAX_ITEMS = 30;
+  const DEFAULT_BACKGROUND_RETRY_COUNT = 1;
+  const DEFAULT_RETRYABLE_ERROR_RETRY_COUNT = 1;
+  const DEFAULT_RECOVERY_WAIT_MS = 45000;
+  const DEFAULT_RECOVERY_STABILIZE_MS = 650;
+  const DEFAULT_RETRY_DELAY_MS = 750;
 
   const DEFAULT_DELAYS = Object.freeze({
     prompt: 1450,
@@ -54,6 +59,8 @@
   const ERROR_CODES = Object.freeze({
     timeout: "timeout",
     network: "network_error",
+    interrupted: "request_interrupted",
+    aborted: "request_aborted",
     http: "http_error",
     invalidResponse: "invalid_response",
     notConfigured: "not_configured",
@@ -116,6 +123,213 @@
     await new Promise((resolve) => {
       global.setTimeout(resolve, Math.max(0, Number(ms) || 0));
     });
+  };
+
+  const createRequestLifecycleTracker = () => {
+    const hasDocument = Boolean(global.document);
+    const canListen = typeof global.addEventListener === "function";
+    const startedAt = Date.now();
+    const state = {
+      hidden: Boolean(hasDocument && global.document.hidden),
+      backgroundEpoch: Boolean(hasDocument && global.document.hidden) ? 1 : 0,
+      hiddenAt: hasDocument && global.document.hidden ? startedAt : 0,
+      visibleAt: hasDocument && !global.document.hidden ? startedAt : 0,
+      online: typeof global.navigator === "undefined" ? true : global.navigator.onLine !== false,
+      offlineEpoch: typeof global.navigator !== "undefined" && global.navigator.onLine === false ? 1 : 0,
+      offlineAt: typeof global.navigator !== "undefined" && global.navigator.onLine === false ? startedAt : 0,
+      onlineAt: typeof global.navigator === "undefined" || global.navigator.onLine !== false ? startedAt : 0,
+    };
+
+    const markHidden = () => {
+      state.hidden = true;
+      state.backgroundEpoch += 1;
+      state.hiddenAt = Date.now();
+    };
+
+    const markVisible = () => {
+      state.hidden = false;
+      state.visibleAt = Date.now();
+    };
+
+    const markOffline = () => {
+      state.online = false;
+      state.offlineEpoch += 1;
+      state.offlineAt = Date.now();
+    };
+
+    const markOnline = () => {
+      state.online = true;
+      state.onlineAt = Date.now();
+    };
+
+    if (hasDocument && typeof global.document.addEventListener === "function") {
+      global.document.addEventListener("visibilitychange", () => {
+        if (global.document.hidden) {
+          markHidden();
+          return;
+        }
+        markVisible();
+      });
+    }
+
+    if (canListen) {
+      global.addEventListener("pagehide", markHidden);
+      global.addEventListener("pageshow", markVisible);
+      global.addEventListener("freeze", markHidden);
+      global.addEventListener("resume", markVisible);
+      global.addEventListener("offline", markOffline);
+      global.addEventListener("online", markOnline);
+    }
+
+    const getSnapshot = () => {
+      return {
+        hidden: state.hidden,
+        backgroundEpoch: state.backgroundEpoch,
+        hiddenAt: state.hiddenAt,
+        visibleAt: state.visibleAt,
+        online: state.online,
+        offlineEpoch: state.offlineEpoch,
+        offlineAt: state.offlineAt,
+        onlineAt: state.onlineAt,
+      };
+    };
+
+    const isInteractive = () => {
+      const pageVisible = !hasDocument || !global.document.hidden;
+      const networkReady = typeof global.navigator === "undefined" || global.navigator.onLine !== false;
+      return pageVisible && networkReady;
+    };
+
+    const waitUntilInteractive = async (options) => {
+      const timeoutMs = clampInt(options?.timeoutMs, 1000, 120000, DEFAULT_RECOVERY_WAIT_MS);
+      const stabilizeMs = clampInt(options?.stabilizeMs, 0, 5000, DEFAULT_RECOVERY_STABILIZE_MS);
+
+      if (isInteractive()) {
+        if (stabilizeMs > 0) {
+          await wait(stabilizeMs);
+        }
+        return getSnapshot();
+      }
+
+      if (!canListen && !(hasDocument && typeof global.document.addEventListener === "function")) {
+        const deadline = Date.now() + timeoutMs;
+        while (!isInteractive()) {
+          if (Date.now() >= deadline) {
+            throw new Error("request_recovery_timeout");
+          }
+          await wait(Math.min(400, timeoutMs));
+        }
+        if (stabilizeMs > 0) {
+          await wait(stabilizeMs);
+        }
+        return getSnapshot();
+      }
+
+      await new Promise((resolve, reject) => {
+        let timeoutId = null;
+        let stabilizeId = null;
+
+        const cleanup = () => {
+          if (timeoutId != null) {
+            global.clearTimeout(timeoutId);
+          }
+          if (stabilizeId != null) {
+            global.clearTimeout(stabilizeId);
+          }
+
+          if (hasDocument && typeof global.document.removeEventListener === "function") {
+            global.document.removeEventListener("visibilitychange", handleChange);
+          }
+
+          if (canListen) {
+            global.removeEventListener("pageshow", handleChange);
+            global.removeEventListener("resume", handleChange);
+            global.removeEventListener("focus", handleChange);
+            global.removeEventListener("online", handleChange);
+          }
+        };
+
+        const finish = () => {
+          cleanup();
+          resolve();
+        };
+
+        const handleChange = () => {
+          if (!isInteractive()) return;
+          if (stabilizeMs > 0) {
+            if (stabilizeId != null) {
+              global.clearTimeout(stabilizeId);
+            }
+            stabilizeId = global.setTimeout(finish, stabilizeMs);
+            return;
+          }
+          finish();
+        };
+
+        timeoutId = global.setTimeout(() => {
+          cleanup();
+          reject(new Error("request_recovery_timeout"));
+        }, timeoutMs);
+
+        if (hasDocument && typeof global.document.addEventListener === "function") {
+          global.document.addEventListener("visibilitychange", handleChange);
+        }
+
+        if (canListen) {
+          global.addEventListener("pageshow", handleChange);
+          global.addEventListener("resume", handleChange);
+          global.addEventListener("focus", handleChange);
+          global.addEventListener("online", handleChange);
+        }
+
+        handleChange();
+      });
+
+      return getSnapshot();
+    };
+
+    return Object.freeze({
+      getSnapshot,
+      waitUntilInteractive,
+    });
+  };
+
+  const requestLifecycleTracker = createRequestLifecycleTracker();
+
+  const isAbortLikeError = (error) => {
+    const errorName = toLowerText(error?.name);
+    const errorCode = toLowerText(error?.code);
+    const errorMessage = toLowerText(error?.message);
+    return (
+      errorName === "aborterror"
+      || errorCode === "aborterror"
+      || errorCode === "20"
+      || errorMessage.includes("abort")
+      || errorMessage.includes("signal is aborted")
+      || errorMessage.includes("operation was aborted")
+    );
+  };
+
+  const canReplayRequest = (method, idempotencyKey) => {
+    return method === "GET" || method === "HEAD" || Boolean(idempotencyKey);
+  };
+
+  const isLikelyLifecycleInterrupted = (params) => {
+    if (!params || params.externalAbort) return false;
+
+    const networkLike = params.timedOut || isAbortLikeError(params.error) || /network|fetch/i.test(toLowerText(params.error?.message));
+    if (!networkLike) return false;
+
+    const startSnapshot = params.startSnapshot || {};
+    const endSnapshot = params.endSnapshot || {};
+
+    if (startSnapshot.hidden || endSnapshot.hidden) return true;
+    if (endSnapshot.backgroundEpoch !== startSnapshot.backgroundEpoch) return true;
+    if (endSnapshot.offlineEpoch !== startSnapshot.offlineEpoch) return true;
+    if (Number.isFinite(Number(endSnapshot.hiddenAt)) && Number(endSnapshot.hiddenAt) >= params.startedAt - 100) return true;
+    if (Number.isFinite(Number(endSnapshot.offlineAt)) && Number(endSnapshot.offlineAt) >= params.startedAt - 100) return true;
+
+    return false;
   };
 
   const safeErrorMessage = (error, fallbackMessage) => {
@@ -246,6 +460,10 @@
       styleLabel: toText(objectValue.styleLabel),
       referenceStyle: Boolean(objectValue.referenceStyle),
       changes: toText(objectValue.changes),
+      why: toText(objectValue.why),
+      preserved: toText(objectValue.preserved),
+      rebuildMode: toText(objectValue.rebuildMode),
+      strength: normalizeImproveStrength(objectValue.strength || objectValue.transformationStrength),
     };
   };
 
@@ -298,6 +516,10 @@
       throw createInvalidResponseError("Results response must be an array", data);
     }
 
+    if (!list.length) {
+      throw createInvalidResponseError("Results response must contain at least one result", data);
+    }
+
     return list.map((item, index) => normalizeResultItem(item, index, prefix));
   };
 
@@ -307,16 +529,44 @@
     return "medium";
   };
 
+  const normalizeImproveStrength = (value) => {
+    const strength = toLowerText(value);
+    if (strength === "focused" || strength === "strong" || strength === "rebuild") return strength;
+    return "";
+  };
+
+  const normalizeImproveChangePlan = (value) => {
+    const items = Array.isArray(value) ? value : [];
+    return items
+      .map((item) => {
+        if (!isPlainObject(item)) return null;
+        return {
+          area: toText(item.area),
+          change: toText(item.change),
+          why: toText(item.why),
+        };
+      })
+      .filter(Boolean);
+  };
+
   const validateImproveAnalyzeResponse = (rawValue) => {
     const data = unwrapEnvelope(rawValue);
     const objectValue = ensureObject(data, "improveAnalyze must return an object response");
 
     const issuesRaw = Array.isArray(objectValue.issues) ? objectValue.issues : [];
     const recommendationsRaw = Array.isArray(objectValue.recommendations) ? objectValue.recommendations : [];
+    const mustPreserveRaw = Array.isArray(objectValue.mustPreserve) ? objectValue.mustPreserve : [];
+    const improvementPlanRaw = Array.isArray(objectValue.improvementPlan) ? objectValue.improvementPlan : [];
+    const changePlan = normalizeImproveChangePlan(objectValue.changePlan);
 
-    return {
+    const normalized = {
       score: clampInt(objectValue.score, 0, 100, 0),
       summary: toText(objectValue.summary),
+      productIdentity: toText(objectValue.productIdentity),
+      mustPreserve: mustPreserveRaw
+        .map((item) => toText(item))
+        .filter(Boolean)
+        .slice(0, 6),
       issues: issuesRaw
         .map((issue, index) => {
           if (!isPlainObject(issue)) return null;
@@ -331,13 +581,38 @@
       recommendations: recommendationsRaw
         .map((item) => toText(item))
         .filter(Boolean),
+      improvementPlan: improvementPlanRaw.length
+        ? improvementPlanRaw.map((item) => toText(item)).filter(Boolean)
+        : recommendationsRaw.map((item) => toText(item)).filter(Boolean),
+      transformationStrength: normalizeImproveStrength(objectValue.transformationStrength),
+      improvementMode: toText(objectValue.improvementMode),
+      rebuildMode: toText(objectValue.rebuildMode),
+      changePlan,
       marketplaceFormat: toText(objectValue.marketplaceFormat),
+      generationPrompt: toText(objectValue.generationPrompt || objectValue.prompt),
       reference: {
         uploaded: Boolean(objectValue.reference?.uploaded),
         active: Boolean(objectValue.reference?.active),
         note: toText(objectValue.reference?.note),
       },
     };
+
+    const hasUsefulOutput = Boolean(
+      normalized.summary
+      || normalized.productIdentity
+      || normalized.generationPrompt
+      || normalized.marketplaceFormat
+      || normalized.improvementPlan.length
+      || normalized.recommendations.length
+      || normalized.issues.length
+      || normalized.changePlan.length
+    );
+
+    if (!hasUsefulOutput) {
+      throw createInvalidResponseError("improveAnalyze response is missing analysis content", objectValue);
+    }
+
+    return normalized;
   };
   const validateHistoryListResponse = (rawValue) => {
     const data = unwrapEnvelope(rawValue);
@@ -363,18 +638,25 @@
       return {
         entries: data,
         savedAt: new Date().toISOString(),
+        storage: null,
       };
     }
 
     const objectValue = ensureObject(data, "historySave response must be an object");
+    const entries = Array.isArray(objectValue.entries)
+      ? objectValue.entries
+      : Array.isArray(objectValue.items)
+        ? objectValue.items
+        : null;
+
+    if (!entries) {
+      throw createInvalidResponseError("historySave response must include entries", objectValue);
+    }
 
     return {
-      entries: Array.isArray(objectValue.entries)
-        ? objectValue.entries
-        : Array.isArray(objectValue.items)
-          ? objectValue.items
-          : [],
+      entries,
       savedAt: toText(objectValue.savedAt) || new Date().toISOString(),
+      storage: isPlainObject(objectValue.storage) ? objectValue.storage : null,
     };
   };
 
@@ -391,6 +673,16 @@
   const createHttpClient = (options) => {
     const baseUrl = toText(options?.baseUrl).replace(/\/+$/, "");
     const timeoutMs = clampInt(options?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS);
+    const backgroundRetryCount = clampInt(options?.backgroundRetryCount, 0, 2, DEFAULT_BACKGROUND_RETRY_COUNT);
+    const retryableErrorRetryCount = clampInt(
+      options?.retryableErrorRetryCount,
+      0,
+      2,
+      DEFAULT_RETRYABLE_ERROR_RETRY_COUNT
+    );
+    const recoveryWaitMs = clampInt(options?.recoveryWaitMs, 1000, 120000, DEFAULT_RECOVERY_WAIT_MS);
+    const recoveryStabilizeMs = clampInt(options?.recoveryStabilizeMs, 0, 5000, DEFAULT_RECOVERY_STABILIZE_MS);
+    const retryDelayMs = clampInt(options?.retryDelayMs, 0, 30000, DEFAULT_RETRY_DELAY_MS);
     const getHeaders = typeof options?.getHeaders === "function" ? options.getHeaders : null;
     const defaultHeaders = {
       Accept: "application/json",
@@ -410,7 +702,7 @@
       return baseUrl + "/" + source;
     };
 
-  const parseResponse = async (response) => {
+    const parseResponse = async (response) => {
       if (!response) return null;
       if (response.status === 204) return null;
 
@@ -439,6 +731,13 @@
       return fromEnvelope || fromBody || "HTTP " + String(status) + " while requesting " + url;
     };
 
+    const resolveHttpErrorCode = (status, parsedBody) => {
+      const fromEnvelope = toText(parsedBody?.error?.code || parsedBody?.code);
+      if (fromEnvelope) return fromEnvelope;
+      if (status === 408) return ERROR_CODES.timeout;
+      return ERROR_CODES.http;
+    };
+
     const request = async (config) => {
       if (typeof fetchImpl !== "function") {
         throw new ServiceError({
@@ -459,97 +758,246 @@
 
       const method = toText(config?.method || "POST").toUpperCase();
       const requestTimeout = clampInt(config?.timeoutMs, 500, 300000, timeoutMs);
-      const headers = {
-        ...defaultHeaders,
-        ...(isPlainObject(config?.headers) ? config.headers : {}),
-      };
-
-      if (getHeaders) {
-        try {
-          const dynamicHeaders = await getHeaders({
-            url,
-            method,
-          });
-          if (isPlainObject(dynamicHeaders)) {
-            Object.assign(headers, dynamicHeaders);
-          }
-        } catch (error) {
-          // Ignore header-provider failures and continue with the base request.
-        }
-      }
+      const maxBackgroundRetries = clampInt(config?.backgroundRetryCount, 0, 2, backgroundRetryCount);
+      const maxRetryableErrorRetries = clampInt(
+        config?.retryableErrorRetryCount,
+        0,
+        2,
+        retryableErrorRetryCount
+      );
+      const recoveryWaitTimeoutMs = clampInt(config?.recoveryWaitMs, 1000, 120000, recoveryWaitMs);
+      const recoveryStabilizeDelayMs = clampInt(config?.recoveryStabilizeMs, 0, 5000, recoveryStabilizeMs);
+      const recoveryRetryDelayMs = clampInt(config?.retryDelayMs, 0, 30000, retryDelayMs);
+      const bodyValue = Object.prototype.hasOwnProperty.call(config || {}, "body") ? config.body : undefined;
+      const idempotencyKey = toText(
+        config?.idempotencyKey
+        || bodyValue?.requestId
+        || bodyValue?.payload?.requestId
+        || bodyValue?.context?.requestId
+      );
+      const allowBackgroundRetry = config?.retryOnBackgroundInterruption !== false && canReplayRequest(method, idempotencyKey);
+      const allowRetryableErrorRetry = config?.retryOnRetryableError !== false && canReplayRequest(method, idempotencyKey);
 
       let body;
+      let shouldSetJsonContentType = false;
       if (Object.prototype.hasOwnProperty.call(config || {}, "body") && config.body !== undefined) {
         if (typeof config.body === "string") {
           body = config.body;
         } else {
           body = JSON.stringify(config.body);
-          if (!Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
-            headers["Content-Type"] = "application/json";
-          }
+          shouldSetJsonContentType = true;
         }
       }
 
-      const controller = typeof AbortController === "function" ? new AbortController() : null;
-      let timeoutId = null;
+      let attempt = 0;
 
-      if (controller) {
-        timeoutId = global.setTimeout(() => {
-          controller.abort();
-        }, requestTimeout);
-      }
+      while (true) {
+        attempt += 1;
 
-      let response;
-      try {
-        response = await fetchImpl(url, {
-          method,
-          headers,
-          body,
-          signal: controller ? controller.signal : undefined,
-        });
-      } catch (error) {
-        if (controller?.signal?.aborted) {
+        const headers = {
+          ...defaultHeaders,
+          ...(isPlainObject(config?.headers) ? config.headers : {}),
+        };
+
+        if (shouldSetJsonContentType && !Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
+          headers["Content-Type"] = "application/json";
+        }
+
+        if (getHeaders) {
+          try {
+            const dynamicHeaders = await getHeaders({
+              url,
+              method,
+              attempt,
+              idempotencyKey,
+            });
+            if (isPlainObject(dynamicHeaders)) {
+              Object.assign(headers, dynamicHeaders);
+            }
+          } catch (error) {
+            // Ignore header-provider failures and continue with the base request.
+          }
+        }
+
+        const attemptStartedAt = Date.now();
+        const startSnapshot = requestLifecycleTracker.getSnapshot();
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const externalSignal = config?.signal;
+        let timeoutId = null;
+        let didTimeoutAbort = false;
+        let externalAbortTriggered = false;
+        let detachExternalAbort = null;
+
+        if (controller && externalSignal && typeof externalSignal.addEventListener === "function") {
+          const forwardAbort = () => {
+            externalAbortTriggered = true;
+            controller.abort();
+          };
+
+          if (externalSignal.aborted) {
+            forwardAbort();
+          } else {
+            externalSignal.addEventListener("abort", forwardAbort, { once: true });
+            detachExternalAbort = () => {
+              externalSignal.removeEventListener("abort", forwardAbort);
+            };
+          }
+        }
+
+        if (controller) {
+          timeoutId = global.setTimeout(() => {
+            didTimeoutAbort = true;
+            controller.abort();
+          }, requestTimeout);
+        }
+
+        let response;
+        try {
+          response = await fetchImpl(url, {
+            method,
+            headers,
+            body,
+            signal: controller ? controller.signal : undefined,
+          });
+        } catch (error) {
+          const endSnapshot = requestLifecycleTracker.getSnapshot();
+          const lifecycleInterrupted = isLikelyLifecycleInterrupted({
+            error,
+            timedOut: didTimeoutAbort,
+            externalAbort: externalAbortTriggered || externalSignal?.aborted,
+            startedAt: attemptStartedAt,
+            startSnapshot,
+            endSnapshot,
+          });
+
+          if (externalAbortTriggered || externalSignal?.aborted) {
+            throw new ServiceError({
+              code: ERROR_CODES.aborted,
+              message: "Request aborted",
+              retryable: false,
+              details: {
+                url,
+                method,
+              },
+              cause: error,
+            });
+          }
+
+          if (lifecycleInterrupted) {
+            if (allowBackgroundRetry && attempt <= maxBackgroundRetries) {
+              try {
+                await requestLifecycleTracker.waitUntilInteractive({
+                  timeoutMs: recoveryWaitTimeoutMs,
+                  stabilizeMs: recoveryStabilizeDelayMs,
+                });
+              } catch (recoveryError) {
+                throw new ServiceError({
+                  code: ERROR_CODES.interrupted,
+                  message: "Request was interrupted while the app was in the background",
+                  retryable: true,
+                  details: {
+                    url,
+                    method,
+                    attempt,
+                    recoveryTimedOut: true,
+                    idempotencyKey,
+                  },
+                  cause: error,
+                });
+              }
+
+              if (recoveryRetryDelayMs > 0) {
+                await wait(recoveryRetryDelayMs);
+              }
+              continue;
+            }
+
+            throw new ServiceError({
+              code: ERROR_CODES.interrupted,
+              message: "Request was interrupted while the app was in the background",
+              retryable: true,
+              details: {
+                url,
+                method,
+                attempt,
+                idempotencyKey,
+                online: endSnapshot.online,
+              },
+              cause: error,
+            });
+          }
+
+          if (didTimeoutAbort) {
+            if (allowRetryableErrorRetry && attempt <= maxRetryableErrorRetries) {
+              if (recoveryRetryDelayMs > 0) {
+                await wait(recoveryRetryDelayMs);
+              }
+              continue;
+            }
+
+            throw new ServiceError({
+              code: ERROR_CODES.timeout,
+              message: "Request timeout",
+              retryable: true,
+              details: {
+                url,
+                timeoutMs: requestTimeout,
+              },
+              cause: error,
+            });
+          }
+
+          if (allowRetryableErrorRetry && attempt <= maxRetryableErrorRetries) {
+            if (recoveryRetryDelayMs > 0) {
+              await wait(recoveryRetryDelayMs);
+            }
+            continue;
+          }
+
           throw new ServiceError({
-            code: ERROR_CODES.timeout,
-            message: "Request timeout",
+            code: ERROR_CODES.network,
+            message: "Network request failed",
             retryable: true,
             details: {
               url,
-              timeoutMs: requestTimeout,
+              method,
             },
             cause: error,
           });
+        } finally {
+          if (timeoutId != null) {
+            global.clearTimeout(timeoutId);
+          }
+          if (detachExternalAbort) {
+            detachExternalAbort();
+          }
         }
 
-        throw new ServiceError({
-          code: ERROR_CODES.network,
-          message: "Network request failed",
-          retryable: true,
-          details: {
-            url,
-            method,
-          },
-          cause: error,
-        });
-      } finally {
-        if (timeoutId != null) {
-          global.clearTimeout(timeoutId);
+        const parsed = await parseResponse(response);
+
+        if (!response.ok) {
+          const statusCode = Number(response.status) || 0;
+          const errorCode = resolveHttpErrorCode(statusCode, parsed);
+          const retryable = statusCode >= 500 || errorCode === ERROR_CODES.timeout || errorCode === ERROR_CODES.network;
+
+          if (retryable && allowRetryableErrorRetry && attempt <= maxRetryableErrorRetries) {
+            if (recoveryRetryDelayMs > 0) {
+              await wait(recoveryRetryDelayMs);
+            }
+            continue;
+          }
+
+          throw new ServiceError({
+            code: errorCode,
+            message: resolveHttpErrorMessage(statusCode, parsed, url),
+            status: statusCode,
+            retryable,
+            details: isPlainObject(parsed) && isPlainObject(parsed.error) ? parsed.error.details || parsed : parsed,
+          });
         }
+
+        return parsed;
       }
-
-      const parsed = await parseResponse(response);
-
-      if (!response.ok) {
-        throw new ServiceError({
-          code: ERROR_CODES.http,
-          message: resolveHttpErrorMessage(response.status, parsed, url),
-          status: response.status,
-          retryable: response.status >= 500,
-          details: parsed,
-        });
-      }
-
-      return parsed;
     };
 
     return Object.freeze({ request });
@@ -748,6 +1196,7 @@
     const severityWeight = { high: 3, medium: 2, low: 1 };
     const riskScore = issues.reduce((sum, item) => sum + (severityWeight[item.severity] || 2), 0);
     const score = Math.max(38, Math.min(96, 100 - riskScore * 2));
+    const transformationStrength = score <= 55 ? "rebuild" : score <= 74 ? "strong" : "focused";
 
     const recommendations = [
       "Пересобрать первый экран вокруг одной доминирующей выгоды.",
@@ -756,17 +1205,87 @@
         ? "Применить стиль референса, сохранив ясность под маркетплейс."
         : "Снизить визуальный шум и оставить только ключевые блоки.",
     ];
+    const changePlan = [
+      {
+        area: "hero",
+        change: "Сделать главный оффер крупнее и построить вокруг него первый экран.",
+        why: "Покупатель быстрее понимает выгоду товара уже в миниатюре.",
+      },
+      {
+        area: "facts",
+        change: "Собрать вторичную информацию в один компактный модуль вместо россыпи мелких подпунктов.",
+        why: "Карточка выглядит чище и лучше читается на мобильном экране.",
+      },
+      {
+        area: referenceStyleActive ? "style" : "cta",
+        change: referenceStyleActive
+          ? "Переложить ритм и композицию референса на этот товар без потери категорийной логики."
+          : "Сделать CTA или proof-point более заметным и конкретным.",
+        why: "Фокус смещается к продаже, а не к декоративным элементам.",
+      },
+    ];
+    const mustPreserve = [
+      "тот же товар без подмены модели и категории",
+      "узнаваемые форма, материал и ключевые детали продукта",
+      "реальный брендинг и упаковка, если они видны на исходнике",
+    ];
+    const productIdentity = "Тот же товар с исходной карточки, без подмены ассортимента.";
+    const improvementMode = referenceStyleActive
+      ? "Адаптация под стиль референса с усилением иерархии"
+      : transformationStrength === "rebuild"
+        ? "Структурный typographic rebuild"
+        : transformationStrength === "strong"
+          ? "Сильная переработка композиции и оффера"
+          : "Сфокусированное усиление иерархии";
+    const rebuildMode = referenceStyleActive
+      ? "Reference-adapted editorial"
+      : transformationStrength === "rebuild"
+        ? "Poster Headline Block"
+        : transformationStrength === "strong"
+          ? "Split Panel System"
+          : "Focused hero cleanup";
+    const generationPrompt = [
+      "Создай заметно улучшенную карточку товара для маркетплейса на основе исходного изображения.",
+      "Сохрани тот же товар без подмены модели, бренда, формы, цвета и комплектации.",
+      "Что обязательно сохранить: " + mustPreserve.join("; ") + ".",
+      "Нужна не косметика, а заметная переработка иерархии, читаемости, композиции и продажного фокуса.",
+      "Режим улучшения: " + improvementMode + ".",
+      "Режим перестройки: " + rebuildMode + ".",
+      "Сила улучшения: " + transformationStrength + ".",
+      "План изменений: " + changePlan
+        .map((item, index) => String(index + 1) + ") " + [item.area, item.change, item.why].filter(Boolean).join(" — "))
+        .join("; ") + ".",
+      referenceStyleActive
+        ? "Используй второй референс как источник визуального языка и ритма, но не копируй чужой товар."
+        : "",
+      toText(payload?.prompt || payload?.userPrompt)
+        ? "Учти пожелания пользователя: " + toText(payload?.prompt || payload?.userPrompt) + "."
+        : "",
+      "Весь видимый текст только на русском языке.",
+      "Убери платформенные бейджи и слова вроде маркетплейс, Ozon, Wildberries, WB, если это не часть реального брендинга товара.",
+      "Разница до и после должна быть заметна уже в миниатюре.",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return {
       score,
       summary: referenceStyleActive
-        ? "Анализ готов с учетом стиля референса."
-        : "Анализ готов: найдены ключевые риски по конверсии и иерархии.",
+        ? "Анализ готов: карточке нужен более сильный rebuild с учетом стиля референса."
+        : "Анализ готов: карточке нужен заметный upgrade по иерархии, читаемости и офферу.",
+      productIdentity,
+      mustPreserve,
       issues,
       recommendations,
+      improvementPlan: changePlan.map((item) => item.change),
+      transformationStrength,
+      improvementMode,
+      rebuildMode,
+      changePlan,
       marketplaceFormat: referenceStyleActive
         ? "Формат маркетплейса в стиле референса с чистым CTA"
         : "Конверсионный формат маркетплейса с явным CTA",
+      generationPrompt,
       reference: {
         uploaded: hasReference,
         active: referenceStyleActive,
@@ -783,8 +1302,24 @@
     const totalVariants = clampVariants(payload?.variantsCount, 5);
     const previewPool = config.previewPools.improve;
 
-    const promptPreview = toText(payload?.prompt).slice(0, 220);
+    const promptPreview = toText(payload?.userPrompt || payload?.prompt).slice(0, 220);
     const referenceStyle = Boolean(payload?.referenceStyle);
+    const changePlan = normalizeImproveChangePlan(payload?.analysis?.changePlan);
+    const primaryChange = changePlan.length
+      ? changePlan.map((item) => item.change).filter(Boolean).slice(0, 2).join(" • ")
+      : payload?.analysis?.recommendations?.[0] || "Улучшена структура и усилена иерархия оффера.";
+    const why = changePlan[0]?.why
+      || "Карточка быстрее считывается и сильнее акцентирует главную выгоду товара.";
+    const preserved = (Array.isArray(payload?.analysis?.mustPreserve) ? payload.analysis.mustPreserve : [])
+      .map((item) => toText(item))
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ")
+      || toText(payload?.analysis?.productIdentity)
+      || "тот же товар и узнаваемые признаки исходника";
+    const rebuildMode = toText(payload?.analysis?.rebuildMode)
+      || (referenceStyle ? "Reference-adapted editorial" : "Split Panel System");
+    const strength = normalizeImproveStrength(payload?.analysis?.transformationStrength) || "strong";
 
     return Array.from({ length: totalVariants }, (_, index) => {
       const variantNumber = index + 1;
@@ -799,7 +1334,11 @@
         strategy: referenceStyle ? "Улучшение в стиле референса" : "Обычное AI-улучшение",
         styleLabel: referenceStyle ? "Улучшено по стилю референса" : "",
         referenceStyle,
-        changes: payload?.analysis?.recommendations?.[0] || "Улучшена структура и усилена иерархия оффера.",
+        changes: primaryChange,
+        why,
+        preserved,
+        rebuildMode,
+        strength,
         format: payload?.analysis?.marketplaceFormat || "Готовый формат для маркетплейса с чистым CTA.",
         promptPreview,
         downloadName: "kartochka-improved-" + String(variantNumber) + ".png",
@@ -963,6 +1502,13 @@
         return {
           entries: savedEntries,
           savedAt: new Date().toISOString(),
+          storage: {
+            mode: "mock",
+            fallbackUsed: false,
+            scopeId,
+            actorType: scopeId === "guest" ? "guest" : "user",
+            verified: false,
+          },
         };
       },
 
@@ -1169,6 +1715,16 @@
       request: {
         baseUrl: toText(options?.request?.baseUrl),
         timeoutMs: clampInt(options?.request?.timeoutMs, 1000, 300000, DEFAULT_TIMEOUT_MS),
+        backgroundRetryCount: clampInt(options?.request?.backgroundRetryCount, 0, 2, DEFAULT_BACKGROUND_RETRY_COUNT),
+        retryableErrorRetryCount: clampInt(
+          options?.request?.retryableErrorRetryCount,
+          0,
+          2,
+          DEFAULT_RETRYABLE_ERROR_RETRY_COUNT
+        ),
+        recoveryWaitMs: clampInt(options?.request?.recoveryWaitMs, 1000, 120000, DEFAULT_RECOVERY_WAIT_MS),
+        recoveryStabilizeMs: clampInt(options?.request?.recoveryStabilizeMs, 0, 5000, DEFAULT_RECOVERY_STABILIZE_MS),
+        retryDelayMs: clampInt(options?.request?.retryDelayMs, 0, 30000, DEFAULT_RETRY_DELAY_MS),
         headers: isPlainObject(options?.request?.headers) ? options.request.headers : {},
         getHeaders: typeof options?.request?.getHeaders === "function" ? options.request.getHeaders : null,
       },

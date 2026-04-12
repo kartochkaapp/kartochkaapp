@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KARTOCHKA - видео-обложки для маркетплейсов</title>
+    <meta
+      name="description"
+      content="Создавайте видео-обложки для Ozon и Wildberries с эффектом профессиональной съемки за 1 минуту."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css?v=20260329-27" />
+    <link rel="stylesheet" href="./landing-override.css" />
+    <link rel="stylesheet" href="./site-overrides.css" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260412-10" />
+  </head>
+  <body>
+    <header class="topbar section-wrap">
+      <a href="#top" class="logo" aria-label="Главная">
+        <span class="logo-mark" aria-hidden="true"><span class="logo-k">K</span></span>
+        <span class="logo-text">KARTOCHKA</span>
+      </a>
+      <nav class="topbar-nav" aria-label="Main navigation">
+        <a href="#pricing">Тарифы</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="topbar-actions">
+        <a class="btn btn-primary" href="#pricing" data-open-auth>Личный кабинет</a>
+        <button
+          class="mobile-menu-btn"
+          id="mobileMenuBtn"
+          type="button"
+          aria-label="Открыть меню"
+          aria-expanded="false"
+          aria-controls="mobileMenu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="mobile-menu hidden" id="mobileMenu" aria-hidden="true">
+      <div class="mobile-menu-panel">
+        <div class="mobile-menu-head">
+          <strong>Разделы сайта</strong>
+          <button class="mobile-menu-close" id="mobileMenuClose" type="button" aria-label="Закрыть меню">×</button>
+        </div>
+        <nav class="mobile-menu-nav" aria-label="Навигация по разделам">
+          <a href="#top" data-close-mobile-menu>Главная</a>
+          <a href="#pricing" data-close-mobile-menu>Тарифы</a>
+          <a href="#faq" data-close-mobile-menu>FAQ</a>
+        </nav>
+      </div>
+    </div>
+
+    <main id="publicView">
+      <section class="kartochka-hero" id="top" aria-labelledby="kartochkaHeroTitle">
+        <div class="kartochka-hero-shell">
+          <div class="kartochka-hero-layout">
+            <div class="kartochka-hero-copy">
+              <h1 class="kartochka-hero-title" id="kartochkaHeroTitle">
+                <span class="hero-title-line">Создайте карточку товара</span>
+                <span class="hero-title-line hero-title-line-brand hero-title-line-marketplaces">
+                  <span class="hero-brand hero-brand-ozon">OZON</span>
+                  <span class="hero-brand hero-brand-wildberries">WILDBERRIES</span>
+                  <span class="hero-brand hero-brand-yandex">Я.МАРКЕТ</span>
+                </span>
+              </h1>
+              <p class="kartochka-hero-subtitle">Эффект профессиональной съёмки за 1 минуту</p>
+              <div class="kartochka-hero-actions">
+                <a class="kartochka-hero-primary btn" href="#pricing" data-open-auth>Создать карточку бесплатно</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta section-wrap reveal" id="start">
+        <div class="final-cta-card final-cta-card-sunburst">
+          <div class="final-cta-copy">
+            <h2>Готовы запустить первую продающую обложку?</h2>
+            <p>Загрузите фото товара, выберите стиль и получите готовый визуал примерно за 1 минуту.</p>
+            <div class="final-cta-actions">
+              <a class="btn btn-primary" href="#pricing" data-open-auth>Создать карточку бесплатно</a>
+            </div>
+          </div>
+          <div class="final-cta-preview-grid" aria-label="Галерея примеров KARTOCHKA">
+            <article class="final-cta-preview">
+              <img src="./assets/examples/bioderma-card.png" alt="Пример карточки крема Bioderma" loading="lazy" />
+            </article>
+            <article class="final-cta-preview">
+              <img src="./assets/examples/soap-card.png" alt="Пример карточки натурального мыла" loading="lazy" />
+            </article>
+            <article class="final-cta-preview">
+              <img src="./assets/examples/youto-card.png" alt="Пример карточки контактных линз" loading="lazy" />
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="features section-wrap reveal" id="features">
+        <div class="section-shell section-shell-process">
+          <div class="section-head">
+            <div>
+              <h2>Как создать карточку товара?</h2>
+            </div>
+          </div>
+          <div class="feature-list">
+            <article class="feature-card">
+              <div>
+                <p class="feature-card-lead">Загрузите фото товара, выберите готовый пресет и ваша карточка готова</p>
+                <ul>
+                  <li>Эффект профессиональной съемки</li>
+                  <li>Готовые пресеты</li>
+                  <li>Свой промпт для уникальных идей</li>
+                </ul>
+              </div>
+              <div class="feature-card-media">
+                <img src="./assets/examples/redbull-card.png" alt="AI генерация карточки энергетического напитка" loading="lazy" />
+              </div>
+            </article>
+            <article class="feature-card">
+              <div>
+                <p class="feature-card-lead">Загрузите фото товара<br />AI превратит его в продающее видео</p>
+                <ul>
+                  <li>Профессиональное качество</li>
+                  <li>Готовые пресеты</li>
+                  <li>Свобода редактирования</li>
+                </ul>
+              </div>
+              <div class="feature-card-media">
+                <img src="./assets/examples/candle-card.png" alt="Карточка свечи на базе фото товара" loading="lazy" />
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="kartochka-stats-section" id="social-proof">
+        <div class="kartochka-stats-shell">
+          <div class="kartochka-stats-intro">
+            <div class="kartochka-stats-number" data-kartochka-stats-target="16348" aria-live="polite">0</div>
+            <p class="kartochka-stats-caption">карточек уже создано</p>
+            <div class="kartochka-stats-tags" aria-label="Маркетплейсы KARTOCHKA">
+              <span class="kartochka-stats-tag kartochka-stats-tag-ozon">Ozon</span>
+              <span class="kartochka-stats-tag kartochka-stats-tag-wildberries">Wildberries</span>
+              <span class="kartochka-stats-tag kartochka-stats-tag-yandex">Яндекс.Маркет</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing-intro section-wrap reveal" aria-labelledby="pricingIntroTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="pricingIntroTitle">Тарифы и лимиты</h2>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing section-wrap reveal" id="pricing" aria-labelledby="pricingIntroTitle">
+        <div class="section-shell section-shell-pricing">
+          <div class="roi-infographic" aria-label="Инфографика окупаемости">
+            <article class="roi-summary">
+              <p>Тариф <strong>Pro</strong> окупается уже на первых 1-2 товарах.</p>
+              <small>Средняя экономия до 5 000 ₽ на одном SKU против офлайн-продакшена.</small>
+            </article>
+            <div class="roi-bars">
+              <div class="roi-row">
+                <span>Офлайн съемка</span>
+                <div class="roi-track"><i style="--value: 100%"></i></div>
+                <b>5 000 ₽</b>
+              </div>
+              <div class="roi-row">
+                <span>KARTOCHKA Pro</span>
+                <div class="roi-track success"><i style="--value: 30%"></i></div>
+                <b>900 ₽</b>
+              </div>
+              <div class="roi-row">
+                <span>Экономия</span>
+                <div class="roi-track accent"><i style="--value: 70%"></i></div>
+                <b>4 100 ₽</b>
+              </div>
+            </div>
+          </div>
+          <div class="pricing-grid">
+            <article class="pricing-card">
+              <p class="plan-label">Start</p>
+              <p class="plan-price">0 ₽</p>
+              <p class="plan-subtitle">Для быстрого старта и теста гипотез</p>
+              <ul>
+                <li>12 стартовых токенов</li>
+                <li>Готовые пресеты</li>
+                <li>Выгрузка PNG</li>
+              </ul>
+              <a class="btn btn-outline" href="mailto:support@kartochka.ai?subject=KARTOCHKA%20Start">Попробовать</a>
+            </article>
+            <article class="pricing-card featured">
+              <p class="plan-label">Pro</p>
+              <p class="plan-price">900 ₽<span>/мес</span></p>
+              <p class="plan-subtitle">100 токенов ежемесячно для постоянной работы</p>
+              <ul>
+                <li>100 токенов в месяц</li>
+                <li>Свои промпты и стили</li>
+                <li>Приоритетная очередь</li>
+              </ul>
+              <a class="btn btn-primary" href="mailto:support@kartochka.ai?subject=KARTOCHKA%20Pro">Выбрать Pro</a>
+            </article>
+            <article class="pricing-card">
+              <p class="plan-label">Team</p>
+              <p class="plan-price">4 990 ₽<span>/мес</span></p>
+              <p class="plan-subtitle">Для команд, агентств и масштабирования</p>
+              <ul>
+                <li>От 300 токенов</li>
+                <li>До 5 пользователей</li>
+                <li>История проектов и шаблоны</li>
+              </ul>
+              <a class="btn btn-outline" href="mailto:support@kartochka.ai?subject=KARTOCHKA%20Team">Подключить команду</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="faq section-wrap reveal" id="faq">
+        <div class="section-shell section-shell-faq">
+          <div class="section-head">
+            <div>
+              <h2>FAQ</h2>
+            </div>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item" open>
+              <summary><span class="faq-question">Какие форматы изображений поддерживаются?</span></summary>
+              <div class="faq-answer">
+                <p>PNG, JPG и WEBP. Итоговый результат можно скачать в PNG.</p>
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary><span class="faq-question">Можно ли использовать контент коммерчески?</span></summary>
+              <div class="faq-answer">
+                <p>Да, обложки и карточки можно использовать для маркетплейсов и рекламы.</p>
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary><span class="faq-question">Что если нужен точный фирменный стиль?</span></summary>
+              <div class="faq-answer">
+                <p>Используйте свой промпт, базовый промпт и референсы для фиксации стилистики.</p>
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary><span class="faq-question">Есть ли ограничения по количеству генераций?</span></summary>
+              <div class="faq-answer">
+                <p>Лимиты зависят от тарифа: от пробных генераций до пакетов для команд.</p>
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary><span class="faq-question">Сколько времени занимает один результат?</span></summary>
+              <div class="faq-answer">
+                <p>Обычно 30-60 секунд, в зависимости от нагрузки и типа запроса.</p>
+              </div>
+            </details>
+            <details class="faq-item">
+              <summary><span class="faq-question">Как получить помощь?</span></summary>
+              <div class="faq-answer">
+                <p>
+                  Напишите в поддержку:
+                  <a class="faq-link" href="mailto:support@kartochka.ai">support@kartochka.ai</a>.
+                  Отвечаем в рабочее время в течение 24 часов.
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <div class="section-wrap footer-inner">
+          <p>© KARTOCHKA, 2026</p>
+          <nav class="footer-links" aria-label="Footer navigation">
+            <a href="#pricing">Тарифы</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+        </div>
+      </footer>
+    </main>
+
+    <div class="auth-modal hidden" id="authSection" aria-hidden="true">
+      <div class="auth-modal-shell" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <div class="auth-visual">
+          <div>
+            <p class="auth-visual-kicker">KARTOCHKA</p>
+            <h2>Личный кабинет</h2>
+            <p>Войдите через Google или email, чтобы сохранить прогресс и историю генераций в вашем профиле.</p>
+          </div>
+          <div class="auth-visual-card">
+            <img src="./assets/examples/marshall-card.png" alt="Пример карточки акустики Marshall" loading="lazy" />
+          </div>
+        </div>
+        <div class="auth-card">
+          <button class="auth-close" id="authCloseBtn" type="button" aria-label="Закрыть">×</button>
+          <h2 id="authTitle">Авторизация</h2>
+          <p class="section-subtitle">Войдите через Google или используйте email и пароль</p>
+          <div class="auth-oauth">
+            <button class="btn btn-outline btn-google" id="googleAuthBtn" type="button">
+              <span class="btn-google-icon" aria-hidden="true">G</span>
+              Войти через Google
+            </button>
+          </div>
+          <div class="auth-divider" aria-hidden="true"><span>или</span></div>
+          <div class="tab-switch auth-mode-switch" role="tablist" aria-label="Способ авторизации">
+            <button class="tab-btn active" id="authEmailLoginTab" type="button" role="tab" aria-selected="true" aria-controls="authEmailLoginPanel">Вход</button>
+            <button class="tab-btn" id="authEmailRegisterTab" type="button" role="tab" aria-selected="false" aria-controls="authEmailRegisterPanel">Регистрация</button>
+          </div>
+          <form class="form-panel active" id="authEmailLoginPanel" novalidate>
+            <label class="field-label" for="authLoginEmail">Email</label>
+            <input id="authLoginEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <label class="field-label" for="authLoginPassword">Пароль</label>
+            <input id="authLoginPassword" name="password" type="password" autocomplete="current-password" placeholder="Введите пароль" />
+            <button class="btn btn-primary" id="emailLoginBtn" type="submit">Войти по email</button>
+          </form>
+          <form class="form-panel" id="authEmailRegisterPanel" novalidate>
+            <label class="field-label" for="authRegisterEmail">Email</label>
+            <input id="authRegisterEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <label class="field-label" for="authRegisterPassword">Пароль</label>
+            <input id="authRegisterPassword" name="password" type="password" autocomplete="new-password" placeholder="Минимум 6 символов" />
+            <label class="field-label" for="authRegisterPasswordConfirm">Повторите пароль</label>
+            <input id="authRegisterPasswordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" placeholder="Повторите пароль" />
+            <button class="btn btn-primary" id="emailRegisterBtn" type="submit">Создать аккаунт</button>
+          </form>
+          <p id="authMessage" class="status-message" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="./site.js?v=20260405-2"></script>
+  </body>
+</html>

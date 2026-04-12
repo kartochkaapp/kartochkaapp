@@ -418,40 +418,122 @@ const buildCreateGenerateUserText = (payload) => {
   ].join("\n");
 };
 
+const normalizeImproveStrength = (value) => {
+  const strength = toText(value).toLowerCase();
+  if (strength === "focused" || strength === "strong" || strength === "rebuild") return strength;
+  return "";
+};
+
+const normalizeImproveChangePlan = (value) => {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item) => ({
+      area: toText(item?.area),
+      change: toText(item?.change),
+      why: toText(item?.why),
+    }))
+    .filter((item) => item.area || item.change || item.why)
+    .slice(0, 4);
+};
+
+const buildLocalImproveVariant = (payload, variantNumber) => {
+  const analysis = payload?.analysis || {};
+  const referenceStyle = Boolean(payload?.referenceStyle);
+  const changePlan = normalizeImproveChangePlan(analysis?.changePlan);
+  const strength = normalizeImproveStrength(analysis?.transformationStrength) || "strong";
+  const primaryChanges = changePlan.map((item) => item.change).filter(Boolean);
+  const primaryWhy = changePlan.map((item) => item.why).filter(Boolean);
+  const preservedList = Array.isArray(analysis?.mustPreserve)
+    ? analysis.mustPreserve.map((item) => toText(item)).filter(Boolean).slice(0, 3)
+    : [];
+
+  return {
+    title: "Улучшенный вариант " + String(variantNumber),
+    strategy:
+      toText(analysis?.improvementMode)
+      || (referenceStyle
+        ? "Адаптация под стиль референса с усилением иерархии"
+        : strength === "rebuild"
+          ? "Структурный typographic rebuild"
+          : strength === "strong"
+            ? "Сильная переработка композиции и оффера"
+            : "Сфокусированное усиление иерархии"),
+    styleLabel: referenceStyle ? "Улучшено по стилю референса" : "",
+    changes:
+      primaryChanges.length
+        ? primaryChanges.slice(0, 2).join(" • ")
+        : "Заметно усилить иерархию, собрать факты в модуль и очистить композицию",
+    format:
+      toText(analysis?.marketplaceFormat)
+      || "Готовый формат для маркетплейса с чистой иерархией и CTA",
+    why:
+      primaryWhy[0]
+      || "Карточка быстрее считывается и сильнее подсвечивает главную выгоду товара.",
+    preserved:
+      preservedList.length
+        ? preservedList.join(", ")
+        : toText(analysis?.productIdentity) || "тот же товар с исходной карточки",
+    rebuildMode:
+      toText(analysis?.rebuildMode)
+      || (referenceStyle ? "Reference-adapted editorial" : "Split Panel System"),
+    strength,
+  };
+};
+
 const buildImproveGenerateUserText = (payload) => {
   const mode = toText(payload?.mode) || "ai";
   const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
-  const prompt = toText(payload?.prompt) || "(пусто)";
+  const userPrompt = toText(payload?.userPrompt || payload?.prompt) || "(пусто)";
+  const generationPrompt = toText(payload?.prompt) || "(пусто)";
   const summary = toText(payload?.analysis?.summary) || "(пусто)";
-  const recommendations = Array.isArray(payload?.analysis?.recommendations)
-    ? payload.analysis.recommendations.map((item) => toText(item)).filter(Boolean).slice(0, 3)
+  const productIdentity = toText(payload?.analysis?.productIdentity) || "(нет)";
+  const mustPreserve = Array.isArray(payload?.analysis?.mustPreserve)
+    ? payload.analysis.mustPreserve.map((item) => toText(item)).filter(Boolean).slice(0, 5)
     : [];
+  const recommendations = Array.isArray(payload?.analysis?.recommendations)
+    ? payload.analysis.recommendations.map((item) => toText(item)).filter(Boolean).slice(0, 4)
+    : [];
+  const changePlan = normalizeImproveChangePlan(payload?.analysis?.changePlan);
   const referenceStyle = Boolean(payload?.referenceStyle);
 
   return [
-    "Задача: собрать варианты улучшенной продающей карточки товара.",
+    "Задача: собрать варианты сильного улучшения карточки товара для маркетплейса.",
     "Верни только строгий JSON со следующей структурой:",
     "{",
     '  "variants": [',
-    '    { "title": string, "strategy": string, "styleLabel": string, "changes": string, "format": string }',
+    '    { "title": string, "strategy": string, "styleLabel": string, "changes": string, "format": string, "why": string, "preserved": string, "rebuildMode": string, "strength": "focused"|"strong"|"rebuild" }',
     "  ]",
     "}",
     "Правила:",
     "- количество вариантов должно быть не меньше запрошенного",
     "- все строковые поля должны быть только на русском языке",
-    "- strategy и changes должны кратко объяснять направление улучшения",
+    "- каждый вариант обязан быть materially stronger than source, а не minor polish",
+    "- changes должны описывать 2-4 конкретных структурных изменения",
+    "- why должен кратко объяснять, почему карточка будет продавать лучше",
+    "- preserved должен кратко напоминать, что именно нельзя потерять из идентичности товара",
+    "- strength должен быть одним из: focused, strong, rebuild",
     "- styleLabel должен быть пустой строкой, когда стиль референса не активен",
+    "- если strength = strong или rebuild, нельзя предлагать barely-visible edits и нельзя различать варианты только оттенком или декором",
     "- не предлагай видимый текст или бейджи со словами маркетплейс, marketplace, Ozon, Wildberries, WB, seller или названиями платформ",
-    "- если на исходной карточке есть такие платформенные метки, в улучшенном варианте их нужно убрать и заменить на продуктовую выгоду или чистую композицию",
+    "- если на исходной карточке есть такие платформенные метки, в улучшенном варианте их нужно убрать и заменить на продуктовую выгоду, proof-point или чистую композицию",
     "- без markdown",
     "",
     "Входные данные:",
     "- mode: " + mode,
     "- referenceStyle: " + String(referenceStyle),
     "- variantsCount: " + String(variantsCount),
-    "- prompt: " + prompt,
+    "- userPrompt: " + userPrompt,
+    "- generationPromptPreview: " + generationPrompt.slice(0, 420),
     "- analysis.summary: " + summary,
+    "- analysis.productIdentity: " + productIdentity,
+    "- analysis.mustPreserve: " + (mustPreserve.length ? mustPreserve.join(" | ") : "(нет)"),
+    "- analysis.transformationStrength: " + (normalizeImproveStrength(payload?.analysis?.transformationStrength) || "(нет)"),
+    "- analysis.improvementMode: " + (toText(payload?.analysis?.improvementMode) || "(нет)"),
+    "- analysis.rebuildMode: " + (toText(payload?.analysis?.rebuildMode) || "(нет)"),
     "- analysis.recommendations: " + (recommendations.length ? recommendations.join(" | ") : "(нет)"),
+    "- analysis.changePlan: " + (changePlan.length
+      ? changePlan.map((item) => [item.area, item.change, item.why].filter(Boolean).join(" — ")).join(" | ")
+      : "(нет)"),
   ].join("\n");
 };
 
@@ -489,31 +571,62 @@ const buildCreateVariantImagePrompt = (payload, variant, variantNumber) => {
 
 const buildImproveVariantImagePrompt = (payload, variant, variantNumber) => {
   const prompt = toText(payload?.prompt) || "";
+  const userPrompt = toText(payload?.userPrompt) || "";
   const analysisSummary = toText(payload?.analysis?.summary) || "";
   const recommendation = toText(payload?.analysis?.recommendations?.[0]) || "";
+  const productIdentity = toText(payload?.analysis?.productIdentity) || "тот же товар с исходной карточки";
+  const mustPreserve = Array.isArray(payload?.analysis?.mustPreserve)
+    ? payload.analysis.mustPreserve.map((item) => toText(item)).filter(Boolean).slice(0, 5)
+    : [];
+  const changePlan = normalizeImproveChangePlan(payload?.analysis?.changePlan);
+  const strength = normalizeImproveStrength(variant?.strength || payload?.analysis?.transformationStrength) || "strong";
   const referenceStyle = Boolean(payload?.referenceStyle);
+  const rebuildMode = toText(variant?.rebuildMode || payload?.analysis?.rebuildMode)
+    || (referenceStyle ? "Reference-adapted editorial" : "Split Panel System");
+  const changePlanLines = changePlan.length
+    ? changePlan.map((item, index) => String(index + 1) + ". " + [item.area, item.change, item.why].filter(Boolean).join(" — "))
+    : [];
+  const strengthInstruction = strength === "rebuild"
+    ? "Нужен structural rebuild: заметно пересобери композицию, hero-блок, систему фактов и общий ритм карточки. Минимальные сдвиги недопустимы."
+    : strength === "strong"
+      ? "Нужна сильная переработка: заметно усили иерархию, перераспредели визуальную массу, сократи шум и перегруппируй факты."
+      : "Нужна сфокусированная, но все равно очевидная переработка минимум по двум осям: иерархия, читаемость, акцент или чистота композиции.";
 
   return [
-    "Сгенерируй ровно одно улучшенное изображение продающей карточки товара в вертикальном формате 4:5.",
-    "Первое приложенное изображение — исходная карточка для улучшения.",
-    referenceStyle ? "Если приложено второе изображение, используй его как стилевой референс." : "Стилевой референс не требуется.",
-    "Не возвращай исходную карточку без изменений.",
-    "Сохрани тот же товар, но заметно улучши иерархию, читаемость, композицию и ясность CTA.",
+    "Сгенерируй ровно одно новое улучшенное изображение продающей карточки товара в том же вертикальном формате, что и исходник.",
+    "Первое приложенное изображение — исходная карточка для улучшения. Это материал для сильного улучшения, а не шаблон для минимального ретуширования.",
+    referenceStyle
+      ? "Если приложено второе изображение, используй его как стилевой референс для ритма, плотности и характера, но не копируй чужой товар."
+      : "Стилевой референс не требуется.",
+    "Не возвращай исходную карточку без изменений и не делай barely-visible polish.",
+    "Сохрани тот же товар без подмены модели, бренда, формы, упаковки и ключевых характеристик.",
+    "Идентичность товара: " + productIdentity + ".",
+    mustPreserve.length ? "Обязательно сохранить: " + mustPreserve.join("; ") + "." : "",
+    strengthInstruction,
+    "Разница до и после должна быть очевидна уже в thumbnail.",
+    "Заметно улучши hierarchy, readability, composition, saleability и акцент на выгоде.",
+    "Собери один доминирующий hero message, один организованный facts module и один чистый support layer вместо россыпи мелких плашек.",
     "Убери с видимого дизайна любые упоминания маркетплейса, marketplace, Ozon, Wildberries, WB, seller, названия платформ и платформенные бейджи, если это не часть реального брендинга на самом товаре или упаковке.",
     "Если на исходной карточке есть такие платформенные метки, в улучшенной версии замени их на продуктовую выгоду, короткий proof-point или оставь чистое пространство.",
     "Не размещай слово маркетплейс на карточке.",
     "Весь видимый текст на карточке должен быть только на русском языке.",
-    "Верни только изображение.",
+    ...(changePlanLines.length ? ["Следуй плану изменений:", ...changePlanLines] : []),
     "",
     "Вариант: " + String(variantNumber),
     "Режим: " + (referenceStyle ? "улучшение в стиле референса" : "обычное AI-улучшение"),
-    "Комментарий к улучшению: " + (prompt || "(нет)"),
+    "Комментарий пользователя: " + (userPrompt || "(нет)"),
     "Краткий анализ: " + (analysisSummary || "(нет)"),
     "Главная рекомендация: " + (recommendation || "(нет)"),
     "Планируемый заголовок: " + (toText(variant?.title) || "Улучшенный вариант " + String(variantNumber)),
     "Стратегия: " + (toText(variant?.strategy) || (referenceStyle ? "Улучшение в стиле референса" : "Обычное AI-улучшение")),
+    "Режим перестройки: " + rebuildMode,
+    "Сила улучшения: " + strength,
     "Формат: " + (toText(variant?.format) || toText(payload?.analysis?.marketplaceFormat) || "Готовый формат для маркетплейса с чистым CTA"),
     "Изменения: " + (toText(variant?.changes) || "Улучшить иерархию и конверсионный фокус"),
+    "Почему это лучше продает: " + (toText(variant?.why) || "Карточка должна быстрее считываться и яснее подсвечивать выгоду."),
+    "Что сохранить: " + (toText(variant?.preserved) || (mustPreserve.length ? mustPreserve.join(", ") : productIdentity)),
+    prompt ? "Финальный production-бриф: " + prompt : "",
+    "Верни только изображение.",
   ].join("\n");
 };
 
@@ -722,7 +835,7 @@ const createOpenRouterProvider = (config) => {
       {
         role: "system",
         content: mode === "improve"
-          ? "Ты AI-редактор коммерческих карточек товара. Верни новое улучшенное изображение, а не исходник. Весь видимый текст должен быть на русском языке. Не оставляй на карточке платформенные метки и слова вроде маркетплейс, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара."
+          ? "Ты AI-редактор коммерческих карточек товара. Верни новое заметно улучшенное изображение, а не исходник и не barely-visible polish. Если карточка слабая, делай structural rebuild, а не косметику. Весь видимый текст должен быть на русском языке. Не оставляй на карточке платформенные метки и слова вроде маркетплейс, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара."
           : CREATE_CARD_ART_DIRECTOR_SYSTEM_PROMPT_V2,
       },
       {
@@ -875,25 +988,34 @@ const createGenerate = async (payload) => {
   const improveGenerate = async (payload) => {
     const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
     const improveRequestText = buildImproveGenerateUserText(payload);
-    const { parsed, debug: apiResponseDebug } = await callChatJson([
-      {
-        role: "system",
-        content: "Ты AI-дизайнер, который улучшает продающие карточки товара. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
-      },
-      {
-        role: "user",
-        content: improveRequestText,
-      },
-    ]);
+    let parsed = null;
+    let apiResponseDebug = null;
+    let rawVariants = [];
+    if (variantsCount > 1) {
+      const planningResponse = await callChatJson([
+        {
+          role: "system",
+          content: "Ты AI-дизайнер, который усиливает продающие карточки товара. Планируй заметные улучшения, а не minor polish. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
+        },
+        {
+          role: "user",
+          content: improveRequestText,
+        },
+      ]);
+      parsed = planningResponse.parsed;
+      apiResponseDebug = planningResponse.debug;
+      rawVariants = normalizeVariantList(parsed);
+    } else {
+      rawVariants = [buildLocalImproveVariant(payload, 1)];
+    }
 
-    const rawVariants = normalizeVariantList(parsed);
-    const promptPreview = toText(payload?.prompt).slice(0, 220);
+    const promptPreview = toText(payload?.userPrompt || payload?.prompt).slice(0, 220);
     const referenceStyle = Boolean(payload?.referenceStyle);
 
     const results = [];
     for (let index = 0; index < variantsCount; index += 1) {
       const variantNumber = index + 1;
-      const source = rawVariants[index] || rawVariants[index % Math.max(rawVariants.length, 1)] || {};
+      const source = rawVariants[index] || rawVariants[index % Math.max(rawVariants.length, 1)] || buildLocalImproveVariant(payload, variantNumber);
       const title = toText(source?.title) || "Улучшенный вариант " + String(variantNumber);
 
       const previewResult = await generateVariantPreview({
@@ -917,6 +1039,25 @@ const createGenerate = async (payload) => {
           toText(source?.changes)
           || toText(payload?.analysis?.recommendations?.[0])
           || "Улучшена иерархия и усилен конверсионный фокус.",
+        why:
+          toText(source?.why)
+          || toText(payload?.analysis?.changePlan?.[0]?.why)
+          || "Карточка должна быстрее считываться и яснее показывать главную выгоду товара.",
+        preserved:
+          toText(source?.preserved)
+          || (Array.isArray(payload?.analysis?.mustPreserve)
+            ? payload.analysis.mustPreserve.map((item) => toText(item)).filter(Boolean).slice(0, 3).join(", ")
+            : "")
+          || toText(payload?.analysis?.productIdentity)
+          || "тот же товар с исходной карточки",
+        rebuildMode:
+          toText(source?.rebuildMode)
+          || toText(payload?.analysis?.rebuildMode)
+          || (referenceStyle ? "Reference-adapted editorial" : "Split Panel System"),
+        strength:
+          normalizeImproveStrength(source?.strength)
+          || normalizeImproveStrength(payload?.analysis?.transformationStrength)
+          || "strong",
         format:
           toText(source?.format)
           || toText(payload?.analysis?.marketplaceFormat)
@@ -931,15 +1072,17 @@ const createGenerate = async (payload) => {
             imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
             ...buildRequestDebug([
               "SYSTEM:",
-              "Ты AI-дизайнер, который улучшает продающие карточки товара. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара.",
+              variantsCount > 1
+                ? "Ты AI-дизайнер, который усиливает продающие карточки товара. Планируй заметные улучшения, а не minor polish. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке. Не предлагай видимый текст с упоминаниями маркетплейса, marketplace, Ozon, Wildberries или WB, если это не часть реального брендинга товара."
+                : "Single-variant improve generation uses the analysis handoff directly without extra planning chat.",
               "",
               "USER:",
               improveRequestText,
             ].join("\n")),
-            responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash),
-            responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview),
-            responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || 0,
-            responseText: toText(apiResponseDebug?.responseText || previewResult?.__debug?.responseText),
+            responseHash: toText(apiResponseDebug?.responseHash || previewResult?.__debug?.responseHash || hashText(JSON.stringify(source || {}))),
+            responsePreview: toText(apiResponseDebug?.responsePreview || previewResult?.__debug?.responsePreview || JSON.stringify(source || {}).slice(0, 1200)),
+            responseLength: Number(apiResponseDebug?.responseLength || previewResult?.__debug?.responseLength) || JSON.stringify(source || {}).length,
+            responseText: toText(apiResponseDebug?.responseText || previewResult?.__debug?.responseText || JSON.stringify(source || {})),
           }
           : undefined,
       });

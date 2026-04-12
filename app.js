@@ -35,9 +35,21 @@
   const authSection = document.getElementById("authSection");
   const authCloseBtn = document.getElementById("authCloseBtn");
   const googleAuthBtn = document.getElementById("googleAuthBtn");
+  const authEmailLoginTab = document.getElementById("authEmailLoginTab");
+  const authEmailRegisterTab = document.getElementById("authEmailRegisterTab");
+  const authEmailLoginPanel = document.getElementById("authEmailLoginPanel");
+  const authEmailRegisterPanel = document.getElementById("authEmailRegisterPanel");
+  const authLoginEmailInput = document.getElementById("authLoginEmail");
+  const authLoginPasswordInput = document.getElementById("authLoginPassword");
+  const authRegisterEmailInput = document.getElementById("authRegisterEmail");
+  const authRegisterPasswordInput = document.getElementById("authRegisterPassword");
+  const authRegisterPasswordConfirmInput = document.getElementById("authRegisterPasswordConfirm");
+  const emailLoginBtn = document.getElementById("emailLoginBtn");
+  const emailRegisterBtn = document.getElementById("emailRegisterBtn");
   const authMessage = document.getElementById("authMessage");
   const authTriggers = document.querySelectorAll("[data-open-auth]");
   const cabinetBtn = document.querySelector(".topbar-actions [data-open-auth]");
+  const workspaceAppBrand = document.querySelector(".workspace-app-brand");
 
   const workspaceModeButtons = Array.from(document.querySelectorAll("[data-app-mode-btn]"));
   const workspaceModePanels = Array.from(document.querySelectorAll("[data-app-mode-panel]"));
@@ -185,26 +197,35 @@
   const improveResultsGrid = document.getElementById("improveResultsGrid");
   const improveMeta = document.getElementById("improveMeta");
   const improveDoneBadge = document.getElementById("improveDoneBadge");
+  const enhanceCardPrompt = document.getElementById("enhanceCardPrompt");
 
   const historyList = document.getElementById("historyList");
   const historyEmpty = document.getElementById("historyEmpty");
   const historyClearBtn = document.getElementById("historyClearBtn");
   const historyModeStats = document.getElementById("historyModeStats");
+  const historyModeNote = document.getElementById("historyModeNote");
   const historyModeList = document.getElementById("historyModeList");
   const historyModeEmpty = document.getElementById("historyModeEmpty");
+  const historyModeRefreshBtn = document.getElementById("historyModeRefreshBtn");
   const historyModeClearBtn = document.getElementById("historyModeClearBtn");
   const historyModeDetails = document.getElementById("historyModeDetails");
+  const historyModeDetailsContent = document.getElementById("historyModeDetailsContent");
+  const historyModeDetailsEmpty = document.getElementById("historyModeDetailsEmpty");
   const historyModeDetailsCloseBtn = document.getElementById("historyModeDetailsCloseBtn");
   const historyModeDetailsBackdrop = historyModeDetails?.querySelector("[data-history-modal-close]") || null;
+  const historyDetailsEyebrow = document.getElementById("historyDetailsEyebrow");
   const historyDetailsTitle = document.getElementById("historyDetailsTitle");
   const historyDetailsDate = document.getElementById("historyDetailsDate");
   const historyDetailsMode = document.getElementById("historyDetailsMode");
   const historyDetailsCount = document.getElementById("historyDetailsCount");
   const historyDetailsSummary = document.getElementById("historyDetailsSummary");
+  const historyReusePromptBtn = document.getElementById("historyReusePromptBtn");
   const historyReuseBtn = document.getElementById("historyReuseBtn");
+  const historyOpenResultBtn = document.getElementById("historyOpenResultBtn");
   const historyDetailsInputs = document.getElementById("historyDetailsInputs");
   const historyDetailsUploads = document.getElementById("historyDetailsUploads");
   const historyDetailsPrompt = document.getElementById("historyDetailsPrompt");
+  const historyDetailsPromptMeta = document.getElementById("historyDetailsPromptMeta");
   const historyDetailsHighlights = document.getElementById("historyDetailsHighlights");
   const historyDetailsAi = document.getElementById("historyDetailsAi");
   const historyDetailsResults = document.getElementById("historyDetailsResults");
@@ -227,7 +248,7 @@
   mountWorkspaceOverlay(historyPreviewModal);
 
   const APP_ROUTE_PREFIX = "#app/";
-  const APP_MODES = ["create", "improve", "animate", "history"];
+  const APP_MODES = ["create", "improve", "tools", "animate", "history"];
   const HISTORY_MAX_ITEMS = 30;
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
   const HISTORY_IMAGE_MAX_DIMENSION = 960;
@@ -621,6 +642,7 @@
   const CREATE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/best-template-instruction.md";
   const CREATE_INSTRUCTION_TEMPLATE_LABEL = "best-template-instruction.md";
   const CREATE_AUTOFILL_TEXTS_INSTRUCTION_PATH = "server/prompts/autofill-marketplace-card-texts-v5.md";
+  const IMPROVE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/improve-card-instruction.md";
   const CREATE_BEST_INSTRUCTION_TEMPLATE = Object.freeze({
     id: "tpl-best-instruction",
     title: "Лучший",
@@ -765,6 +787,28 @@
 
   let activeUser = null;
 
+  const buildUserHintHeaders = (user, token) => {
+    if (!user) return {};
+    return {
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+      "X-Kartochka-User-Id": user.uid || "",
+      "X-Kartochka-User-Email": user.email || "",
+    };
+  };
+
+  const getAuthRequestHeaders = async () => {
+    if (!activeUser) return {};
+
+    try {
+      const token = typeof activeUser.getIdToken === "function"
+        ? await activeUser.getIdToken()
+        : "";
+      return buildUserHintHeaders(activeUser, token);
+    } catch (error) {
+      return buildUserHintHeaders(activeUser, "");
+    }
+  };
+
   const serviceClient = window.KARTOCHKA_SERVICES?.createClient
     ? window.KARTOCHKA_SERVICES.createClient({
         mode: SERVICE_MODE,
@@ -784,24 +828,11 @@
         request: {
           baseUrl: "",
           timeoutMs: 300000,
-          getHeaders: async () => {
-            if (!activeUser) return {};
-            try {
-              const token = typeof activeUser.getIdToken === "function"
-                ? await activeUser.getIdToken()
-                : "";
-              return {
-                ...(token ? { Authorization: "Bearer " + token } : {}),
-                "X-Kartochka-User-Id": activeUser.uid || "",
-                "X-Kartochka-User-Email": activeUser.email || "",
-              };
-            } catch (error) {
-              return {
-                "X-Kartochka-User-Id": activeUser.uid || "",
-                "X-Kartochka-User-Email": activeUser.email || "",
-              };
-            }
-          },
+          backgroundRetryCount: 1,
+          recoveryWaitMs: 45000,
+          recoveryStabilizeMs: 700,
+          retryDelayMs: 700,
+          getHeaders: getAuthRequestHeaders,
         },
         endpoints: {
           createAnalyze: "/api/kartochka/createAnalyze",
@@ -829,7 +860,6 @@
   let createAiPromptRequestId = 0;
   let createGenerationRequestId = 0;
   let createGeneratedResults = [];
-  let createResultExpandedId = "";
   let createActivePreviewResultId = "";
   let createInstructionDocumentText = "";
   let createInstructionDocumentName = "";
@@ -863,33 +893,27 @@
   const historyEntries = [];
   let selectedHistoryEntryId = "";
   let historyReuseInProgress = false;
+  let historyIsLoading = false;
+  let historyLoadRequestId = 0;
   let historyDetailsVisible = false;
+  let historyDetailsRequestId = 0;
+  let historyDetailsLoadingId = "";
   let historyPreviewVisible = false;
   let selectedHistoryPreviewEntryId = "";
-  let billingModalOpen = false;
+  let selectedHistoryPreviewResultId = "";
+  let historySyncStatus = {
+    level: "idle",
+    message: "",
+    storageMode: "",
+    fallbackUsed: false,
+    savedAt: "",
+  };
   let billingSummary = null;
   let billingSummaryLoading = false;
-  let billingPromoLoading = false;
+  let billingSummaryRequestId = 0;
 
   window.KARTOCHKA_AUTH_SESSION = {
-    async getHeaders() {
-      if (!activeUser) return {};
-      try {
-        const token = typeof activeUser.getIdToken === "function"
-          ? await activeUser.getIdToken()
-          : "";
-        return {
-          ...(token ? { Authorization: "Bearer " + token } : {}),
-          "X-Kartochka-User-Id": activeUser.uid || "",
-          "X-Kartochka-User-Email": activeUser.email || "",
-        };
-      } catch (error) {
-        return {
-          "X-Kartochka-User-Id": activeUser.uid || "",
-          "X-Kartochka-User-Email": activeUser.email || "",
-        };
-      }
-    },
+    getHeaders: getAuthRequestHeaders,
     getUserId() {
       return activeUser?.uid || "";
     },
@@ -1260,9 +1284,17 @@
   };
 
   const refreshBillingSummary = async () => {
+    const requestId = ++billingSummaryRequestId;
+    const expectedUserId = activeUser?.uid || "";
+
     if (!activeUser || !serviceClient?.billingSummary) {
-      billingSummary = null;
-      renderBillingSummary();
+      if (requestId === billingSummaryRequestId) {
+        billingSummary = null;
+        billingSummaryLoading = false;
+        renderBillingSummary();
+        syncBillingHeader();
+        dispatchBillingUpdate();
+      }
       return null;
     }
 
@@ -1270,18 +1302,29 @@
     syncBillingHeader();
 
     try {
-      billingSummary = await serviceClient.billingSummary({});
+      const nextSummary = await serviceClient.billingSummary({});
+      if (requestId !== billingSummaryRequestId || expectedUserId !== (activeUser?.uid || "")) {
+        return null;
+      }
+
+      billingSummary = nextSummary;
       renderBillingSummary();
       return billingSummary;
     } catch (error) {
+      if (requestId !== billingSummaryRequestId || expectedUserId !== (activeUser?.uid || "")) {
+        return null;
+      }
+
       billingSummary = null;
       renderBillingSummary();
       setBillingPromoStatus("", "");
       return null;
     } finally {
-      billingSummaryLoading = false;
-      syncBillingHeader();
-      dispatchBillingUpdate();
+      if (requestId === billingSummaryRequestId && expectedUserId === (activeUser?.uid || "")) {
+        billingSummaryLoading = false;
+        syncBillingHeader();
+        dispatchBillingUpdate();
+      }
     }
   };
 
@@ -1290,7 +1333,6 @@
     billingModal.classList.remove("hidden");
     billingModal.setAttribute("aria-hidden", "false");
     document.body.classList.add("billing-open");
-    billingModalOpen = true;
   };
 
   const closeBillingModal = () => {
@@ -1298,7 +1340,6 @@
     billingModal.classList.add("hidden");
     billingModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("billing-open");
-    billingModalOpen = false;
   };
 
   const setCreateSecondaryBadge = (node, text, tone) => {
@@ -1363,6 +1404,181 @@
     return toText(value).toLowerCase();
   };
 
+  const SERVICE_ERROR_CODES = window.KARTOCHKA_SERVICES?.ERROR_CODES || {};
+  const REQUEST_LIFECYCLE_NOTICE_WINDOW_MS = 20000;
+  const isMobileLifecycleClient = (() => {
+    const coarsePointer = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+    const userAgent = toLowerText(window.navigator?.userAgent || "");
+    return coarsePointer || /android|iphone|ipad|ipod|mobile/.test(userAgent);
+  })();
+  let lastAppBackgroundAt = document.hidden ? Date.now() : 0;
+  let lastAppForegroundAt = document.hidden ? 0 : Date.now();
+  let lastAppOfflineAt = window.navigator?.onLine === false ? Date.now() : 0;
+  let lastAppOnlineAt = window.navigator?.onLine === false ? 0 : Date.now();
+
+  const getServiceErrorCode = (error) => {
+    return toText(error?.code);
+  };
+
+  const createInterruptedRequestError = (message) => {
+    const error = new Error(message || "Request interrupted");
+    error.code = SERVICE_ERROR_CODES.interrupted || "request_interrupted";
+    return error;
+  };
+
+  const isInterruptedRequestError = (error) => {
+    const code = getServiceErrorCode(error);
+    return code === toText(SERVICE_ERROR_CODES.interrupted) || code === "request_interrupted";
+  };
+
+  const hasRecentLifecycleInterruption = () => {
+    const now = Date.now();
+    return (
+      (lastAppBackgroundAt && now - lastAppBackgroundAt <= REQUEST_LIFECYCLE_NOTICE_WINDOW_MS)
+      || (lastAppForegroundAt && now - lastAppForegroundAt <= REQUEST_LIFECYCLE_NOTICE_WINDOW_MS)
+      || (lastAppOfflineAt && now - lastAppOfflineAt <= REQUEST_LIFECYCLE_NOTICE_WINDOW_MS)
+      || (lastAppOnlineAt && now - lastAppOnlineAt <= REQUEST_LIFECYCLE_NOTICE_WINDOW_MS)
+    );
+  };
+
+  const resolveRequestErrorFeedback = (error, fallbackMessage, options) => {
+    const code = getServiceErrorCode(error);
+    const offlineNow = window.navigator?.onLine === false;
+    const recoveryTimedOut = Boolean(error?.details?.recoveryTimedOut);
+    const interruptedFallback = recoveryTimedOut
+      ? "Соединение не восстановилось после возврата в приложение. Данные на экране сохранены, можно повторить запрос."
+      : "Связь прервалась после сворачивания приложения. Данные на экране сохранены, можно повторить запрос.";
+
+    if (isInterruptedRequestError(error) || (code === toText(SERVICE_ERROR_CODES.network) && hasRecentLifecycleInterruption())) {
+      return {
+        message: toText(options?.interruptedMessage) || interruptedFallback,
+        type: "",
+        metaValue: toText(options?.interruptedMeta) || "Запрос прерван после возврата",
+        isInterrupted: true,
+      };
+    }
+
+    if (offlineNow && code === toText(SERVICE_ERROR_CODES.network)) {
+      return {
+        message: toText(options?.offlineMessage) || "Соединение пропало. Когда интернет вернется, запрос можно повторить.",
+        type: "",
+        metaValue: toText(options?.offlineMeta) || "Нет соединения",
+        isInterrupted: false,
+      };
+    }
+
+    if (code === toText(SERVICE_ERROR_CODES.timeout)) {
+      return {
+        message: toText(options?.timeoutMessage) || "Запрос занял слишком много времени. Попробуйте еще раз при стабильной связи.",
+        type: "error",
+        metaValue: toText(options?.timeoutMeta) || "Превышено время ожидания",
+        isInterrupted: false,
+      };
+    }
+
+    if (code === toText(SERVICE_ERROR_CODES.network)) {
+      return {
+        message: toText(options?.networkMessage) || "Не удалось связаться с сервисом. Попробуйте еще раз.",
+        type: "error",
+        metaValue: toText(options?.networkMeta) || "Сбой соединения",
+        isInterrupted: false,
+      };
+    }
+
+    return {
+      message: error instanceof Error && toText(error.message) ? error.message : fallbackMessage,
+      type: "error",
+      metaValue: toText(options?.errorMeta) || fallbackMessage,
+      isInterrupted: false,
+    };
+  };
+
+  const formatLifecycleStatusMessage = (actionLabel, stage) => {
+    if (stage === "background") {
+      return "Приложение свернуто. " + actionLabel + " продолжится, когда вы вернетесь.";
+    }
+    if (stage === "offline") {
+      return "Соединение пропало. " + actionLabel + " продолжится после восстановления сети.";
+    }
+    return "Соединение восстановлено. Продолжаем: " + actionLabel + ".";
+  };
+
+  const formatLifecycleMetaValue = (actionLabel, stage) => {
+    if (stage === "background") {
+      return actionLabel + ": приложение в фоне";
+    }
+    if (stage === "offline") {
+      return actionLabel + ": ждем сеть";
+    }
+    return actionLabel + ": восстанавливаем соединение";
+  };
+
+  const buildActiveLifecycleRequestContexts = () => {
+    const contexts = [];
+
+    if (createAutofillPhase === "loading") {
+      contexts.push({ statusNode: createStatus, metaNode: createMeta, actionLabel: "AI автозаполнение" });
+    }
+    if (createInsightPhase === "loading") {
+      contexts.push({ statusNode: createInsightStatus, metaNode: createMeta, actionLabel: "AI-анализ товара" });
+    }
+    if (createAiPromptPhase === "loading") {
+      contexts.push({ statusNode: createAiPromptStatus, metaNode: createMeta, actionLabel: "AI-промпт" });
+    }
+    if (createIsGenerating) {
+      contexts.push({ statusNode: createStatus, metaNode: createMeta, actionLabel: "генерация карточки" });
+    }
+    if (improveAnalysisPhase === "loading") {
+      contexts.push({ statusNode: improveAnalysisStatus, metaNode: improveMeta, actionLabel: "AI-анализ карточки" });
+    }
+    if (improveIsGenerating) {
+      contexts.push({ statusNode: improveStatus, metaNode: improveMeta, actionLabel: "улучшение карточки" });
+    }
+
+    return contexts;
+  };
+
+  const syncActiveLifecycleRequestStatus = (stage) => {
+    if (!isMobileLifecycleClient) return;
+
+    buildActiveLifecycleRequestContexts().forEach((context) => {
+      setStatusMessage(context.statusNode, formatLifecycleStatusMessage(context.actionLabel, stage), "");
+      if (context.metaNode) {
+        setRequestMeta(context.metaNode, "Статус запроса:", formatLifecycleMetaValue(context.actionLabel, stage), "");
+      }
+    });
+  };
+
+  const isLocalHostname = (hostname) => {
+    const normalized = toLowerText(hostname);
+    return normalized === "localhost"
+      || normalized === "127.0.0.1"
+      || normalized === "0.0.0.0"
+      || normalized === "[::1]";
+  };
+
+  const isPreviewHostname = (hostname) => {
+    const normalized = toLowerText(hostname);
+    return normalized.endsWith(".vercel.app") || normalized.endsWith(".vercel.dev");
+  };
+
+  const resolveDedicatedAppBaseUrl = () => {
+    const explicitBaseUrl = toText(window.KARTOCHKA_APP_BASE_URL).replace(/\/+$/, "");
+    if (explicitBaseUrl) return explicitBaseUrl;
+
+    const hostname = toLowerText(window.location.hostname);
+    if (!hostname || isLocalHostname(hostname) || isPreviewHostname(hostname)) {
+      return "";
+    }
+
+    if (hostname.startsWith("app.")) {
+      return toText(window.location.origin);
+    }
+
+    const publicHostname = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+    return window.location.protocol + "//app." + publicHostname + (window.location.port ? ":" + window.location.port : "");
+  };
+
   const setAuthMessage = (text, type) => {
     setStatusMessage(authMessage, text, type);
   };
@@ -1379,6 +1595,28 @@
     document.body.classList.remove("auth-open");
   };
 
+  const setAuthMode = (mode) => {
+    const normalizedMode = mode === "register" ? "register" : "login";
+    const isRegister = normalizedMode === "register";
+    authEmailLoginTab?.classList.toggle("active", !isRegister);
+    authEmailRegisterTab?.classList.toggle("active", isRegister);
+    authEmailLoginTab?.setAttribute("aria-selected", String(!isRegister));
+    authEmailRegisterTab?.setAttribute("aria-selected", String(isRegister));
+    authEmailLoginPanel?.classList.toggle("active", !isRegister);
+    authEmailRegisterPanel?.classList.toggle("active", isRegister);
+  };
+
+  const setAuthButtonsDisabled = (disabled) => {
+    [googleAuthBtn, emailLoginBtn, emailRegisterBtn].forEach((button) => {
+      if (!button) return;
+      if (disabled) {
+        button.setAttribute("disabled", "disabled");
+      } else {
+        button.removeAttribute("disabled");
+      }
+    });
+  };
+
   const normalizeAppMode = (mode) => {
     return APP_MODES.includes(mode) ? mode : "create";
   };
@@ -1387,7 +1625,40 @@
     return APP_ROUTE_PREFIX + normalizeAppMode(mode);
   };
 
+  const buildAppPath = (mode) => {
+    const normalizedMode = normalizeAppMode(mode);
+    return normalizedMode === "create" ? "/" : "/" + normalizedMode;
+  };
+
+  const isDedicatedAppHost = () => {
+    return toLowerText(window.location.hostname).startsWith("app.") && !isLocalHostname(window.location.hostname);
+  };
+
+  const getDedicatedAppUrl = (mode) => {
+    const baseUrl = resolveDedicatedAppBaseUrl();
+    if (!baseUrl) return "";
+    return baseUrl + buildAppPath(mode);
+  };
+
+  const parseAppModeFromPath = (pathname) => {
+    const normalizedPath = toText(pathname || window.location.pathname).replace(/^\/+|\/+$/g, "");
+    if (!normalizedPath) return "create";
+
+    const segments = normalizedPath.split("/");
+    const candidate = segments[0] === "app" ? (segments[1] || "create") : segments[0];
+    const mode = toLowerText(candidate);
+    return APP_MODES.includes(mode) ? mode : null;
+  };
+
   const parseAppModeFromHash = (hash) => {
+    if (typeof hash !== "string") {
+      const legacyPathMode = parseAppModeFromPath();
+      const isLegacyPublicPath = /^\/app(?:\/|$)/i.test(window.location.pathname);
+      if (isDedicatedAppHost() || isLegacyPublicPath) {
+        return legacyPathMode;
+      }
+    }
+
     const sourceHash = typeof hash === "string" ? hash : window.location.hash || "";
     if (!sourceHash.startsWith(APP_ROUTE_PREFIX)) return null;
     const mode = sourceHash.slice(APP_ROUTE_PREFIX.length).split(/[/?#]/)[0].trim().toLowerCase();
@@ -1400,6 +1671,30 @@
       "",
       window.location.pathname + window.location.search + nextHash
     );
+  };
+
+  const clearPublicAnchorHashOnBoot = () => {
+    const currentHash = toText(window.location.hash);
+    if (!currentHash || parseAppModeFromHash(currentHash)) return;
+    replaceHash("");
+    window.scrollTo(0, 0);
+  };
+
+  const replaceAppPath = (mode) => {
+    const nextPath = buildAppPath(mode);
+    window.history.replaceState(null, "", nextPath + window.location.search);
+  };
+
+  const openDedicatedApp = (mode, options) => {
+    const targetUrl = getDedicatedAppUrl(mode);
+    if (!targetUrl || isDedicatedAppHost()) return false;
+
+    if (Boolean(options && options.replace)) {
+      window.location.replace(targetUrl);
+    } else {
+      window.location.assign(targetUrl);
+    }
+    return true;
   };
 
   const syncWorkspaceUser = (user) => {
@@ -1420,11 +1715,33 @@
     if (workspaceUserAvatar) workspaceUserAvatar.textContent = (displayName[0] || "K").toUpperCase();
   };
 
-  const openWorkspaceView = (user, mode) => {
-    if (!workspace || !publicView) return;
+  const revealPublicViewImmediately = () => {
+    if (!publicView) return;
 
-    publicView.classList.add("hidden");
-    publicView.setAttribute("aria-hidden", "true");
+    publicView.querySelectorAll(".reveal").forEach((node) => {
+      node.classList.add("is-visible");
+    });
+
+    const statsSection = publicView.querySelector(".kartochka-stats-section");
+    if (statsSection) {
+      statsSection.classList.add("kartochka-stats-section-visible");
+
+      const statsNumber = statsSection.querySelector(".kartochka-stats-number");
+      const targetValue = Number(statsNumber?.dataset?.kartochkaStatsTarget || "0");
+      if (statsNumber && targetValue > 0) {
+        statsNumber.dataset.kartochkaStatsAnimated = "true";
+        statsNumber.textContent = new Intl.NumberFormat("ru-RU")
+          .format(targetValue)
+          .replace(/\u00A0/g, "\u00A0\u00A0");
+      }
+    }
+  };
+
+  const openWorkspaceView = (user, mode) => {
+    if (!workspace) return;
+
+    publicView?.classList.add("hidden");
+    publicView?.setAttribute("aria-hidden", "true");
     workspace.classList.remove("hidden");
     workspace.setAttribute("aria-hidden", "false");
 
@@ -1436,7 +1753,7 @@
   };
 
   const closeWorkspaceView = () => {
-    if (!workspace || !publicView) return;
+    if (!workspace) return;
 
     closeHistoryDetailsModal();
     closeCreateReferenceLibrary();
@@ -1445,8 +1762,16 @@
 
     workspace.classList.add("hidden");
     workspace.setAttribute("aria-hidden", "true");
-    publicView.classList.remove("hidden");
-    publicView.setAttribute("aria-hidden", "false");
+    if (publicView) {
+      const shouldShowPublicView = !isDedicatedAppHost();
+      publicView.classList.toggle("hidden", !shouldShowPublicView);
+      publicView.setAttribute("aria-hidden", shouldShowPublicView ? "false" : "true");
+      if (shouldShowPublicView) {
+        revealPublicViewImmediately();
+        replaceHash("");
+        window.scrollTo(0, 0);
+      }
+    }
 
     document.body.classList.remove("workspace-active");
   };
@@ -1456,6 +1781,12 @@
 
     if (activeMode !== "history") {
       closeHistoryDetailsModal();
+    } else if (historyEntries.length) {
+      if (!selectedHistoryEntryId) {
+        selectedHistoryEntryId = historyEntries[0]?.id || "";
+      }
+      historyDetailsVisible = Boolean(selectedHistoryEntryId);
+      renderHistoryDetails();
     }
     if (activeMode !== "create") {
       closeCreateReferenceLibrary();
@@ -1476,13 +1807,32 @@
   const handleAppHashRoute = () => {
     const routeMode = parseAppModeFromHash();
     if (!routeMode) {
+      if (isDedicatedAppHost()) {
+        if (activeUser) {
+          replaceAppPath(activeMode);
+          openWorkspaceView(activeUser, activeMode);
+        } else {
+          closeWorkspaceView();
+          setAuthMessage("Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РІРЅСѓС‚СЂРµРЅРЅРёР№ app", "");
+          openAuthModal();
+        }
+        return true;
+      }
+
       if (document.body.classList.contains("workspace-active")) {
         closeWorkspaceView();
       }
       return false;
     }
 
+    if (!isDedicatedAppHost() && openDedicatedApp(routeMode, { replace: true })) {
+      return true;
+    }
+
     activeMode = routeMode;
+    if (isDedicatedAppHost() && /^\/app(?:\/|$)/i.test(window.location.pathname)) {
+      replaceAppPath(routeMode);
+    }
 
     if (!activeUser) {
       closeWorkspaceView();
@@ -1499,6 +1849,27 @@
     const targetMode = normalizeAppMode(mode);
     const targetHash = buildAppHash(targetMode);
     const useReplace = Boolean(options && options.replace);
+
+    if (!isDedicatedAppHost() && openDedicatedApp(targetMode, { replace: useReplace })) {
+      return;
+    }
+
+    if (isDedicatedAppHost()) {
+      const targetPath = buildAppPath(targetMode);
+
+      if (useReplace) {
+        replaceAppPath(targetMode);
+        handleAppHashRoute();
+        return;
+      }
+
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, "", targetPath + window.location.search);
+      }
+
+      handleAppHashRoute();
+      return;
+    }
 
     if (useReplace) {
       replaceHash(targetHash);
@@ -2794,9 +3165,51 @@
     }));
   };
 
+  const applyImprovePrefill = async (options) => {
+    if (!improveImageInput && !improveRunBtn && !improvePrompt) return;
+    const previewUrl = String(options?.previewUrl || "").trim();
+    if (!previewUrl) {
+      throw new Error("РќРµС‚ РїСЂРµРІСЊСЋ РґР»СЏ РїРµСЂРµС…РѕРґР° Рє СѓР»СѓС‡С€РµРЅРёСЋ.");
+    }
+
+    clearImproveFileState();
+    improveGeneratedResults = [];
+    improveResultExpandedId = "";
+    renderImproveResults();
+    syncImproveMode("ai");
+    if (improvePrompt) {
+      improvePrompt.value = "";
+    }
+    setSelectValueIfExists(improveVariantsCount, "1");
+
+    const sourceFile = await dataUrlToFile(
+      previewUrl,
+      String(options?.fileName || "source-card.png").trim() || "source-card.png",
+      "image/png"
+    );
+    if (sourceFile) {
+      improveImageFile = sourceFile;
+    }
+    improveImagePreview = previewUrl;
+    if (improveSelectedImage) {
+      improveSelectedImage.src = previewUrl;
+    }
+    improveSelectedPreview?.classList.remove("hidden");
+
+    resetImproveAnalysisAfterInputChange();
+    renderImproveAnalysisValues(improveAnalysisData);
+    setDoneState(improveDoneBadge, false);
+    syncImproveFormState();
+    setRequestMeta(improveMeta, "РЎС‚Р°С‚СѓСЃ Р·Р°РїСЂРѕСЃР°:", "РСЃС…РѕРґРЅР°СЏ РєР°СЂС‚РѕС‡РєР° РїРµСЂРµРЅРµСЃРµРЅР° РёР· create");
+    setStatusMessage(improveStatus, "РљР°СЂС‚РѕС‡РєР° РїРµСЂРµРЅРµСЃРµРЅР° РІ improve. РњРѕР¶РЅРѕ Р·Р°РїСѓСЃРєР°С‚СЊ AI-Р°РЅР°Р»РёР·.", "success");
+
+    if (!historyReuseInProgress) {
+      void runImproveAnalysis({ source: "auto" });
+    }
+  };
+
   const clearCreateResultsData = () => {
     createGeneratedResults = [];
-    createResultExpandedId = "";
     createActivePreviewResultId = "";
     setCreateResultsProcessing(false);
     renderCreateResults();
@@ -3159,6 +3572,7 @@
     const hasInsight = Boolean(createInsightData);
     const inputError = getCreateInsightInputError();
     const isLoading = createInsightPhase === "loading";
+    const isInterrupted = createInsightPhase === "interrupted";
     const isError = createInsightPhase === "error";
     const isSuccess = createInsightPhase === "success";
     const isStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
@@ -3178,6 +3592,8 @@
     if (createInsightSummaryBadge) {
       if (isLoading) {
         setCreateSecondaryBadge(createInsightSummaryBadge, "AI анализ", "is-active");
+      } else if (isInterrupted) {
+        setCreateSecondaryBadge(createInsightSummaryBadge, hasInsight ? "Повторить" : "Пауза", "is-warning");
       } else if (isError && !hasInsight) {
         setCreateSecondaryBadge(createInsightSummaryBadge, "Нужны данные", "is-error");
       } else if (isSuccess && isStale) {
@@ -3189,7 +3605,7 @@
       }
     }
 
-    if (createInsightDetails && (isLoading || (isError && !hasInsight))) {
+    if (createInsightDetails && (isLoading || isInterrupted || (isError && !hasInsight))) {
       createInsightDetails.open = true;
     }
 
@@ -3232,6 +3648,7 @@
 
     try {
       const payload = await buildCreateInsightPayload();
+      payload.requestId = buildClientRequestId("create-insight", requestId);
       const insight = await requestCreateInsight(payload);
       if (requestId !== createInsightRequestId) return false;
 
@@ -3252,10 +3669,16 @@
       return true;
     } catch (error) {
       if (requestId !== createInsightRequestId) return false;
-      createInsightPhase = "error";
-      const message = error instanceof Error ? error.message : "Не удалось собрать insight.";
-      setStatusMessage(createInsightStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI-анализа");
+      const feedback = resolveRequestErrorFeedback(error, "Не удалось собрать insight.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Insight можно обновить еще раз без потери данных.",
+        interruptedMeta: "AI-анализ прерван после возврата",
+        timeoutMeta: "Таймаут AI-анализа",
+        networkMeta: "Сбой AI-анализа",
+        errorMeta: "Ошибка AI-анализа",
+      });
+      createInsightPhase = feedback.isInterrupted ? "interrupted" : "error";
+      setStatusMessage(createInsightStatus, feedback.message, feedback.type);
+      setRequestMeta(createMeta, "Статус запроса:", feedback.metaValue, feedback.type);
       return false;
     } finally {
       if (requestId === createInsightRequestId) {
@@ -3380,9 +3803,10 @@
     const hasPrompt = promptValue.length > 0;
     const inputError = getCreateAiPromptInputError();
     const isLoading = createAiPromptPhase === "loading";
+    const isInterrupted = createAiPromptPhase === "interrupted";
     const controlsLocked = isLoading || createIsGenerating || createInsightPhase === "loading";
     const canAcceptPrompt = promptValue.length >= CREATE_AI_PROMPT_MIN_ACCEPT_LEN;
-    const showEditor = isLoading || hasPrompt;
+    const showEditor = isLoading || isInterrupted || hasPrompt;
 
     createAiPromptCard?.classList.toggle("is-empty", !hasPrompt && createAiPromptPhase === "empty");
     createAiPromptCard?.classList.toggle("is-loading", isLoading);
@@ -3400,6 +3824,8 @@
     if (createPromptAssistSummaryBadge) {
       if (isLoading) {
         setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Генерация", "is-active");
+      } else if (isInterrupted && !hasPrompt) {
+        setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Пауза", "is-warning");
       } else if (createAiPromptPhase === "error" && !hasPrompt) {
         setCreateSecondaryBadge(createPromptAssistSummaryBadge, "Ошибка", "is-error");
       } else if (hasPrompt) {
@@ -3411,7 +3837,7 @@
       }
     }
 
-    if (createPromptAssistDetails && (isLoading || hasPrompt || createAiPromptPhase === "error")) {
+    if (createPromptAssistDetails && (isLoading || isInterrupted || hasPrompt || createAiPromptPhase === "error")) {
       createPromptAssistDetails.open = true;
     }
 
@@ -3443,8 +3869,17 @@
     if (insightIsOutdated) {
       const insightReady = await runCreateInsightAnalysis({ source: "prompt" });
       if (!insightReady) {
-        createAiPromptPhase = "error";
-        setStatusMessage(createAiPromptStatus, "Не удалось обновить insight.", "error");
+        if (createInsightPhase === "interrupted") {
+          createAiPromptPhase = "interrupted";
+          setStatusMessage(
+            createAiPromptStatus,
+            "Связь прервалась после сворачивания приложения. Insight можно обновить еще раз без потери данных.",
+            ""
+          );
+        } else {
+          createAiPromptPhase = "error";
+          setStatusMessage(createAiPromptStatus, "Не удалось обновить insight.", "error");
+        }
         syncCreateFormState();
         return;
       }
@@ -3476,13 +3911,19 @@
       setRequestMeta(createMeta, "Статус запроса:", "AI-промпт готов");
     } catch (error) {
       if (requestId !== createAiPromptRequestId) return;
-      createAiPromptPhase = "error";
       if (createAiPromptOutput && !createAiPromptOutput.value.trim()) {
         createAiPromptOutput.placeholder = "Здесь появится промпт.";
       }
-      const message = error instanceof Error ? error.message : "Не удалось собрать промпт.";
-      setStatusMessage(createAiPromptStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI-промпта");
+      const feedback = resolveRequestErrorFeedback(error, "Не удалось собрать промпт.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Промпт можно собрать еще раз без потери введенных данных.",
+        interruptedMeta: "AI-промпт прерван после возврата",
+        timeoutMeta: "Таймаут AI-промпта",
+        networkMeta: "Сбой AI-промпта",
+        errorMeta: "Ошибка AI-промпта",
+      });
+      createAiPromptPhase = feedback.isInterrupted ? "interrupted" : "error";
+      setStatusMessage(createAiPromptStatus, feedback.message, feedback.type);
+      setRequestMeta(createMeta, "Статус запроса:", feedback.metaValue, feedback.type);
     } finally {
       if (requestId === createAiPromptRequestId) {
         if (activeUser) {
@@ -3616,10 +4057,16 @@
       applyCreateAutofillResult(analysis, payload);
     } catch (error) {
       if (requestId !== createAutofillRequestId) return;
-      createAutofillPhase = "error";
-      const message = error instanceof Error ? error.message : "Не удалось выполнить AI автозаполнение.";
-      setStatusMessage(createStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", "Ошибка AI автозаполнения");
+      const feedback = resolveRequestErrorFeedback(error, "Не удалось выполнить AI автозаполнение.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Заполнение можно повторить без потери данных формы.",
+        interruptedMeta: "AI автозаполнение прервано после возврата",
+        timeoutMeta: "Таймаут AI автозаполнения",
+        networkMeta: "Сбой AI автозаполнения",
+        errorMeta: "Ошибка AI автозаполнения",
+      });
+      createAutofillPhase = feedback.isInterrupted ? "idle" : "error";
+      setStatusMessage(createStatus, feedback.message, feedback.type);
+      setRequestMeta(createMeta, "Статус запроса:", feedback.metaValue, feedback.type);
     } finally {
       if (requestId === createAutofillRequestId && createAutofillPhase !== "loading") {
         if (activeUser) {
@@ -3800,10 +4247,10 @@
     if (createAutofillPhase === "error") {
       createAutofillPhase = "idle";
     }
-    if (createAiPromptPhase === "error" && !(createAiPromptOutput?.value || "").trim()) {
+    if ((createAiPromptPhase === "error" || createAiPromptPhase === "interrupted") && !(createAiPromptOutput?.value || "").trim()) {
       createAiPromptPhase = "empty";
     }
-    if (createInsightPhase === "error" && !createInsightData) {
+    if ((createInsightPhase === "error" || createInsightPhase === "interrupted") && !createInsightData) {
       createInsightPhase = "empty";
     }
   };
@@ -3895,8 +4342,73 @@
     return user?.uid || "guest";
   };
 
-  const getHistoryStorageKey = (user) => {
-    return HISTORY_STORAGE_PREFIX + getHistoryScopeId(user);
+  const getHistorySourceMode = () => {
+    const activeServiceMode = typeof serviceClient?.getMode === "function" ? serviceClient.getMode() : SERVICE_MODE;
+    return activeServiceMode === "mock" ? "mock" : "backend";
+  };
+
+  const resetHistorySyncStatus = () => {
+    historySyncStatus = {
+      level: "idle",
+      message: "",
+      storageMode: "",
+      fallbackUsed: false,
+      savedAt: "",
+    };
+  };
+
+  const setHistorySyncStatus = (nextStatus) => {
+    historySyncStatus = {
+      level: String(nextStatus?.level || "idle").trim().toLowerCase() || "idle",
+      message: String(nextStatus?.message || "").trim(),
+      storageMode: String(nextStatus?.storageMode || "").trim().toLowerCase(),
+      fallbackUsed: Boolean(nextStatus?.fallbackUsed),
+      savedAt: String(nextStatus?.savedAt || "").trim(),
+    };
+  };
+
+  const getHistoryDefaultNote = () => {
+    if (getHistorySourceMode() === "mock") {
+      return historyEntries.length
+        ? "Показаны локальные mock-записи. Это demo-режим, а не production persistence."
+        : "В mock-режиме здесь появятся локальные demo-записи.";
+    }
+    return historyEntries.length
+      ? "Показаны реально сохраненные записи из backend-профиля."
+      : "История читает только реально сохраненные backend-записи этого профиля.";
+  };
+
+  const getHistoryDefaultEmptyText = () => {
+    return getHistorySourceMode() === "mock"
+      ? "Пока нет локальных demo-записей."
+      : "После реального сохранения create и improve записи появятся здесь.";
+  };
+
+  const buildHistoryPersistenceFeedback = (error, operation, options) => {
+    const normalizedOperation = String(operation || "save").trim().toLowerCase();
+    const fallbackMessage = normalizedOperation === "load"
+      ? (
+        options?.hasEntries
+          ? "Не удалось обновить историю из backend. Показаны последние успешно загруженные записи."
+          : "Не удалось загрузить историю из backend. История сейчас недоступна."
+      )
+      : normalizedOperation === "clear"
+        ? "Не удалось очистить историю в backend. Текущие записи не были удалены."
+        : "История не сохранилась в backend. Генерация завершена, но запись не была зафиксирована.";
+    const feedback = resolveRequestErrorFeedback(error, fallbackMessage, {
+      interruptedMessage: normalizedOperation === "load"
+        ? "Связь прервалась после сворачивания приложения. Не удалось подтвердить backend-историю."
+        : "Связь прервалась после сворачивания приложения. Не удалось подтвердить сохранение истории.",
+      interruptedMeta: normalizedOperation === "load" ? "История недоступна после возврата" : "История не подтверждена после возврата",
+      timeoutMeta: normalizedOperation === "load" ? "Таймаут чтения истории" : "Таймаут сохранения истории",
+      networkMeta: normalizedOperation === "load" ? "Сбой чтения истории" : "Сбой сохранения истории",
+      errorMeta: normalizedOperation === "load" ? "Ошибка чтения истории" : "Ошибка сохранения истории",
+    });
+    setHistorySyncStatus({
+      level: "error",
+      message: feedback.message,
+    });
+    return feedback;
   };
 
   const getHistoryFallbackPreview = (mode) => {
@@ -3907,7 +4419,18 @@
 
   const sanitizeHistoryPreviewUrl = (previewUrl, mode) => {
     const safeUrl = String(previewUrl || "").trim();
-    if (!safeUrl || safeUrl.startsWith("blob:")) {
+    if (
+      !safeUrl
+      || safeUrl.startsWith("blob:")
+      || /^javascript:/i.test(safeUrl)
+      || (
+        !/^data:image\//i.test(safeUrl)
+        && !/^https?:\/\//i.test(safeUrl)
+        && !safeUrl.startsWith("/")
+        && !safeUrl.startsWith("./")
+      )
+      || safeUrl.includes("..")
+    ) {
       return getHistoryFallbackPreview(mode);
     }
     return safeUrl;
@@ -3930,6 +4453,191 @@
       severity: normalizeHistorySeverity(issue?.severity),
       note: String(issue?.note || "").trim(),
     };
+  };
+
+  const collapseHistoryText = (value) => {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  };
+
+  const truncateHistoryText = (value, maxLength) => {
+    const safeValue = collapseHistoryText(value);
+    const safeMaxLength = Number.isFinite(Number(maxLength)) ? Math.max(12, Math.floor(Number(maxLength))) : 120;
+    if (!safeValue || safeValue.length <= safeMaxLength) return safeValue;
+    return safeValue.slice(0, safeMaxLength - 1).trim() + "…";
+  };
+
+  const stripHistoryFileExtension = (value) => {
+    return collapseHistoryText(value).replace(/\.[a-z0-9]{2,6}$/i, "");
+  };
+
+  const getHistoryModeLabel = (mode) => {
+    return mode === "improve" ? "Улучшение" : "Создание";
+  };
+
+  const getHistoryImproveModeLabel = (mode) => {
+    return mode === "reference" ? "Reference style" : "Стандартный AI";
+  };
+
+  const getHistoryPromptModeLabel = (entry) => {
+    if (entry?.mode === "improve") {
+      return getHistoryImproveModeLabel(entry?.input?.improveMode || entry?.meta?.improveMode || "");
+    }
+    return (entry?.input?.promptMode || entry?.meta?.promptMode || "") === "custom"
+      ? "Свой prompt"
+      : "AI prompt";
+  };
+
+  const getHistoryPromptMeta = (entry) => {
+    if (entry?.mode === "improve") {
+      return (entry?.input?.improveMode || entry?.meta?.improveMode || "") === "reference"
+        ? "Комментарий пользователя + режим reference style"
+        : "Комментарий пользователя для улучшения";
+    }
+    return (entry?.input?.promptMode || entry?.meta?.promptMode || "") === "custom"
+      ? "Пользовательский prompt"
+      : "AI prompt, использованный при генерации";
+  };
+
+  const getCreateTemplateTitleById = (templateId) => {
+    const safeId = collapseHistoryText(templateId);
+    if (!safeId) return "";
+    const matchedTemplate = getCreateTemplateLibrary().find((item) => item.id === safeId);
+    return collapseHistoryText(matchedTemplate?.title || safeId);
+  };
+
+  const buildHistoryResultsCountLabel = (count) => {
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    return String(safeCount) + " " + formatCardsWord(safeCount);
+  };
+
+  const buildHistoryUploadsCountLabel = (count) => {
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    return String(safeCount) + " " + formatRussianCountWord(safeCount, "исходник", "исходника", "исходников");
+  };
+
+  const buildHistoryCharacteristicsSummary = (rows) => {
+    const normalizedRows = Array.isArray(rows)
+      ? rows
+          .map((row) => {
+            const label = collapseHistoryText(row?.label);
+            const value = collapseHistoryText(row?.value);
+            return [label, value].filter(Boolean).join(": ");
+          })
+          .filter(Boolean)
+      : [];
+
+    if (!normalizedRows.length) return "";
+    const preview = normalizedRows.slice(0, 3).join(", ");
+    const suffix = normalizedRows.length > 3 ? " +" + String(normalizedRows.length - 3) : "";
+    return String(normalizedRows.length)
+      + " "
+      + formatRussianCountWord(normalizedRows.length, "поле", "поля", "полей")
+      + " • "
+      + truncateHistoryText(preview, 110)
+      + suffix;
+  };
+
+  const looksLikeGenericHistoryTitle = (value) => {
+    const safeValue = collapseHistoryText(value).toLowerCase();
+    if (!safeValue) return true;
+    return /^(\d+\s+карточ)/.test(safeValue)
+      || /(^|[•|-]\s*)(создани|улучшени|вариант|результат)/.test(safeValue)
+      || safeValue.length < 5;
+  };
+
+  const buildHistoryOriginalInputText = (mode, input, promptValue) => {
+    const sections = [];
+    const pushSection = (label, value) => {
+      const safeValue = String(value || "").trim();
+      if (!safeValue) return;
+      sections.push(label + "\n" + safeValue);
+    };
+
+    if (mode === "improve") {
+      pushSection("Комментарий пользователя", input?.improvePrompt || promptValue);
+    } else {
+      pushSection("Главный текст", input?.mainText);
+      pushSection("Короткий текст", input?.secondaryText);
+      pushSection("Дополнительная строка", input?.tertiaryText);
+      pushSection("Описание товара", input?.description);
+      pushSection("Пожелания", input?.highlights);
+    }
+
+    pushSection("Примечания к генерации", input?.generationNotes);
+
+    return sections.length
+      ? sections.join("\n\n")
+      : "Текстовые вводные для этой записи не сохранены.";
+  };
+
+  const buildHistoryDisplayTitle = (mode, rawTitle, input, uploads, promptValue, summaryValue, results) => {
+    const explicitTitle = collapseHistoryText(rawTitle);
+    if (explicitTitle && !looksLikeGenericHistoryTitle(explicitTitle)) {
+      return truncateHistoryText(explicitTitle, 88);
+    }
+
+    const uploadTitle = stripHistoryFileExtension(
+      uploads.find((upload) => upload.role === "source" || upload.role === "product")?.name
+      || uploads[0]?.name
+      || ""
+    );
+    const resultTitle = collapseHistoryText(results[0]?.title);
+    const titleCandidates = mode === "improve"
+      ? [input?.improvePrompt, resultTitle, uploadTitle, summaryValue, promptValue, explicitTitle]
+      : [input?.mainText, input?.description, input?.highlights, uploadTitle, resultTitle, promptValue, explicitTitle];
+
+    for (let index = 0; index < titleCandidates.length; index += 1) {
+      const safeCandidate = collapseHistoryText(titleCandidates[index]);
+      if (!safeCandidate) continue;
+      const sentenceCandidate = safeCandidate.split(/[.!?]/)[0] || safeCandidate;
+      return truncateHistoryText(sentenceCandidate, 88);
+    }
+
+    return mode === "improve" ? "Улучшение карточки" : "Новая карточка товара";
+  };
+
+  const buildHistoryDisplaySummary = (mode, input, summaryValue, aiSummary, promptValue, results) => {
+    const summaryCandidates = mode === "improve"
+      ? [summaryValue, aiSummary, results[0]?.summary, results[0]?.subtitle, input?.improvePrompt, promptValue]
+      : [summaryValue, aiSummary, results[0]?.summary, input?.highlights, input?.description, promptValue];
+
+    for (let index = 0; index < summaryCandidates.length; index += 1) {
+      const safeCandidate = collapseHistoryText(summaryCandidates[index]);
+      if (!safeCandidate) continue;
+      return truncateHistoryText(safeCandidate, 180);
+    }
+
+    return mode === "improve"
+      ? "Сохранено улучшение карточки без текстового описания."
+      : "Сохранена генерация карточки без текстового описания.";
+  };
+
+  const buildHistoryEyebrow = (mode, input, meta, uploadsCount) => {
+    const primaryMeta = mode === "improve"
+      ? getHistoryImproveModeLabel(input?.improveMode || meta?.improveMode || "")
+      : collapseHistoryText(input?.marketplace || meta?.marketplace || "");
+    const parts = [
+      getHistoryModeLabel(mode),
+      getHistoryPromptModeLabel({ mode, input, meta }),
+      primaryMeta,
+      buildHistoryUploadsCountLabel(uploadsCount),
+    ].filter(Boolean);
+    return parts.join(" • ");
+  };
+
+  const buildHistoryStatsText = (entries) => {
+    const totalEntries = Array.isArray(entries) ? entries.length : 0;
+    const createEntries = Array.isArray(entries) ? entries.filter((entry) => entry.mode === "create").length : 0;
+    const improveEntries = Array.isArray(entries) ? entries.filter((entry) => entry.mode === "improve").length : 0;
+
+    return String(totalEntries)
+      + " "
+      + formatRussianCountWord(totalEntries, "запись", "записи", "записей")
+      + " • "
+      + String(createEntries)
+      + " создание • "
+      + String(improveEntries)
+      + " улучшение";
   };
 
   const normalizeHistoryUpload = (upload, mode, index) => {
@@ -3983,12 +4691,27 @@
     const createdAt = Number.isNaN(createdAtDate.getTime())
       ? new Date().toISOString()
       : createdAtDate.toISOString();
+    const updatedAtCandidate = String(entry?.updatedAt || entry?.timestamps?.updatedAt || entry?.savedAt || entry?.timestamps?.savedAt || createdAt).trim();
+    const updatedAtDate = new Date(updatedAtCandidate || createdAt);
+    const updatedAt = Number.isNaN(updatedAtDate.getTime())
+      ? createdAt
+      : updatedAtDate.toISOString();
+    const savedAtCandidate = String(entry?.savedAt || entry?.timestamps?.savedAt || updatedAt).trim();
+    const savedAtDate = new Date(savedAtCandidate || updatedAt);
+    const savedAt = Number.isNaN(savedAtDate.getTime())
+      ? updatedAt
+      : savedAtDate.toISOString();
     const input = {
+      mainText: String(entry?.input?.mainText || "").trim(),
+      secondaryText: String(entry?.input?.secondaryText || "").trim(),
+      tertiaryText: String(entry?.input?.tertiaryText || "").trim(),
       description: String(entry?.input?.description || entry?.description || "").trim(),
       highlights: String(entry?.input?.highlights || entry?.highlights || "").trim(),
+      generationNotes: String(entry?.input?.generationNotes || "").trim(),
       marketplace: String(entry?.input?.marketplace || entry?.meta?.marketplace || "").trim(),
       cardsCount: Number(entry?.input?.cardsCount || entry?.resultsCount || 1),
       promptMode: String(entry?.input?.promptMode || entry?.meta?.promptMode || "").trim() || "ai",
+      selectedTemplateId: String(entry?.input?.selectedTemplateId || "").trim(),
       customPrompt: String(entry?.input?.customPrompt || "").trim(),
       improvePrompt: String(entry?.input?.improvePrompt || "").trim(),
       improveMode: String(entry?.input?.improveMode || entry?.meta?.improveMode || "").trim() || "ai",
@@ -4029,11 +4752,31 @@
             )
           );
     const resultPreviews = results.map((result) => result.previewUrl);
-    const resultsCountSource = Number(entry?.resultsCount || results.length || 1);
-    const resultsCount = Number.isFinite(resultsCountSource) ? Math.max(1, Math.floor(resultsCountSource)) : 1;
-    const prompt = String(entry?.prompt || "").trim();
+    const resultsCountSource = Number(entry?.resultsCount);
+    const resultsCount = Number.isFinite(resultsCountSource)
+      ? Math.max(0, Math.floor(resultsCountSource))
+      : results.length;
+    const prompt = String(entry?.prompt || entry?.input?.customPrompt || entry?.input?.improvePrompt || "").trim();
     const summary = String(entry?.summary || "").trim();
     const previewUrl = sanitizeHistoryPreviewUrl(entry?.previewUrl || resultPreviews[0] || uploads[0]?.url, mode);
+    const meta = {
+      marketplace: String(entry?.meta?.marketplace || "").trim(),
+      promptMode: String(entry?.meta?.promptMode || "").trim(),
+      improveMode: String(entry?.meta?.improveMode || "").trim(),
+      referenceStyle: Boolean(entry?.meta?.referenceStyle),
+    };
+    const source = entry?.source && typeof entry.source === "object"
+      ? {
+          kind: String(entry.source.kind || "").trim(),
+          channel: String(entry.source.channel || "").trim(),
+          requestId: String(entry.source.requestId || "").trim(),
+          requestedScopeId: String(entry.source.requestedScopeId || "").trim(),
+          actorType: String(entry.source.actorType || "").trim(),
+        }
+      : null;
+    const storageVersion = Number.isFinite(Number(entry?.storageVersion))
+      ? Math.max(1, Math.floor(Number(entry.storageVersion)))
+      : 0;
 
     const rawInsight = entry?.ai?.insight || entry?.insight || null;
     const insight = rawInsight
@@ -4069,6 +4812,28 @@
       analysis,
     };
     ai.summary = buildHistoryAiSummary(mode, ai, summary);
+    const fallbackTitle =
+      String(resultsCount) + " " + formatCardsWord(resultsCount) + " • " + (modeLabelMap[mode] || "Р—Р°РїСЂРѕСЃ");
+    const viewEntry = { mode, input, meta };
+    const view = {
+      modeLabel: getHistoryModeLabel(mode),
+      promptModeLabel: getHistoryPromptModeLabel(viewEntry),
+      promptMeta: getHistoryPromptMeta(viewEntry),
+      eyebrow: buildHistoryEyebrow(mode, input, meta, uploads.length),
+      displayTitle: buildHistoryDisplayTitle(
+        mode,
+        String(entry?.title || "").trim(),
+        input,
+        uploads,
+        prompt,
+        summary || ai.summary,
+        results
+      ),
+      displaySummary: buildHistoryDisplaySummary(mode, input, summary, ai.summary, prompt, results),
+      originalInputText: buildHistoryOriginalInputText(mode, input, prompt),
+      characteristicsSummary: buildHistoryCharacteristicsSummary(input.characteristics),
+      templateTitle: getCreateTemplateTitleById(input.selectedTemplateId),
+    };
 
     return {
       id:
@@ -4076,6 +4841,15 @@
         "history-" + String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
       mode,
       createdAt,
+      updatedAt,
+      savedAt,
+      timestamps: {
+        createdAt,
+        updatedAt,
+        savedAt,
+      },
+      storageVersion,
+      source,
       title:
         String(entry?.title || "").trim() ||
         String(resultsCount) + " " + formatCardsWord(resultsCount) + " • " + (modeLabelMap[mode] || "Запрос"),
@@ -4092,12 +4866,8 @@
       uploads,
       ai,
       results,
-      meta: {
-        marketplace: String(entry?.meta?.marketplace || "").trim(),
-        promptMode: String(entry?.meta?.promptMode || "").trim(),
-        improveMode: String(entry?.meta?.improveMode || "").trim(),
-        referenceStyle: Boolean(entry?.meta?.referenceStyle),
-      },
+      meta,
+      view,
     };
   };
 
@@ -4112,6 +4882,11 @@
       id: entry.id,
       mode: entry.mode,
       createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      savedAt: entry.savedAt,
+      timestamps: entry.timestamps,
+      storageVersion: entry.storageVersion,
+      source: entry.source,
       title: entry.title,
       summary: entry.summary,
       prompt: entry.prompt,
@@ -4126,118 +4901,241 @@
     };
   };
 
-  const persistHistory = async (options) => {
-    const serializable = historyEntries.map((entry) => serializeHistoryEntry(entry));
-    const persistMode = String(options?.mode || "replace").trim().toLowerCase();
-    const scopeId = getHistoryScopeId(activeUser);
-    const singleEntry = options?.entry ? serializeHistoryEntry(options.entry) : null;
+  const applyHistoryEntriesFromSource = (sourceEntries, options = {}) => {
+    const normalized = sortHistoryEntriesDesc(
+      (Array.isArray(sourceEntries) ? sourceEntries : []).map(normalizeHistoryEntry)
+    ).slice(0, HISTORY_MAX_ITEMS);
+    const preferredSelectedId = String(
+      Object.prototype.hasOwnProperty.call(options, "selectedEntryId")
+        ? options.selectedEntryId
+        : selectedHistoryEntryId
+    ).trim();
 
-    if (serviceClient?.historySave) {
-      try {
-        if (persistMode === "clear") {
-          await serviceClient.historySave({
-            scopeId,
-            clear: true,
-          });
-        } else if (persistMode === "entry" && singleEntry) {
-          await serviceClient.historySave({
-            scopeId,
-            entry: singleEntry,
-          });
-        } else {
-          await serviceClient.historySave({
-            scopeId,
-            entries: serializable,
-          });
-        }
-        return;
-      } catch (error) {
-        // Fallback to legacy localStorage persistence when service storage fails.
-      }
+    historyEntries.length = 0;
+    historyEntries.push(...normalized);
+
+    if (preferredSelectedId && historyEntries.some((entry) => entry.id === preferredSelectedId)) {
+      selectedHistoryEntryId = preferredSelectedId;
+    } else {
+      selectedHistoryEntryId = historyEntries[0]?.id || "";
     }
 
-    if (typeof window === "undefined" || !window.localStorage) return;
-
-    try {
-      if (!serializable.length) {
-        window.localStorage.removeItem(getHistoryStorageKey(activeUser));
-        return;
-      }
-
-      let entriesToStore = serializable.slice();
-      let stored = false;
-
-      while (!stored && entriesToStore.length > 0) {
-        try {
-          window.localStorage.setItem(getHistoryStorageKey(activeUser), JSON.stringify(entriesToStore));
-          stored = true;
-        } catch (error) {
-          entriesToStore = entriesToStore.slice(0, entriesToStore.length - 1);
-        }
-      }
-    } catch (error) {
-      // Local storage can fail in private mode or when quota is exceeded.
+    historyDetailsVisible = Boolean(selectedHistoryEntryId);
+    if (!historyDetailsVisible) {
+      historyDetailsLoadingId = "";
     }
+
+    return normalized;
   };
 
-  const loadHistory = async () => {
-    historyEntries.length = 0;
-    selectedHistoryEntryId = "";
-    historyDetailsVisible = false;
-
-    let sourceEntries = null;
-
-    if (serviceClient?.historyList) {
-      try {
-        const serviceEntries = await serviceClient.historyList({
-          scopeId: getHistoryScopeId(activeUser),
-          limit: HISTORY_MAX_ITEMS,
-        });
-        if (Array.isArray(serviceEntries)) {
-          sourceEntries = serviceEntries;
-        }
-      } catch (error) {
-        sourceEntries = null;
-      }
+  const persistHistory = async (options = {}) => {
+    if (!serviceClient?.historySave) {
+      throw new Error("History backend is not configured.");
     }
 
-    if (sourceEntries === null) {
-      if (typeof window === "undefined" || !window.localStorage) return;
-      try {
-        const rawValue = window.localStorage.getItem(getHistoryStorageKey(activeUser));
-        const parsed = JSON.parse(rawValue || "[]");
-        sourceEntries = Array.isArray(parsed) ? parsed : [];
-      } catch (error) {
-        sourceEntries = [];
+    const serializable = historyEntries.map((entry) => serializeHistoryEntry(entry));
+    const persistMode = String(options?.mode || "replace").trim().toLowerCase();
+    const scopeId = String(options?.scopeId || getHistoryScopeId(activeUser)).trim();
+    const singleEntry = options?.entry ? serializeHistoryEntry(options.entry) : null;
+    let response;
+
+    if (persistMode === "clear") {
+      response = await serviceClient.historySave({
+        scopeId,
+        clear: true,
+      });
+    } else if (persistMode === "entry" && singleEntry) {
+      response = await serviceClient.historySave({
+        scopeId,
+        entry: singleEntry,
+      });
+    } else {
+      response = await serviceClient.historySave({
+        scopeId,
+        entries: serializable,
+      });
+    }
+
+    const normalizedEntries = applyHistoryEntriesFromSource(response?.entries, {
+      selectedEntryId: persistMode === "clear"
+        ? ""
+        : (singleEntry?.id || options?.selectedEntryId || selectedHistoryEntryId),
+    });
+    const storage = response?.storage && typeof response.storage === "object" ? response.storage : null;
+    const storageMode = String(storage?.mode || "").trim().toLowerCase();
+    const fallbackUsed = Boolean(storage?.fallbackUsed);
+
+    setHistorySyncStatus({
+      level: fallbackUsed ? "warning" : "idle",
+      message: fallbackUsed
+        ? "История сохранена, но backend использовал резервное хранилище. Для production нужен Firestore."
+        : "",
+      storageMode,
+      fallbackUsed,
+      savedAt: String(response?.savedAt || "").trim(),
+    });
+
+    return {
+      ...response,
+      entries: normalizedEntries,
+      storage,
+    };
+  };
+
+  const loadHistory = async (options = {}) => {
+    const previousEntryId = selectedHistoryEntryId;
+    const requestId = Number(options.requestId) || 0;
+    const expectedScopeId = String(options.scopeId || getHistoryScopeId(activeUser));
+    const hasExistingEntries = historyEntries.length > 0;
+
+    if (!serviceClient?.historyList) {
+      if ((requestId && requestId !== historyLoadRequestId) || expectedScopeId !== getHistoryScopeId(activeUser)) {
+        return false;
       }
+      historyEntries.length = 0;
+      selectedHistoryEntryId = "";
+      historyDetailsVisible = false;
+      historyDetailsLoadingId = "";
+      buildHistoryPersistenceFeedback(new Error("History backend is not configured."), "load", { hasEntries: false });
+      return false;
     }
 
     try {
-      const normalized = sortHistoryEntriesDesc(sourceEntries.map(normalizeHistoryEntry)).slice(0, HISTORY_MAX_ITEMS);
-      historyEntries.push(...normalized);
-      selectedHistoryEntryId = historyEntries[0]?.id || "";
+      const sourceEntries = await serviceClient.historyList({
+        scopeId: expectedScopeId,
+        limit: HISTORY_MAX_ITEMS,
+      });
+
+      if ((requestId && requestId !== historyLoadRequestId) || expectedScopeId !== getHistoryScopeId(activeUser)) {
+        return false;
+      }
+
+      applyHistoryEntriesFromSource(sourceEntries, {
+        selectedEntryId: previousEntryId,
+      });
+      resetHistorySyncStatus();
+      return true;
     } catch (error) {
-      historyEntries.length = 0;
-      selectedHistoryEntryId = "";
+      if ((requestId && requestId !== historyLoadRequestId) || expectedScopeId !== getHistoryScopeId(activeUser)) {
+        return false;
+      }
+
+      if (!hasExistingEntries) {
+        historyEntries.length = 0;
+        selectedHistoryEntryId = "";
+        historyDetailsVisible = false;
+        historyDetailsLoadingId = "";
+      }
+
+      buildHistoryPersistenceFeedback(error, "load", { hasEntries: hasExistingEntries });
+      return false;
     }
   };
 
   const clearHistory = async () => {
-    historyEntries.length = 0;
-    selectedHistoryEntryId = "";
-    await persistHistory({ mode: "clear" });
+    const requestId = ++historyLoadRequestId;
+    const scopeId = getHistoryScopeId(activeUser);
+    historyIsLoading = true;
     renderHistory();
+
+    try {
+      await persistHistory({
+        mode: "clear",
+        scopeId,
+        selectedEntryId: "",
+      });
+    } catch (error) {
+      buildHistoryPersistenceFeedback(error, "clear");
+    } finally {
+      if (requestId === historyLoadRequestId && scopeId === getHistoryScopeId(activeUser)) {
+        historyIsLoading = false;
+        renderHistory();
+      }
+    }
   };
 
   const refreshHistory = async () => {
-    await loadHistory();
+    const requestId = ++historyLoadRequestId;
+    const scopeId = getHistoryScopeId(activeUser);
+    historyIsLoading = true;
     renderHistory();
+    try {
+      await loadHistory({ requestId, scopeId });
+    } finally {
+      if (requestId === historyLoadRequestId && scopeId === getHistoryScopeId(activeUser)) {
+        historyIsLoading = false;
+        renderHistory();
+      }
+    }
   };
 
   const getHistoryEntryById = (entryId) => {
     const safeId = String(entryId || "").trim();
     if (!safeId) return null;
     return historyEntries.find((entry) => entry.id === safeId) || null;
+  };
+
+  const upsertHistoryEntry = (entry) => {
+    if (!entry) return;
+    const existingIndex = historyEntries.findIndex((item) => item.id === entry.id);
+    if (existingIndex >= 0) {
+      historyEntries.splice(existingIndex, 1, entry);
+    } else {
+      historyEntries.unshift(entry);
+    }
+    sortHistoryEntriesDesc(historyEntries);
+  };
+
+  const getHistoryPrimaryResult = (entry) => {
+    if (!entry) return null;
+    if (Array.isArray(entry.results) && entry.results.length) {
+      return entry.results[0] || null;
+    }
+    return null;
+  };
+
+  const getHistoryResultById = (entry, resultId) => {
+    const safeId = String(resultId || "").trim();
+    if (!entry) return null;
+    if (!safeId) return getHistoryPrimaryResult(entry);
+    return entry.results.find((result) => result.id === safeId) || getHistoryPrimaryResult(entry);
+  };
+
+  const hydrateHistoryEntry = async (entryId) => {
+    const safeId = String(entryId || "").trim();
+    if (!safeId || !serviceClient?.historyGetById) return;
+    const scopeId = getHistoryScopeId(activeUser);
+
+    historyDetailsLoadingId = safeId;
+    const requestId = ++historyDetailsRequestId;
+    renderHistoryDetails();
+
+    try {
+      const rawEntry = await serviceClient.historyGetById({
+        scopeId,
+        id: safeId,
+      });
+      if (requestId !== historyDetailsRequestId || scopeId !== getHistoryScopeId(activeUser)) return;
+      if (!rawEntry) {
+        setHistorySyncStatus({
+          level: "error",
+          message: "Запись больше не найдена в backend. Обновите историю, чтобы увидеть актуальный список.",
+        });
+        return;
+      }
+      upsertHistoryEntry(normalizeHistoryEntry(rawEntry));
+      resetHistorySyncStatus();
+    } catch (error) {
+      setHistorySyncStatus({
+        level: "error",
+        message: "Не удалось обновить детали записи из backend. Показана последняя подтвержденная версия.",
+      });
+    } finally {
+      if (requestId === historyDetailsRequestId && scopeId === getHistoryScopeId(activeUser)) {
+        historyDetailsLoadingId = "";
+        renderHistory();
+      }
+    }
   };
 
   const formatHistoryTime = (date) => {
@@ -4294,9 +5192,28 @@
           { label: "Описание товара", value: entry.input.description || "Не указано" },
         ];
 
-    rows.forEach((row) => {
+    const displayRows = entry.mode === "improve"
+      ? [
+          { label: "Режим", value: getHistoryImproveModeLabel(entry.input.improveMode) },
+          { label: "Результаты", value: buildHistoryResultsCountLabel(entry.resultsCount) },
+          { label: "Вариантов", value: String(entry.input.variantsCount || entry.resultsCount || 1) },
+          { label: "Исходники", value: buildHistoryUploadsCountLabel(entry.uploads.length) },
+          { label: "Reference style", value: entry.input.referenceStyle ? "Включен" : "Не включен" },
+        ]
+      : [
+          { label: "Маркетплейс", value: entry.input.marketplace || "Не указан" },
+          { label: "Результаты", value: buildHistoryResultsCountLabel(entry.resultsCount) },
+          { label: "Сколько просили", value: String(entry.input.cardsCount || entry.resultsCount || 1) },
+          { label: "Исходники", value: buildHistoryUploadsCountLabel(entry.uploads.length) },
+          { label: "Режим prompt", value: entry.view?.promptModeLabel || getHistoryPromptModeLabel(entry) },
+          { label: "Шаблон", value: entry.view?.templateTitle || "Не сохранен" },
+          { label: "Характеристики", value: entry.view?.characteristicsSummary || "Не сохранены", wide: true },
+        ];
+
+    displayRows.forEach((row) => {
       const item = document.createElement("article");
       item.className = "history-mode-kv-item";
+      item.classList.toggle("is-wide", Boolean(row.wide));
       const label = document.createElement("span");
       label.textContent = row.label;
       const value = document.createElement("p");
@@ -4403,8 +5320,32 @@
         analysisWrap.append(score);
       }
 
+      const analysisMetaRows = [
+        { label: "Формат", value: analysis.marketplaceFormat },
+        { label: "Контекст", value: analysis.reference?.note },
+      ].filter((item) => item.value);
+
+      if (analysisMetaRows.length) {
+        const analysisMetaGrid = document.createElement("div");
+        analysisMetaGrid.className = "history-mode-ai-grid";
+        analysisMetaRows.forEach((item) => {
+          const metaItem = document.createElement("article");
+          metaItem.className = "history-mode-ai-item";
+          const label = document.createElement("span");
+          label.textContent = item.label;
+          const value = document.createElement("p");
+          value.textContent = item.value;
+          metaItem.append(label, value);
+          analysisMetaGrid.append(metaItem);
+        });
+        analysisWrap.append(analysisMetaGrid);
+      }
+
       const issues = Array.isArray(analysis.issues) ? analysis.issues : [];
       if (issues.length) {
+        const issuesTitle = document.createElement("p");
+        issuesTitle.className = "history-mode-analysis-label";
+        issuesTitle.textContent = "Зоны внимания";
         const issueList = document.createElement("ul");
         issueList.className = "history-mode-analysis-issues";
         issues.slice(0, 5).forEach((issue) => {
@@ -4412,7 +5353,22 @@
           issueItem.textContent = issue.title + ": " + (issue.note || issue.severity);
           issueList.append(issueItem);
         });
-        analysisWrap.append(issueList);
+        analysisWrap.append(issuesTitle, issueList);
+      }
+
+      const recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+      if (recommendations.length) {
+        const recommendationsTitle = document.createElement("p");
+        recommendationsTitle.className = "history-mode-analysis-label";
+        recommendationsTitle.textContent = "Что можно повторно использовать";
+        const recommendationsList = document.createElement("ul");
+        recommendationsList.className = "history-mode-analysis-recommendations";
+        recommendations.slice(0, 4).forEach((item) => {
+          const recommendationItem = document.createElement("li");
+          recommendationItem.textContent = item;
+          recommendationsList.append(recommendationItem);
+        });
+        analysisWrap.append(recommendationsTitle, recommendationsList);
       }
 
       historyDetailsAi.append(analysisWrap);
@@ -4451,7 +5407,30 @@
       meta.textContent =
         "Вариант " + String(result.variantNumber || 1) + " из " + String(result.totalVariants || entry.resultsCount || 1);
 
-      body.append(title, meta);
+      const summary = document.createElement("span");
+      summary.textContent = truncateHistoryText(
+        result.summary || result.subtitle || result.format || "",
+        120
+      ) || "Описание результата не сохранено.";
+
+      const actions = document.createElement("div");
+      actions.className = "history-mode-result-actions";
+
+      const openButton = document.createElement("button");
+      openButton.type = "button";
+      openButton.className = "history-mode-open";
+      openButton.dataset.historyResultPreviewEntryId = entry.id;
+      openButton.dataset.historyResultPreviewId = result.id;
+      openButton.textContent = "Открыть";
+
+      const exportLink = document.createElement("a");
+      exportLink.className = "history-mode-export";
+      exportLink.href = sanitizeHistoryPreviewUrl(result.previewUrl, entry.mode);
+      exportLink.setAttribute("download", buildHistoryExportName(entry, result));
+      exportLink.textContent = "Экспорт";
+
+      actions.append(openButton, exportLink);
+      body.append(title, meta, summary, actions);
       card.append(image, body);
       historyDetailsResults.append(card);
     });
@@ -4460,14 +5439,16 @@
   const closeHistoryDetailsModal = () => {
     historyDetailsVisible = false;
     if (!historyModeDetails) return;
-    historyModeDetails.classList.add("hidden");
-    historyModeDetails.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("history-modal-open");
+    historyModeDetails.classList.remove("is-loading");
+    historyModeDetails.setAttribute("aria-hidden", "false");
+    historyModeDetailsContent?.classList.add("hidden");
+    historyModeDetailsEmpty?.classList.remove("hidden");
   };
 
   const closeHistoryPreviewModal = () => {
     historyPreviewVisible = false;
     selectedHistoryPreviewEntryId = "";
+    selectedHistoryPreviewResultId = "";
     if (!historyPreviewModal) return;
     historyPreviewModal.classList.add("hidden");
     historyPreviewModal.setAttribute("aria-hidden", "true");
@@ -4481,15 +5462,24 @@
     }
   };
 
-  const openHistoryPreviewModal = (entryId) => {
+  const openHistoryPreviewModal = (entryId, resultId) => {
     const entry = getHistoryEntryById(entryId);
     if (!entry || !historyPreviewModal) return;
 
-    const previewUrl = sanitizeHistoryPreviewUrl(entry.previewUrl, entry.mode);
+    const selectedResult = getHistoryResultById(entry, resultId);
+    const previewUrl = sanitizeHistoryPreviewUrl(selectedResult?.previewUrl || entry.previewUrl, entry.mode);
     selectedHistoryPreviewEntryId = entry.id;
+    selectedHistoryPreviewResultId = selectedResult?.id || "";
     historyPreviewVisible = true;
 
     if (historyPreviewTitle) historyPreviewTitle.textContent = entry.title || "Превью";
+    if (historyPreviewTitle) {
+      historyPreviewTitle.textContent =
+        selectedResult?.title
+        || entry.view?.displayTitle
+        || entry.title
+        || "Превью";
+    }
     if (historyPreviewMeta) {
       historyPreviewMeta.textContent =
         formatHistoryDate(entry.createdAt) +
@@ -4499,11 +5489,22 @@
         formatCardsWord(entry.resultsCount || 1);
     }
     if (historyPreviewImage) {
+      if (historyPreviewMeta) {
+        const metaParts = [
+          formatHistoryDate(entry.createdAt),
+          entry.view?.modeLabel || getHistoryModeLabel(entry.mode),
+          selectedResult
+            ? "Вариант " + String(selectedResult.variantNumber || 1) + " из " + String(selectedResult.totalVariants || entry.resultsCount || 1)
+            : buildHistoryResultsCountLabel(entry.resultsCount),
+        ].filter(Boolean);
+        historyPreviewMeta.textContent = metaParts.join(" • ");
+      }
       historyPreviewImage.src = previewUrl;
     }
     if (historyPreviewExportBtn) {
       historyPreviewExportBtn.href = previewUrl;
       historyPreviewExportBtn.setAttribute("download", buildHistoryExportName(entry));
+      historyPreviewExportBtn.setAttribute("download", buildHistoryExportName(entry, selectedResult));
     }
 
     historyPreviewModal.classList.remove("hidden");
@@ -4514,9 +5515,9 @@
   const openHistoryDetailsModal = () => {
     historyDetailsVisible = true;
     if (!historyModeDetails) return;
-    historyModeDetails.classList.remove("hidden");
     historyModeDetails.setAttribute("aria-hidden", "false");
-    document.body.classList.add("history-modal-open");
+    historyModeDetailsContent?.classList.remove("hidden");
+    historyModeDetailsEmpty?.classList.add("hidden");
   };
 
   const renderHistoryDetails = () => {
@@ -4526,6 +5527,8 @@
     if (!selectedEntry || !historyDetailsVisible) {
       closeHistoryDetailsModal();
       historyReuseBtn?.setAttribute("disabled", "disabled");
+      historyReusePromptBtn?.setAttribute("disabled", "disabled");
+      historyOpenResultBtn?.setAttribute("disabled", "disabled");
       return;
     }
 
@@ -4555,6 +5558,53 @@
     if (historyReuseBtn) {
       historyReuseBtn.dataset.historyReuseId = selectedEntry.id;
       historyReuseBtn.toggleAttribute("disabled", historyReuseInProgress);
+      historyReuseBtn.textContent = historyReuseInProgress
+        ? "Загружаем данные..."
+        : "Использовать как основу снова";
+    }
+    historyModeDetails.classList.toggle("is-loading", historyDetailsLoadingId === selectedEntry.id);
+    if (historyDetailsEyebrow) {
+      historyDetailsEyebrow.textContent = selectedEntry.view?.eyebrow || getHistoryModeLabel(selectedEntry.mode);
+    }
+    if (historyDetailsTitle) {
+      historyDetailsTitle.textContent = selectedEntry.view?.displayTitle || selectedEntry.title;
+    }
+    if (historyDetailsDate) {
+      const suffix = historyDetailsLoadingId === selectedEntry.id ? " • Обновляем запись..." : "";
+      historyDetailsDate.textContent = formatHistoryDateTime(selectedEntry.createdAt) + suffix;
+    }
+    if (historyDetailsMode) {
+      historyDetailsMode.textContent = selectedEntry.view?.modeLabel || getHistoryModeLabel(selectedEntry.mode);
+      historyDetailsMode.className = "history-mode-tag " + getHistoryModeTag(selectedEntry.mode);
+    }
+    if (historyDetailsCount) {
+      historyDetailsCount.textContent =
+        buildHistoryResultsCountLabel(selectedEntry.resultsCount)
+        + " • "
+        + buildHistoryUploadsCountLabel(selectedEntry.uploads.length);
+    }
+    if (historyDetailsSummary) {
+      historyDetailsSummary.textContent = selectedEntry.view?.displaySummary || selectedEntry.summary;
+    }
+    if (historyDetailsPromptMeta) {
+      historyDetailsPromptMeta.textContent = selectedEntry.view?.promptMeta || getHistoryPromptMeta(selectedEntry);
+    }
+    if (historyDetailsPrompt) {
+      const promptValue = selectedEntry.prompt || selectedEntry.input.customPrompt || selectedEntry.input.improvePrompt || "";
+      historyDetailsPrompt.textContent = promptValue || "Prompt для этой записи не сохранен.";
+    }
+    if (historyDetailsHighlights) {
+      historyDetailsHighlights.textContent =
+        selectedEntry.view?.originalInputText
+        || "Текстовые вводные для этой записи не сохранены.";
+    }
+    if (historyReusePromptBtn) {
+      historyReusePromptBtn.dataset.historyPromptReuseId = selectedEntry.id;
+      historyReusePromptBtn.toggleAttribute("disabled", historyReuseInProgress || !selectedEntry.prompt);
+    }
+    if (historyOpenResultBtn) {
+      historyOpenResultBtn.dataset.historyOpenResultId = selectedEntry.id;
+      historyOpenResultBtn.toggleAttribute("disabled", !getHistoryPrimaryResult(selectedEntry));
     }
 
     renderHistoryInputValues(selectedEntry);
@@ -4568,14 +5618,26 @@
 
     historyModeList.textContent = "";
     if (historyModeStats) {
-      historyModeStats.textContent =
-        String(historyEntries.length) +
-        " " +
-        (historyEntries.length === 1 ? "запись" : historyEntries.length > 1 && historyEntries.length < 5 ? "записи" : "записей");
+      historyModeStats.textContent = historyIsLoading
+        ? (historyEntries.length ? "Обновляем историю..." : "Загружаем историю...")
+        : buildHistoryStatsText(historyEntries);
     }
+    if (historyModeNote) {
+      historyModeNote.textContent = historyIsLoading
+        ? "Подтягиваем историю из backend..."
+        : (historySyncStatus.message || getHistoryDefaultNote());
+    }
+    historyModeRefreshBtn?.toggleAttribute("disabled", historyIsLoading);
+    historyModeRefreshBtn?.classList.toggle("is-loading", historyIsLoading);
+    historyModeClearBtn?.toggleAttribute("disabled", historyIsLoading || !historyEntries.length);
 
     if (!historyEntries.length) {
       historyModeEmpty?.classList.remove("hidden");
+      if (historyModeEmpty) {
+        historyModeEmpty.textContent = historyIsLoading
+          ? "Загружаем историю из backend..."
+          : (historySyncStatus.message || getHistoryDefaultEmptyText());
+      }
       closeHistoryDetailsModal();
       return;
     }
@@ -4583,11 +5645,13 @@
     historyModeEmpty?.classList.add("hidden");
     if (!getHistoryEntryById(selectedHistoryEntryId)) {
       selectedHistoryEntryId = historyEntries[0]?.id || "";
+      historyDetailsVisible = Boolean(selectedHistoryEntryId);
     }
 
     historyEntries.forEach((entry) => {
       const item = document.createElement("article");
       item.className = "history-mode-item";
+      item.classList.toggle("is-active", historyDetailsVisible && entry.id === selectedHistoryEntryId);
 
       const previewWrap = document.createElement("button");
       previewWrap.type = "button";
@@ -4596,7 +5660,7 @@
 
       const previewImage = document.createElement("img");
       previewImage.src = sanitizeHistoryPreviewUrl(entry.previewUrl, entry.mode);
-      previewImage.alt = entry.title;
+      previewImage.alt = entry.view?.displayTitle || entry.title;
       previewImage.loading = "lazy";
       previewImage.decoding = "async";
       previewImage.addEventListener("error", () => {
@@ -4605,13 +5669,13 @@
 
       const modeTag = document.createElement("span");
       modeTag.className = "history-mode-tag " + getHistoryModeTag(entry.mode);
-      modeTag.textContent = entry.mode;
+      modeTag.textContent = entry.view?.modeLabel || getHistoryModeLabel(entry.mode);
 
       previewWrap.append(previewImage, modeTag);
 
       const title = document.createElement("p");
       title.className = "history-mode-item-title";
-      title.textContent = entry.title;
+      title.textContent = entry.view?.displayTitle || entry.title;
 
       const meta = document.createElement("p");
       meta.className = "history-mode-item-meta";
@@ -4622,7 +5686,37 @@
         " " +
         formatCardsWord(entry.resultsCount);
 
-      item.append(previewWrap, title, meta);
+      meta.textContent =
+        formatHistoryDateTime(entry.createdAt) +
+        " • " +
+        buildHistoryResultsCountLabel(entry.resultsCount);
+
+      const summary = document.createElement("p");
+      summary.className = "history-mode-item-summary";
+      summary.textContent = entry.view?.displaySummary || entry.summary;
+
+      const badges = document.createElement("div");
+      badges.className = "history-mode-item-badges";
+      [
+        entry.view?.promptModeLabel || getHistoryPromptModeLabel(entry),
+        entry.mode === "create"
+          ? (entry.input.marketplace || "")
+          : (entry.input.referenceStyle ? "Reference style" : ""),
+        buildHistoryUploadsCountLabel(entry.uploads.length),
+      ].filter(Boolean).forEach((labelText) => {
+        const badge = document.createElement("span");
+        badge.className = "history-mode-chip";
+        badge.textContent = labelText;
+        badges.append(badge);
+      });
+
+      const contentButton = document.createElement("button");
+      contentButton.type = "button";
+      contentButton.className = "history-mode-item-main";
+      contentButton.dataset.historyOpenId = entry.id;
+      contentButton.append(meta, title, summary, badges);
+
+      item.append(previewWrap, contentButton);
       historyModeList.append(item);
     });
   };
@@ -4679,24 +5773,34 @@
     renderHistoryDetails();
   };
 
-  const pushHistory = (entry) => {
+  const pushHistory = async (entry) => {
     const normalizedEntry = normalizeHistoryEntry({
       ...entry,
       createdAt: new Date().toISOString(),
     });
 
-    historyEntries.unshift(normalizedEntry);
-
-    if (historyEntries.length > HISTORY_MAX_ITEMS) {
-      historyEntries.length = HISTORY_MAX_ITEMS;
+    try {
+      const response = await persistHistory({
+        mode: "entry",
+        entry: normalizedEntry,
+        selectedEntryId: normalizedEntry.id,
+      });
+      renderHistory();
+      return {
+        ok: true,
+        entry: getHistoryEntryById(normalizedEntry.id) || normalizedEntry,
+        storage: response?.storage || null,
+      };
+    } catch (error) {
+      const feedback = buildHistoryPersistenceFeedback(error, "save");
+      renderHistory();
+      return {
+        ok: false,
+        entry: null,
+        error,
+        feedback,
+      };
     }
-
-    selectedHistoryEntryId = normalizedEntry.id;
-    void persistHistory({
-      mode: "entry",
-      entry: normalizedEntry,
-    });
-    renderHistory();
   };
 
   const setSelectValueIfExists = (selectNode, value) => {
@@ -4790,7 +5894,7 @@
 
     return {
       summary: summary.slice(0, 180),
-      prompt: resolvedPrompt.slice(0, 500),
+      prompt: resolvedPrompt.slice(0, 8000),
       previewUrl: normalizedResults[0]?.previewUrl || uploads[0]?.url || getHistoryFallbackPreview("create"),
       resultPreviews: normalizedResults.map((item) => item.previewUrl),
       input: {
@@ -4861,12 +5965,12 @@
       }));
 
     const analysis = payload?.analysis ? { ...payload.analysis } : (improveAnalysisData ? { ...improveAnalysisData } : null);
-    const improveComment = String(payload?.prompt || improvePrompt?.value || "").trim();
+    const improveComment = String(payload?.userPrompt || payload?.prompt || improvePrompt?.value || "").trim();
     const summary = String(analysis?.summary || improveComment || "Улучшение карточки").trim();
 
     return {
       summary: summary.slice(0, 180),
-      prompt: improveComment.slice(0, 500),
+      prompt: improveComment.slice(0, 8000),
       previewUrl: normalizedResults[0]?.previewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve"),
       resultPreviews: normalizedResults.map((item) => item.previewUrl),
       input: {
@@ -4889,6 +5993,116 @@
       },
       results: normalizedResults,
     };
+  };
+
+  const buildDetachedImproveHistoryPayload = async (payload = {}) => {
+    const sourcePreviewUrl = sanitizeHistoryPreviewUrl(payload.sourcePreviewUrl, "improve");
+    const resultPreviewUrl = sanitizeHistoryPreviewUrl(payload.resultPreviewUrl || payload.resultUrl, "improve");
+    const uploads = [];
+
+    if (sourcePreviewUrl) {
+      uploads.push({
+        id: "upload-" + String(Date.now()) + "-1",
+        role: "source",
+        name: String(payload.sourceName || "source-card.png").trim() || "source-card.png",
+        type: String(payload.sourceType || "image/png").trim() || "image/png",
+        url: await buildHistoryImageSnapshot(sourcePreviewUrl),
+      });
+    }
+
+    const rawAnalysis = payload.analysis && typeof payload.analysis === "object" ? payload.analysis : {};
+    const analysis = {
+      score: Number(rawAnalysis.score || 0) || 0,
+      summary: String(rawAnalysis.summary || payload.summary || payload.resultSummary || "").trim(),
+      marketplaceFormat: String(rawAnalysis.marketplaceFormat || "").trim(),
+      reference: {
+        uploaded: Boolean(rawAnalysis.reference?.uploaded),
+        active: Boolean(payload.referenceStyle || rawAnalysis.reference?.active),
+        note: String(rawAnalysis.reference?.note || "").trim(),
+      },
+      issues: Array.isArray(rawAnalysis.issues)
+        ? rawAnalysis.issues.map((issue, index) => normalizeHistoryIssue(issue, index)).slice(0, IMPROVE_ANALYSIS_DIMENSIONS.length)
+        : [],
+      recommendations: Array.isArray(rawAnalysis.recommendations)
+        ? rawAnalysis.recommendations.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
+        : [],
+    };
+    const improveComment = String(payload.userPrompt || payload.prompt || "").trim();
+    const summary = String(
+      analysis.summary
+      || payload.resultSummary
+      || payload.resultChanges
+      || improveComment
+      || "Улучшение карточки"
+    ).trim();
+    const resolvedResultPreview = await buildHistoryImageSnapshot(
+      resultPreviewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve")
+    );
+    const result = normalizeHistoryResult(
+      {
+        title: String(payload.title || "1 карточка - Улучшение").trim() || "1 карточка - Улучшение",
+        previewUrl: resolvedResultPreview,
+        subtitle: String(payload.strategy || payload.mode || "").trim(),
+        summary: String(payload.resultChanges || payload.resultSummary || summary).trim(),
+        changes: String(payload.resultChanges || "").trim(),
+        why: String(payload.resultWhy || "").trim(),
+        preserved: String(payload.resultPreserved || "").trim(),
+        variantNumber: 1,
+        totalVariants: 1,
+      },
+      "improve",
+      0,
+      resolvedResultPreview || uploads[0]?.url || getHistoryFallbackPreview("improve")
+    );
+
+    return {
+      summary: summary.slice(0, 180),
+      prompt: improveComment.slice(0, 8000),
+      previewUrl: result.previewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve"),
+      resultPreviews: result.previewUrl ? [result.previewUrl] : [],
+      input: {
+        description: "",
+        highlights: "",
+        marketplace: "",
+        cardsCount: 1,
+        promptMode: "ai",
+        customPrompt: "",
+        improvePrompt: improveComment,
+        improveMode: String(payload.mode || "ai").trim() || "ai",
+        variantsCount: 1,
+        referenceStyle: Boolean(payload.referenceStyle),
+      },
+      uploads,
+      ai: {
+        summary: buildHistoryAiSummary("improve", { analysis }, summary),
+        insight: null,
+        analysis,
+      },
+      results: [result],
+    };
+  };
+
+  window.KARTOCHKA_HISTORY = {
+    async recordDetachedImproveResult(payload = {}) {
+      const historyPayload = await buildDetachedImproveHistoryPayload(payload);
+      return pushHistory({
+        mode: "improve",
+        title: String(payload.title || "1 карточка - Улучшение").trim() || "1 карточка - Улучшение",
+        summary: historyPayload.summary,
+        prompt: historyPayload.prompt,
+        resultsCount: historyPayload.results.length,
+        previewUrl: historyPayload.previewUrl,
+        resultPreviews: historyPayload.resultPreviews,
+        input: historyPayload.input,
+        uploads: historyPayload.uploads,
+        ai: historyPayload.ai,
+        results: historyPayload.results,
+        meta: {
+          improveMode: historyPayload.input.improveMode,
+          referenceStyle: historyPayload.input.referenceStyle,
+        },
+      });
+    },
   };
 
   const setHistoryReuseState = (isLoading) => {
@@ -4977,7 +6191,6 @@
     renderCreateInsightValues(createInsightData);
 
     createGeneratedResults = [];
-    createResultExpandedId = "";
     createActivePreviewResultId = "";
     syncCreateLegacyFields();
     createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
@@ -5002,6 +6215,31 @@
   };
 
   const applyImproveHistoryEntry = async (entry) => {
+    const activeHistoryUploads = (entry.uploads && entry.uploads.length)
+      ? entry.uploads
+      : (entry.resultPreviews || []).map((previewUrl, index) => ({
+          role: index === 0 ? "source" : "reference",
+          name: "history-image-" + String(index + 1) + ".png",
+          type: "image/png",
+          url: previewUrl,
+        }));
+    const activeSourceUpload = activeHistoryUploads.find((upload) => upload.role === "source" || upload.role === "product");
+    if (!activeSourceUpload?.url) {
+      throw new Error("В этой записи нет исходной карточки для повторного улучшения.");
+    }
+
+    navigateToAppMode("improve");
+    if (enhanceCardPrompt) {
+      enhanceCardPrompt.value = entry.input.improvePrompt || entry.prompt || "";
+    }
+    window.dispatchEvent(new CustomEvent("kartochka:improve:prefill", {
+      detail: {
+        previewUrl: activeSourceUpload.url,
+        fileName: activeSourceUpload.name || "history-improve-source.png",
+      },
+    }));
+    return;
+
     clearImproveFileState();
     improveGeneratedResults = [];
     improveResultExpandedId = "";
@@ -5068,6 +6306,51 @@
     navigateToAppMode("improve");
   };
 
+  const applyHistoryPromptOnly = (entry) => {
+    const promptValue = String(entry?.prompt || entry?.input?.customPrompt || entry?.input?.improvePrompt || "").trim();
+    if (!promptValue) return;
+
+    if (entry.mode === "improve") {
+      navigateToAppMode("improve");
+      if (enhanceCardPrompt) {
+        enhanceCardPrompt.value = promptValue;
+      }
+      return;
+      if (improvePrompt) {
+        improvePrompt.value = promptValue;
+      }
+      handleImproveInputMutation();
+      setRequestMeta(improveMeta, "РЎС‚Р°С‚СѓСЃ Р·Р°РїСЂРѕСЃР°:", "Prompt РёР· РёСЃС‚РѕСЂРёРё Р·Р°РіСЂСѓР¶РµРЅ");
+      setStatusMessage(
+        improveStatus,
+        "Prompt РёР· РёСЃС‚РѕСЂРёРё Р·Р°РіСЂСѓР¶РµРЅ. РџСЂРѕРІРµСЂСЊС‚Рµ РёСЃС…РѕРґРЅРёРє Рё Р·Р°РїСѓСЃС‚РёС‚Рµ СѓР»СѓС‡С€РµРЅРёРµ.",
+        hasImproveSourceInput() ? "success" : ""
+      );
+      syncImproveFormState();
+      return;
+    }
+
+    navigateToAppMode("create");
+    syncCreatePromptMode("custom");
+    if (createCustomPrompt) {
+      createCustomPrompt.value = promptValue;
+    }
+    if (createAiPromptOutput) {
+      createAiPromptOutput.value = promptValue;
+    }
+    createAiPromptPhase = "success";
+    clearCreateResultsData();
+    setDoneState(createDoneBadge, false);
+    syncCreateLegacyFields();
+    syncCreateFormState();
+    setRequestMeta(createMeta, "РЎС‚Р°С‚СѓСЃ Р·Р°РїСЂРѕСЃР°:", "Prompt РёР· РёСЃС‚РѕСЂРёРё Р·Р°РіСЂСѓР¶РµРЅ");
+    setStatusMessage(
+      createStatus,
+      "Prompt РёР· РёСЃС‚РѕСЂРёРё Р·Р°РіСЂСѓР¶РµРЅ. РџСЂРѕРІРµСЂСЊС‚Рµ РґР°РЅРЅС‹Рµ Рё Р·Р°РїСѓСЃС‚РёС‚Рµ РЅРѕРІСѓСЋ РіРµРЅРµСЂР°С†РёСЋ.",
+      "success"
+    );
+  };
+
   const applyHistoryEntryAsBase = async (entry) => {
     setHistoryReuseState(true);
     try {
@@ -5107,9 +6390,16 @@
     return many;
   };
 
-  const buildHistoryExportName = (entry) => {
-    const safeName = String(entry?.title || "history-preview")
+  const buildHistoryExportName = (entry, result) => {
+    const safeName = String(
+      result?.downloadName
+      || result?.title
+      || entry?.view?.displayTitle
+      || entry?.title
+      || "history-preview"
+    )
       .trim()
+      .replace(/\.[a-z0-9]{2,6}$/i, "")
       .replace(/[^\w\u0400-\u04FF-]+/g, "-")
       .replace(/-{2,}/g, "-")
       .replace(/^-+|-+$/g, "");
@@ -5299,6 +6589,12 @@
     return file ? [file.name, file.size, file.lastModified].join(":") : "";
   };
 
+  const getImprovePreviewKey = (value) => {
+    const safeValue = String(value || "").trim();
+    if (!safeValue) return "";
+    return safeValue.slice(0, 96) + ":" + String(safeValue.length);
+  };
+
   const getImproveFileValidationError = (file, options) => {
     const label = (options && options.label) || "Файл";
     if (!file) return label + " не выбран.";
@@ -5332,7 +6628,7 @@
 
   const resetImproveAnalysisAfterInputChange = () => {
     cancelPendingImproveAnalysis();
-    if (improveAnalysisPhase === "error" && !improveAnalysisData) {
+    if ((improveAnalysisPhase === "error" || improveAnalysisPhase === "interrupted") && !improveAnalysisData) {
       improveAnalysisPhase = "empty";
     }
   };
@@ -5401,7 +6697,9 @@
   const getImproveAnalysisFingerprint = () => {
     return [
       getImproveFileKey(improveImageFile),
+      getImprovePreviewKey(improveImagePreview),
       getImproveFileKey(improveReferenceFile),
+      getImprovePreviewKey(improveReferencePreviewUrl),
       (improvePrompt?.value || "").trim(),
       improveMode,
       improveVariantsCount?.value || "1",
@@ -5437,9 +6735,12 @@
   };
 
   const buildImproveAnalysisPayload = () => {
+    const userPrompt = (improvePrompt?.value || "").trim();
     return {
       mode: improveMode,
-      prompt: (improvePrompt?.value || "").trim(),
+      prompt: userPrompt,
+      userPrompt,
+      improveInstructionPromptPath: IMPROVE_INSTRUCTION_TEMPLATE_PATH,
       variantsCount: Number(improveVariantsCount?.value || 1),
       sourceCard: improveImageFile
         ? {
@@ -5551,6 +6852,7 @@
     const severityWeight = { high: 3, medium: 2, low: 1 };
     const riskScore = issues.reduce((sum, item) => sum + (severityWeight[item.severity] || 2), 0);
     const score = Math.max(38, Math.min(96, 100 - riskScore * 2));
+    const transformationStrength = score <= 55 ? "rebuild" : score <= 74 ? "strong" : "focused";
 
     const recommendations = [
       "Собрать первый экран вокруг одной главной выгоды и сильного визуального якоря.",
@@ -5559,6 +6861,65 @@
         ? "Применить стиль референса, сохранив категорийные триггеры marketplace."
         : "Сократить перегрузку: меньше текста, чище композиция, выше читаемость.",
     ];
+    const changePlan = [
+      {
+        area: "hero",
+        change: "Сделать главный оффер крупнее и построить вокруг него первый экран.",
+        why: "Покупатель быстрее понимает выгоду товара уже в миниатюре.",
+      },
+      {
+        area: "facts",
+        change: "Собрать вторичную информацию в один компактный модуль вместо россыпи мелких подпунктов.",
+        why: "Карточка выглядит чище и лучше читается на мобильном экране.",
+      },
+      {
+        area: referenceStyleActive ? "style" : "cta",
+        change: referenceStyleActive
+          ? "Переложить ритм и композицию референса на этот товар без потери категорийной логики."
+          : "Сделать CTA или proof-point более заметным и конкретным.",
+        why: "Фокус смещается к продаже, а не к декоративным элементам.",
+      },
+    ];
+    const mustPreserve = [
+      "тот же товар без подмены модели и категории",
+      "узнаваемые форма, материал и ключевые детали продукта",
+      "реальный брендинг и упаковка, если они видны на исходнике",
+    ];
+    const productIdentity = "Тот же товар с исходной карточки, без подмены ассортимента.";
+    const improvementMode = referenceStyleActive
+      ? "Адаптация под стиль референса с усилением иерархии"
+      : transformationStrength === "rebuild"
+        ? "Структурный typographic rebuild"
+        : transformationStrength === "strong"
+          ? "Сильная переработка композиции и оффера"
+          : "Сфокусированное усиление иерархии";
+    const rebuildMode = referenceStyleActive
+      ? "Reference-adapted editorial"
+      : transformationStrength === "rebuild"
+        ? "Poster Headline Block"
+        : transformationStrength === "strong"
+          ? "Split Panel System"
+          : "Focused hero cleanup";
+    const generationPrompt = [
+      "Создай заметно улучшенную карточку товара для маркетплейса на основе исходного изображения.",
+      "Сохрани тот же товар без подмены модели, бренда, формы, цвета и комплектации.",
+      "Что обязательно сохранить: " + mustPreserve.join("; ") + ".",
+      "Нужна не косметика, а заметная переработка иерархии, читаемости, композиции и продажного фокуса.",
+      "Режим улучшения: " + improvementMode + ".",
+      "Режим перестройки: " + rebuildMode + ".",
+      "Сила улучшения: " + transformationStrength + ".",
+      "План изменений: " + changePlan
+        .map((item, index) => String(index + 1) + ") " + [item.area, item.change, item.why].filter(Boolean).join(" — "))
+        .join("; ") + ".",
+      (payload?.userPrompt || payload?.prompt)
+        ? "Учти пожелания пользователя: " + String(payload.userPrompt || payload.prompt).trim() + "."
+        : "",
+      "Весь видимый текст только на русском языке.",
+      "Убери платформенные бейджи и слова вроде маркетплейс, Ozon, Wildberries, WB, если это не часть реального брендинга товара.",
+      "Разница до и после должна быть заметна уже в миниатюре.",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     const issuesCountLabel = String(issues.length) + " " + formatRussianCountWord(issues.length, "зона", "зоны", "зон");
     const summary = referenceStyleActive
@@ -5576,11 +6937,19 @@
     return {
       score,
       summary,
+      productIdentity,
+      mustPreserve,
       issues,
       recommendations,
+      improvementPlan: changePlan.map((item) => item.change),
+      transformationStrength,
+      improvementMode,
+      rebuildMode,
+      changePlan,
       marketplaceFormat: referenceStyleActive
         ? "Reference-style формат с адаптацией под требования marketplace."
         : "Конверсионный marketplace формат с явным оффером и CTA.",
+      generationPrompt,
       reference: {
         uploaded: hasReference,
         active: referenceStyleActive,
@@ -5612,13 +6981,28 @@
     }
 
     if (improveAnalysisContext) {
-      improveAnalysisContext.textContent = analysis?.reference?.note || (
+      const modeDetails = analysis?.rebuildMode
+        ? [
+            analysis.rebuildMode,
+            analysis?.transformationStrength
+              ? (analysis.transformationStrength === "rebuild"
+                ? "сила: structural rebuild"
+                : analysis.transformationStrength === "strong"
+                  ? "сила: strong"
+                  : "сила: focused")
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" • ")
+        : "";
+      const baseContext = analysis?.reference?.note || (
         referenceStyleActive
           ? "Активен reference style: AI ориентируется на стиль референса."
           : hasReference
             ? "Референс загружен, но сейчас работает стандартный AI-режим."
             : "Режим: стандартное AI-улучшение."
       );
+      improveAnalysisContext.textContent = [baseContext, modeDetails].filter(Boolean).join(" • ");
     }
 
     if (improveAnalysisIssues) {
@@ -5662,8 +7046,12 @@
 
     if (improveAnalysisRecommendations) {
       improveAnalysisRecommendations.textContent = "";
-      const recommendations = Array.isArray(analysis?.recommendations) && analysis.recommendations.length
-        ? analysis.recommendations
+      const recommendations = Array.isArray(analysis?.changePlan) && analysis.changePlan.length
+        ? analysis.changePlan
+          .map((entry) => [entry?.change, entry?.why].filter(Boolean).join(" — "))
+          .filter(Boolean)
+        : Array.isArray(analysis?.recommendations) && analysis.recommendations.length
+          ? analysis.recommendations
         : ["После анализа здесь появится план улучшений перед генерацией."];
       recommendations.slice(0, 3).forEach((entry) => {
         const item = document.createElement("li");
@@ -5677,6 +7065,7 @@
     const hasAnalysis = Boolean(improveAnalysisData);
     const inputError = getImproveAnalysisInputError();
     const isLoading = improveAnalysisPhase === "loading";
+    const isInterrupted = improveAnalysisPhase === "interrupted";
     const isError = improveAnalysisPhase === "error";
     const isSuccess = improveAnalysisPhase === "success";
     const isStale = hasAnalysis && improveAnalysisFingerprint !== getImproveAnalysisFingerprint();
@@ -5700,6 +7089,12 @@
       setStatusMessage(
         improveAnalysisStatus,
         inputError || "Данные готовы. Запустите AI анализ перед улучшением.",
+        ""
+      );
+    } else if (improveAnalysisStatus && isInterrupted && !hasAnalysis) {
+      setStatusMessage(
+        improveAnalysisStatus,
+        "Связь прервалась после сворачивания приложения. Анализ можно повторить без потери исходных данных.",
         ""
       );
     } else if (improveAnalysisStatus && isSuccess && isStale) {
@@ -5772,10 +7167,16 @@
       return true;
     } catch (error) {
       if (requestId !== improveAnalysisRequestId) return false;
-      improveAnalysisPhase = "error";
-      const message = error instanceof Error ? error.message : "Не удалось выполнить AI анализ.";
-      setStatusMessage(improveAnalysisStatus, message, "error");
-      setRequestMeta(improveMeta, "Статус запроса:", "Ошибка AI анализа");
+      const feedback = resolveRequestErrorFeedback(error, "Не удалось выполнить AI анализ.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Анализ можно повторить без потери исходных данных.",
+        interruptedMeta: "AI анализ прерван после возврата",
+        timeoutMeta: "Таймаут AI анализа",
+        networkMeta: "Сбой AI анализа",
+        errorMeta: "Ошибка AI анализа",
+      });
+      improveAnalysisPhase = feedback.isInterrupted ? "interrupted" : "error";
+      setStatusMessage(improveAnalysisStatus, feedback.message, feedback.type);
+      setRequestMeta(improveMeta, "Статус запроса:", feedback.metaValue, feedback.type);
       return false;
     } finally {
       if (requestId === improveAnalysisRequestId) {
@@ -5794,14 +7195,18 @@
     const variantsCount = Number(improveVariantsCount?.value || 1);
     const hasAnalysis = Boolean(improveAnalysisData);
     const analysisIsStale = hasAnalysis && improveAnalysisFingerprint !== getImproveAnalysisFingerprint();
-    const referenceStyle = improveMode === "reference" && Boolean(improveReferenceFile);
+    const referenceStyle = improveMode === "reference" && Boolean(improveReferenceFile || improveReferencePreviewUrl);
+    const userPrompt = (improvePrompt?.value || "").trim();
+    const resolvedAnalysis = hasAnalysis && !analysisIsStale ? { ...improveAnalysisData } : null;
 
     return {
       mode: improveMode,
       referenceStyle,
-      prompt: (improvePrompt?.value || "").trim(),
+      prompt: resolvedAnalysis?.generationPrompt || userPrompt,
+      userPrompt,
+      improveInstructionPromptPath: IMPROVE_INSTRUCTION_TEMPLATE_PATH,
       variantsCount: Number.isFinite(variantsCount) ? variantsCount : 1,
-      analysis: hasAnalysis && !analysisIsStale ? { ...improveAnalysisData } : null,
+      analysis: resolvedAnalysis,
       sourceCard: improveImageFile
         ? {
             name: improveImageFile.name,
@@ -5840,7 +7245,7 @@
 
     const totalVariants = Math.max(1, Math.min(CREATE_UPLOAD_MAX_FILES, Number(payload.variantsCount) || 1));
     const previewPool = IMPROVE_RESULT_FALLBACK_PREVIEWS;
-    const promptPreview = (payload.prompt || "").trim().slice(0, 220);
+    const promptPreview = (payload.userPrompt || payload.prompt || "").trim().slice(0, 220);
 
     return Array.from({ length: totalVariants }, (_, index) => {
       const variantNumber = index + 1;
@@ -5854,9 +7259,19 @@
         previewUrl,
         title: "Улучшенный вариант " + String(variantNumber),
         strategy: referenceStyle ? "Улучшение по стилю референса" : "Обычное AI улучшение",
-        styleLabel: referenceStyle ? "Improved with reference style" : "",
+        styleLabel: referenceStyle ? "Улучшено по стилю референса" : "",
         referenceStyle,
-        changes: payload.analysis?.recommendations?.[0] || "Оптимизирована структура и усилен ключевой оффер.",
+        changes: Array.isArray(payload.analysis?.changePlan) && payload.analysis.changePlan.length
+          ? payload.analysis.changePlan.map((item) => String(item?.change || "").trim()).filter(Boolean).slice(0, 2).join(" • ")
+          : payload.analysis?.recommendations?.[0] || "Оптимизирована структура и усилен ключевой оффер.",
+        why: Array.isArray(payload.analysis?.changePlan) && payload.analysis.changePlan.length
+          ? String(payload.analysis.changePlan[0]?.why || "").trim()
+          : "Карточка быстрее считывается и яснее подсвечивает выгоду товара.",
+        preserved: Array.isArray(payload.analysis?.mustPreserve) && payload.analysis.mustPreserve.length
+          ? payload.analysis.mustPreserve.slice(0, 3).join(", ")
+          : payload.analysis?.productIdentity || "тот же товар с исходной карточки",
+        rebuildMode: payload.analysis?.rebuildMode || (referenceStyle ? "Reference-adapted editorial" : "Split Panel System"),
+        strength: payload.analysis?.transformationStrength || "strong",
         format: payload.analysis?.marketplaceFormat || "Готовый формат для маркетплейса с чистым CTA.",
         promptPreview,
         downloadName: "kartochka-improved-" + String(variantNumber) + ".png",
@@ -5921,7 +7336,7 @@
 
       const styleTag = document.createElement("span");
       styleTag.className = "improve-reference-tag";
-      styleTag.textContent = result.styleLabel || "Standard AI improvement";
+      styleTag.textContent = result.styleLabel || "Стандартное AI-улучшение";
       styleTag.classList.toggle("hidden", !result.referenceStyle);
 
       const actions = document.createElement("div");
@@ -5948,13 +7363,22 @@
       const changes = document.createElement("p");
       changes.textContent = "Усилено: " + result.changes;
 
+      const why = document.createElement("p");
+      why.textContent = "Почему лучше: " + (result.why || "Карточка должна быстрее считываться и сильнее продавать товар.");
+
+      const preserved = document.createElement("p");
+      preserved.textContent = "Сохранили: " + (result.preserved || "Тот же товар и узнаваемые признаки исходника.");
+
+      const rebuild = document.createElement("p");
+      rebuild.textContent = "Режим: " + (result.rebuildMode || result.strength || "Стандартное улучшение");
+
       const format = document.createElement("p");
       format.textContent = "Формат: " + result.format;
 
       const prompt = document.createElement("p");
       prompt.textContent = "Комментарий: " + (result.promptPreview || "Улучшение выполнено по стандартной стратегии.");
 
-      details.append(changes, format, prompt);
+      details.append(changes, why, preserved, rebuild, format, prompt);
 
       body.append(title, subtitle, styleTag, actions, details);
       card.append(media, body);
@@ -6113,6 +7537,20 @@
   mobileMenuClose?.addEventListener("click", closeMobileMenu);
   mobileMenuLinks.forEach((link) => link.addEventListener("click", closeMobileMenu));
 
+  if (isDedicatedAppHost()) {
+    document.querySelector(".topbar")?.classList.add("hidden");
+    mobileMenu?.classList.add("hidden");
+    mobileMenu?.setAttribute("aria-hidden", "true");
+  }
+
+  if (workspaceAppBrand) {
+    workspaceAppBrand.setAttribute("href", isDedicatedAppHost() ? buildAppPath("create") : buildAppHash("create"));
+    workspaceAppBrand.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateToAppMode("create");
+    });
+  }
+
   mobileMenu?.addEventListener("click", (event) => {
     if (event.target === mobileMenu) {
       closeMobileMenu();
@@ -6134,6 +7572,8 @@
   });
 
   authCloseBtn?.addEventListener("click", closeAuthModal);
+  authEmailLoginTab?.addEventListener("click", () => setAuthMode("login"));
+  authEmailRegisterTab?.addEventListener("click", () => setAuthMode("register"));
   authSection?.addEventListener("click", (event) => {
     if (event.target === authSection) {
       closeAuthModal();
@@ -6505,7 +7945,6 @@
     const requestId = ++createGenerationRequestId;
     createIsGenerating = true;
     createGeneratedResults = [];
-    createResultExpandedId = "";
     createActivePreviewResultId = "";
     setCreateResultsProcessing(true);
     setDoneState(createDoneBadge, false);
@@ -6550,6 +7989,9 @@
         if (insightNeedsRefresh) {
           const insightReady = await runCreateInsightAnalysis({ source: "generation" });
           if (!insightReady) {
+            if (createInsightPhase === "interrupted") {
+              throw createInterruptedRequestError("Связь прервалась после сворачивания приложения. Генерацию можно повторить без потери данных.");
+            }
             throw new Error("Не удалось получить AI-анализ для генерации карточек.");
           }
         }
@@ -6589,7 +8031,7 @@
 
       const marketplace = createMarketplace?.value || "Маркетплейс";
       const historyPayload = await buildCreateHistoryPayload(payload, createGeneratedResults);
-      pushHistory({
+      const historySave = await pushHistory({
         mode: "create",
         title: String(total) + " " + formatCardsWord(total) + " • " + marketplace,
         summary: historyPayload.summary,
@@ -6606,17 +8048,29 @@
           promptMode: createPromptMode,
         },
       });
+      if (!historySave?.ok) {
+        setStatusMessage(createStatus, "Генерация готова, но история не сохранилась в backend.", "error");
+        setRequestMeta(createMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+      }
     } catch (error) {
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];
       createActivePreviewResultId = "";
-      createAiPromptPhase = createAiPromptPhase === "loading" ? "error" : createAiPromptPhase;
+      if (createAiPromptPhase === "loading") {
+        createAiPromptPhase = isInterruptedRequestError(error) ? "interrupted" : "error";
+      }
       setCreateResultsProcessing(false);
       renderCreateResults();
       setDoneState(createDoneBadge, false);
-      const message = error instanceof Error ? error.message : "Ошибка генерации карточек. Повторите попытку.";
-      setStatusMessage(createStatus, message, "error");
-      setRequestMeta(createMeta, "Статус запроса:", message);
+      const feedback = resolveRequestErrorFeedback(error, "Ошибка генерации карточек. Повторите попытку.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Исходные данные сохранены, генерацию можно безопасно повторить.",
+        interruptedMeta: "Генерация карточки прервана после возврата",
+        timeoutMeta: "Таймаут генерации карточки",
+        networkMeta: "Сбой генерации карточки",
+        errorMeta: "Ошибка генерации карточки",
+      });
+      setStatusMessage(createStatus, feedback.message, feedback.type);
+      setRequestMeta(createMeta, "Статус запроса:", feedback.metaValue, feedback.type);
     } finally {
       if (requestId === createGenerationRequestId) {
         createIsGenerating = false;
@@ -6773,6 +8227,15 @@
     improveReferenceUploadZone?.classList.remove("is-dragover");
   });
 
+  window.addEventListener("kartochka:improve:prefill", (event) => {
+    const details = event?.detail && typeof event.detail === "object" ? event.detail : {};
+    void applyImprovePrefill(details).catch((error) => {
+      const message = error instanceof Error ? error.message : "РќРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРЅРµСЃС‚Рё РєР°СЂС‚РѕС‡РєСѓ РІ improve.";
+      setStatusMessage(improveStatus, message, "error");
+      syncImproveFormState();
+    });
+  });
+
   improveModeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const nextMode = button.dataset.improveMode || "ai";
@@ -6854,6 +8317,9 @@
       if (analysisNeedsRefresh) {
         const analysisReady = await runImproveAnalysis({ source: "generation" });
         if (!analysisReady) {
+          if (improveAnalysisPhase === "interrupted") {
+            throw createInterruptedRequestError("Связь прервалась после сворачивания приложения. Улучшение можно повторить без потери исходных данных.");
+          }
           throw new Error("Не удалось получить AI анализ для улучшения карточки.");
         }
       }
@@ -6877,7 +8343,7 @@
       setRequestMeta(improveMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
 
       const historyPayload = await buildImproveHistoryPayload(payload, improveGeneratedResults);
-      pushHistory({
+      const historySave = await pushHistory({
         mode: "improve",
         title: String(total) + " " + formatCardsWord(total) + " • Улучшение",
         summary: historyPayload.summary,
@@ -6894,6 +8360,10 @@
           referenceStyle: referenceStyleActive,
         },
       });
+      if (!historySave?.ok) {
+        setStatusMessage(improveStatus, "Улучшение готово, но история не сохранилась в backend.", "error");
+        setRequestMeta(improveMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+      }
 
       improveResultsSection?.scrollIntoView({
         behavior: prefersReducedMotion ? "auto" : "smooth",
@@ -6905,9 +8375,15 @@
       setImproveResultsProcessing(false);
       renderImproveResults();
       setDoneState(improveDoneBadge, false);
-      const message = error instanceof Error ? error.message : "Ошибка улучшения карточки. Повторите попытку.";
-      setStatusMessage(improveStatus, message, "error");
-      setRequestMeta(improveMeta, "Статус запроса:", "Ошибка улучшения карточки");
+      const feedback = resolveRequestErrorFeedback(error, "Ошибка улучшения карточки. Повторите попытку.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Исходные данные сохранены, улучшение можно повторить.",
+        interruptedMeta: "Улучшение карточки прервано после возврата",
+        timeoutMeta: "Таймаут улучшения карточки",
+        networkMeta: "Сбой улучшения карточки",
+        errorMeta: "Ошибка улучшения карточки",
+      });
+      setStatusMessage(improveStatus, feedback.message, feedback.type);
+      setRequestMeta(improveMeta, "Статус запроса:", feedback.metaValue, feedback.type);
     } finally {
       if (requestId === improveGenerationRequestId) {
         improveIsGenerating = false;
@@ -6925,6 +8401,7 @@
     }
     renderHistoryModeList();
     renderHistoryDetails();
+    void hydrateHistoryEntry(selected.id);
   };
 
   historyList?.addEventListener("click", (event) => {
@@ -6939,10 +8416,26 @@
   historyModeList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const openButton = target.closest("[data-history-open-id]");
+    if (openButton instanceof HTMLElement) {
+      const entryId = openButton.dataset.historyOpenId || "";
+      openHistoryEntry(entryId);
+      return;
+    }
     const previewButton = target.closest("[data-history-preview-id]");
     if (!(previewButton instanceof HTMLElement)) return;
     const entryId = previewButton.dataset.historyPreviewId || "";
     openHistoryPreviewModal(entryId);
+  });
+
+  historyDetailsResults?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const previewButton = target.closest("[data-history-result-preview-id]");
+    if (!(previewButton instanceof HTMLElement)) return;
+    const entryId = previewButton.dataset.historyResultPreviewEntryId || selectedHistoryEntryId;
+    const resultId = previewButton.dataset.historyResultPreviewId || "";
+    openHistoryPreviewModal(entryId, resultId);
   });
 
   historyModeDetailsCloseBtn?.addEventListener("click", () => {
@@ -6961,6 +8454,29 @@
     closeHistoryPreviewModal();
   });
 
+  historyReusePromptBtn?.addEventListener("click", () => {
+    if (historyReuseInProgress) return;
+    const entryId = historyReusePromptBtn.dataset.historyPromptReuseId || selectedHistoryEntryId;
+    const entry = getHistoryEntryById(entryId);
+    if (!entry) return;
+    applyHistoryPromptOnly(entry);
+    if (entry.mode === "improve") {
+      setRequestMeta(improveMeta, "Статус запроса:", "Prompt из истории загружен");
+      setStatusMessage(
+        improveStatus,
+        "Prompt из истории загружен. Проверьте исходник и запустите улучшение.",
+        hasImproveSourceInput() ? "success" : ""
+      );
+      return;
+    }
+    setRequestMeta(createMeta, "Статус запроса:", "Prompt из истории загружен");
+    setStatusMessage(
+      createStatus,
+      "Prompt из истории загружен. Проверьте данные и запустите новую генерацию.",
+      "success"
+    );
+  });
+
   historyReuseBtn?.addEventListener("click", async () => {
     if (historyReuseInProgress) return;
     const entryId = historyReuseBtn.dataset.historyReuseId || selectedHistoryEntryId;
@@ -6969,7 +8485,19 @@
     await applyHistoryEntryAsBase(entry);
   });
 
+  historyOpenResultBtn?.addEventListener("click", () => {
+    const entryId = historyOpenResultBtn.dataset.historyOpenResultId || selectedHistoryEntryId;
+    const entry = getHistoryEntryById(entryId);
+    if (!entry) return;
+    const result = getHistoryPrimaryResult(entry);
+    if (!result) return;
+    openHistoryPreviewModal(entry.id, result.id);
+  });
+
   historyClearBtn?.addEventListener("click", clearHistory);
+  historyModeRefreshBtn?.addEventListener("click", () => {
+    void refreshHistory();
+  });
   historyModeClearBtn?.addEventListener("click", clearHistory);
 
   syncCreatePromptMode("ai");
@@ -6995,11 +8523,47 @@
   void refreshHistory();
   void refreshBillingSummary();
   window.addEventListener("hashchange", handleAppHashRoute);
+  window.addEventListener("popstate", handleAppHashRoute);
   window.addEventListener("kartochka:billing:refresh", () => {
     if (activeUser) {
       void refreshBillingSummary();
     }
   });
+
+  const handleAppBackgrounded = () => {
+    lastAppBackgroundAt = Date.now();
+    syncActiveLifecycleRequestStatus("background");
+  };
+
+  const handleAppForegrounded = () => {
+    lastAppForegroundAt = Date.now();
+    syncActiveLifecycleRequestStatus("resume");
+  };
+
+  const handleAppOffline = () => {
+    lastAppOfflineAt = Date.now();
+    syncActiveLifecycleRequestStatus("offline");
+  };
+
+  const handleAppOnline = () => {
+    lastAppOnlineAt = Date.now();
+    syncActiveLifecycleRequestStatus("resume");
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      handleAppBackgrounded();
+      return;
+    }
+    handleAppForegrounded();
+  });
+
+  window.addEventListener("pagehide", handleAppBackgrounded);
+  window.addEventListener("pageshow", handleAppForegrounded);
+  window.addEventListener("freeze", handleAppBackgrounded);
+  window.addEventListener("resume", handleAppForegrounded);
+  window.addEventListener("offline", handleAppOffline);
+  window.addEventListener("online", handleAppOnline);
 
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -7013,15 +8577,33 @@
     }
   });
 
-  billingOpenBtn?.addEventListener("click", async () => {
+  const requestAuthAccess = (message) => {
+    setAuthMessage(message || "Войдите, чтобы использовать AI.", "");
+    openAuthModal();
+  };
+
+  const requestBillingAccess = async () => {
     if (!activeUser) {
-      openAuthModal();
+      requestAuthAccess("Войдите, чтобы открыть баланс и продолжить.");
       return;
     }
     openBillingModal();
     if (!billingSummary) {
       await refreshBillingSummary();
     }
+  };
+
+  window.addEventListener("kartochka:auth:open", (event) => {
+    const detail = event?.detail && typeof event.detail === "object" ? event.detail : {};
+    requestAuthAccess(toText(detail.message) || "Войдите, чтобы использовать AI.");
+  });
+
+  window.addEventListener("kartochka:billing:open", () => {
+    void requestBillingAccess();
+  });
+
+  billingOpenBtn?.addEventListener("click", async () => {
+    await requestBillingAccess();
   });
 
   billingModalClose?.addEventListener("click", closeBillingModal);
@@ -7042,7 +8624,6 @@
       return;
     }
 
-    billingPromoLoading = true;
     billingPromoBtn.setAttribute("disabled", "disabled");
     setBillingPromoStatus("Проверяем промокод...", "");
 
@@ -7055,7 +8636,6 @@
     } catch (error) {
       setBillingPromoStatus(error instanceof Error ? error.message : "Не удалось применить промокод.", "error");
     } finally {
-      billingPromoLoading = false;
       billingPromoBtn.removeAttribute("disabled");
     }
   });
@@ -7090,6 +8670,15 @@
     if (code === "auth/popup-blocked") return "Браузер заблокировал окно входа";
     if (code === "auth/network-request-failed") return "Ошибка сети. Проверьте подключение";
     if (code === "auth/unauthorized-domain") return "Домен не добавлен в Firebase Authorized domains";
+    if (code === "auth/invalid-email") return "Некорректный email";
+    if (code === "auth/user-not-found") return "Аккаунт с таким email не найден";
+    if (code === "auth/wrong-password") return "Неверный пароль";
+    if (code === "auth/invalid-credential") return "Неверный email или пароль";
+    if (code === "auth/email-already-in-use") return "Этот email уже используется";
+    if (code === "auth/weak-password") return "Пароль должен быть не короче 6 символов";
+    if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте позже";
+    if (code === "auth/operation-not-allowed") return "В Firebase не включён вход по email и паролю";
+    if (code === "auth/configuration-not-found") return "В Firebase не настроен способ входа по email и паролю";
     if (code === "permission-denied") return "Firestore запрещает запись. Проверьте правила доступа";
     return error instanceof Error ? error.message : "Ошибка авторизации";
   };
@@ -7138,10 +8727,11 @@
       return;
     }
 
-    googleAuthBtn.setAttribute("disabled", "disabled");
+    setAuthButtonsDisabled(true);
     setAuthMessage("Открываем Google-авторизацию...", "");
 
     try {
+      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
       const result = await auth.signInWithPopup(googleProvider);
       activeUser = result.user;
       await persistUserProfile(result.user);
@@ -7149,11 +8739,94 @@
       await refreshBillingSummary();
       setAuthMessage("Вход через Google выполнен", "success");
       closeAuthModal();
-      navigateToAppMode("create", { replace: true });
+      navigateToAppMode(postAuthMode, { replace: true });
     } catch (error) {
       setAuthMessage(mapAuthError(error), "error");
     } finally {
-      googleAuthBtn.removeAttribute("disabled");
+      setAuthButtonsDisabled(false);
+    }
+  });
+
+  authEmailLoginPanel?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!auth) {
+      setAuthMessage("Email-авторизация недоступна: Firebase не подключен", "error");
+      return;
+    }
+
+    const email = toText(authLoginEmailInput?.value);
+    const password = toText(authLoginPasswordInput?.value);
+
+    if (!email || !password) {
+      setAuthMessage("Введите email и пароль", "error");
+      return;
+    }
+
+    setAuthButtonsDisabled(true);
+    setAuthMessage("Проверяем данные и входим...", "");
+
+    try {
+      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
+      const result = await auth.signInWithEmailAndPassword(email, password);
+      activeUser = result.user || null;
+      await persistUserProfile(result.user);
+      syncCabinetButton(result.user);
+      await refreshBillingSummary();
+      setAuthMessage("Вход по email выполнен", "success");
+      closeAuthModal();
+      navigateToAppMode(postAuthMode, { replace: true });
+    } catch (error) {
+      setAuthMessage(mapAuthError(error), "error");
+    } finally {
+      setAuthButtonsDisabled(false);
+    }
+  });
+
+  authEmailRegisterPanel?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!auth) {
+      setAuthMessage("Регистрация по email недоступна: Firebase не подключен", "error");
+      return;
+    }
+
+    const email = toText(authRegisterEmailInput?.value);
+    const password = toText(authRegisterPasswordInput?.value);
+    const confirmPassword = toText(authRegisterPasswordConfirmInput?.value);
+
+    if (!email || !password || !confirmPassword) {
+      setAuthMessage("Заполните все поля регистрации", "error");
+      return;
+    }
+
+    if (password.length < 6) {
+      setAuthMessage("Пароль должен быть не короче 6 символов", "error");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setAuthMessage("Пароли не совпадают", "error");
+      return;
+    }
+
+    setAuthButtonsDisabled(true);
+    setAuthMessage("Создаём аккаунт...", "");
+
+    try {
+      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
+      const result = await auth.createUserWithEmailAndPassword(email, password);
+      activeUser = result.user || null;
+      await persistUserProfile(result.user);
+      syncCabinetButton(result.user);
+      await refreshBillingSummary();
+      setAuthMessage("Аккаунт создан", "success");
+      closeAuthModal();
+      navigateToAppMode(postAuthMode, { replace: true });
+    } catch (error) {
+      setAuthMessage(mapAuthError(error), "error");
+    } finally {
+      setAuthButtonsDisabled(false);
     }
   });
 
@@ -7242,6 +8915,8 @@
   if (quickStartSection && pricingAnchor && pricingParent) {
     pricingParent.insertBefore(quickStartSection, pricingAnchor);
   }
+
+  clearPublicAnchorHashOnBoot();
 
   const revealNodes = document.querySelectorAll(".reveal");
   if ("IntersectionObserver" in window) {

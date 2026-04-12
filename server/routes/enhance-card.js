@@ -1,11 +1,11 @@
 "use strict";
 
 const { toText } = require("../utils");
-const { ApiRouteError } = require("./kartochka");
+const { ApiRouteError } = require("../api-route-error");
 
 const IMPROVE_INSTRUCTION_PATH = "server/prompts/improve-card-instruction.md";
 
-const ensureObject = (value, message) => {
+const ensureRouteObject = (value, message) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new ApiRouteError({
       status: 400,
@@ -13,7 +13,6 @@ const ensureObject = (value, message) => {
       message: message || "Request payload must be an object",
     });
   }
-
   return value;
 };
 
@@ -47,7 +46,7 @@ const createEnhanceCardHandler = (deps) => {
   }
 
   return async (body, requestContext) => {
-    const requestBody = ensureObject(body, "Invalid enhance-card request body");
+    const requestBody = ensureRouteObject(body, "Invalid enhance-card request body");
     const imageDataUrl = toText(
       requestBody.imageDataUrl
       || requestBody.imageBase64
@@ -80,6 +79,7 @@ const createEnhanceCardHandler = (deps) => {
       prompt: userPrompt,
       debugMode: true,
     };
+
     try {
       return await billingService.runBillableAction({
         actionCode: "enhance_card",
@@ -109,7 +109,7 @@ const createEnhanceCardHandler = (deps) => {
             userEmailHint: toText(requestContext?.userEmailHint),
           });
 
-          const prompt = toText(promptResult?.prompt).trim();
+          const prompt = toText(promptResult?.generationPrompt || promptResult?.prompt).trim();
           if (!prompt) {
             throw new ApiRouteError({
               status: 502,

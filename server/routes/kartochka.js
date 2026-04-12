@@ -1,50 +1,22 @@
 ﻿"use strict";
 
+const { ApiRouteError } = require("../api-route-error");
+const {
+  IMPROVE_INSTRUCTION_PATH,
+  ensureCountInRange,
+  ensureImageUrlArray,
+  ensureRequestImageUrl,
+  ensureRequestSignal,
+  ensureRouteObject,
+  recordAiLog,
+} = require("./shared");
 const { toText } = require("../utils");
-
-class ApiRouteError extends Error {
-  /**
-   * @param {{
-   *   status?: number,
-   *   code?: string,
-   *   message: string,
-   *   details?: unknown,
-   * }} params
-   */
-  constructor(params) {
-    super(String(params?.message || "API route error"));
-    this.name = "ApiRouteError";
-    this.status = Number.isFinite(Number(params?.status)) ? Number(params.status) : 500;
-    this.code = toText(params?.code) || "route_error";
-    this.details = params?.details;
-  }
-}
-
-const ensureObject = (value, message) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ApiRouteError({
-      status: 400,
-      code: "invalid_payload",
-      message: message || "Request payload must be an object",
-    });
-  }
-  return value;
-};
 
 const buildActorMeta = (requestContext) => {
   return {
     userIdHint: toText(requestContext?.userIdHint),
     userEmailHint: toText(requestContext?.userEmailHint),
   };
-};
-
-const recordAiLog = async (aiLogService, entry) => {
-  if (!aiLogService || typeof aiLogService.record !== "function") return;
-  try {
-    await aiLogService.record(entry);
-  } catch (error) {
-    // Logging should never break the product flow.
-  }
 };
 
 const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, error }) => {
@@ -70,13 +42,9 @@ const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, 
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),
     errorCode: toText(error?.code),
     errorMessage: toText(error?.message),
-    details: error
-      ? {
-        billingSource: toText(context?.billingSource),
-      }
-      : {
-        billingSource: toText(context?.billingSource),
-      },
+    details: {
+      billingSource: toText(context?.billingSource),
+    },
     ...buildActorMeta(requestContext),
   };
 };
@@ -162,7 +130,7 @@ const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error 
 };
 
 const normalizeCreateAnalyzeResult = (result, intent) => {
-  const safeResult = ensureObject(result, "createAnalyze provider returned invalid response");
+  const safeResult = ensureRouteObject(result, "createAnalyze provider returned invalid response");
   const normalizedIntent = toText(intent).toLowerCase();
   const headlineIdeas = Array.isArray(safeResult.headlineIdeas)
     ? safeResult.headlineIdeas.map((item) => toText(item)).filter(Boolean)
@@ -239,6 +207,58 @@ const resolveCreateGenerateBillingAction = (payload) => {
     : "create_generate_best_good";
 };
 
+const hasCreateInputSignal = (payload) => {
+  return Boolean(
+    toText(payload?.title)
+    || toText(payload?.shortDescription)
+    || toText(payload?.description)
+    || toText(payload?.highlights)
+    || toText(payload?.prompt)
+    || toText(payload?.customPrompt)
+    || toText(payload?.userText)
+    || (Array.isArray(payload?.imageDataUrls) && payload.imageDataUrls.length)
+  );
+};
+
+const validateCreateAnalyzePayload = (payload) => {
+  ensureImageUrlArray(payload?.imageDataUrls, "createAnalyze.imageDataUrls", { maxItems: 5 });
+  ensureRequestSignal(
+    hasCreateInputSignal(payload),
+    "createAnalyze requires product text or at least one image",
+    "missing_create_input"
+  );
+};
+
+const validateCreateGeneratePayload = (payload) => {
+  ensureImageUrlArray(payload?.imageDataUrls, "createGenerate.imageDataUrls", { maxItems: 5 });
+  ensureRequestImageUrl(payload?.referencePreviewUrl, "createGenerate.referencePreviewUrl");
+  ensureCountInRange(payload?.cardsCount, "createGenerate.cardsCount", 1, 5, 1);
+  ensureRequestSignal(
+    hasCreateInputSignal(payload),
+    "createGenerate requires a prompt, product text, or at least one image",
+    "missing_create_generation_input"
+  );
+};
+
+const validateImprovePayload = (payload, actionName) => {
+  ensureRequestImageUrl(payload?.sourcePreviewUrl, actionName + ".sourcePreviewUrl");
+  ensureRequestImageUrl(payload?.referencePreviewUrl, actionName + ".referencePreviewUrl");
+  ensureRequestSignal(
+    Boolean(payload?.sourceCard) || Boolean(toText(payload?.sourcePreviewUrl)),
+    actionName + " requires a source card image",
+    "missing_source_image"
+  );
+
+  const wantsReferenceStyle = toText(payload?.mode).toLowerCase() === "reference" || Boolean(payload?.referenceStyle);
+  if (wantsReferenceStyle) {
+    ensureRequestSignal(
+      Boolean(payload?.referenceCard) || Boolean(toText(payload?.referencePreviewUrl)),
+      actionName + " requires a reference image when reference style is enabled",
+      "missing_reference_image"
+    );
+  }
+};
+
 const createKartochkaHandlers = (deps) => {
   const openaiBrainService = deps?.openaiBrainService;
   const generationService = deps?.generationService;
@@ -279,8 +299,9 @@ const createKartochkaHandlers = (deps) => {
 
   return {
     async createAnalyze(body, requestContext) {
-      const requestBody = ensureObject(body, "Invalid createAnalyze request body");
-      const payload = ensureObject(requestBody.payload || {}, "createAnalyze payload must be an object");
+      const requestBody = ensureRouteObject(body, "Invalid createAnalyze request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "createAnalyze payload must be an object");
+      validateCreateAnalyzePayload(payload);
       const payloadForProvider = { ...payload, debugMode: true };
       const context = requestBody.context && typeof requestBody.context === "object" ? requestBody.context : {};
       const billingActionCode = resolveCreateAnalyzeBillingAction(context);
@@ -340,8 +361,9 @@ const createKartochkaHandlers = (deps) => {
     },
 
     async createGenerate(body, requestContext) {
-      const requestBody = ensureObject(body, "Invalid createGenerate request body");
-      const payload = ensureObject(requestBody.payload || {}, "createGenerate payload must be an object");
+      const requestBody = ensureRouteObject(body, "Invalid createGenerate request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "createGenerate payload must be an object");
+      validateCreateGeneratePayload(payload);
       const payloadForProvider = { ...payload, debugMode: true };
       try {
         const result = await billingService.runBillableAction({
@@ -371,9 +393,16 @@ const createKartochkaHandlers = (deps) => {
     },
 
     async improveAnalyze(body, requestContext) {
-      const requestBody = ensureObject(body, "Invalid improveAnalyze request body");
-      const payload = ensureObject(requestBody.payload || {}, "improveAnalyze payload must be an object");
-      const payloadForProvider = { ...payload, debugMode: true };
+      const requestBody = ensureRouteObject(body, "Invalid improveAnalyze request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "improveAnalyze payload must be an object");
+      validateImprovePayload(payload, "improveAnalyze");
+      const payloadForProvider = {
+        ...payload,
+        improveInstructionPromptPath:
+          toText(payload?.improveInstructionPromptPath || payload?.instructionPromptPath)
+          || IMPROVE_INSTRUCTION_PATH,
+        debugMode: true,
+      };
       try {
         const result = await billingService.runBillableAction({
           actionCode: "improve_analyze",
@@ -398,8 +427,10 @@ const createKartochkaHandlers = (deps) => {
     },
 
     async improveGenerate(body, requestContext) {
-      const requestBody = ensureObject(body, "Invalid improveGenerate request body");
-      const payload = ensureObject(requestBody.payload || {}, "improveGenerate payload must be an object");
+      const requestBody = ensureRouteObject(body, "Invalid improveGenerate request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "improveGenerate payload must be an object");
+      validateImprovePayload(payload, "improveGenerate");
+      ensureCountInRange(payload?.variantsCount, "improveGenerate.variantsCount", 1, 5, 1);
       const payloadForProvider = { ...payload, debugMode: true };
       try {
         const result = await billingService.runBillableAction({
@@ -425,8 +456,8 @@ const createKartochkaHandlers = (deps) => {
     },
 
     async templatePreview(body) {
-      const requestBody = ensureObject(body, "Invalid templatePreview request body");
-      const payload = ensureObject(requestBody.payload || {}, "templatePreview payload must be an object");
+      const requestBody = ensureRouteObject(body, "Invalid templatePreview request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "templatePreview payload must be an object");
       const prompt = toText(payload.prompt);
       if (!prompt) {
         throw new ApiRouteError({
@@ -439,33 +470,33 @@ const createKartochkaHandlers = (deps) => {
       return { previewUrl };
     },
 
-    async historyList(body) {
-      const requestBody = ensureObject(body || {}, "Invalid historyList request body");
-      return historyService.list(requestBody);
+    async historyList(body, requestContext) {
+      const requestBody = ensureRouteObject(body || {}, "Invalid historyList request body");
+      return historyService.list(requestBody, requestContext);
     },
 
-    async historyGetById(body) {
-      const requestBody = ensureObject(body || {}, "Invalid historyGetById request body");
-      return historyService.getById(requestBody);
+    async historyGetById(body, requestContext) {
+      const requestBody = ensureRouteObject(body || {}, "Invalid historyGetById request body");
+      return historyService.getById(requestBody, requestContext);
     },
 
-    async historySave(body) {
-      const requestBody = ensureObject(body || {}, "Invalid historySave request body");
-      return historyService.save(requestBody);
+    async historySave(body, requestContext) {
+      const requestBody = ensureRouteObject(body || {}, "Invalid historySave request body");
+      return historyService.save(requestBody, requestContext);
     },
 
     async billingSummary(body, requestContext) {
-      ensureObject(body || {}, "Invalid billingSummary request body");
+      ensureRouteObject(body || {}, "Invalid billingSummary request body");
       return billingService.getBillingSummary(requestContext);
     },
 
     async redeemPromo(body, requestContext) {
-      const requestBody = ensureObject(body || {}, "Invalid redeemPromo request body");
+      const requestBody = ensureRouteObject(body || {}, "Invalid redeemPromo request body");
       return billingService.redeemPromoCode(requestContext, requestBody.code);
     },
 
     async aiLogs(body) {
-      const requestBody = ensureObject(body || {}, "Invalid aiLogs request body");
+      const requestBody = ensureRouteObject(body || {}, "Invalid aiLogs request body");
       if (!aiLogService || typeof aiLogService.list !== "function") {
         throw new ApiRouteError({
           status: 500,

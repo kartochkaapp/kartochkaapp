@@ -584,25 +584,42 @@ const buildCreateAnalyzeUserText = (payload) => {
 const buildImproveAnalyzeUserText = (payload) => {
   const mode = toText(payload?.mode) || "ai";
   const prompt = toText(payload?.prompt) || "(пусто)";
+  const userPrompt = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt || payload?.userText) || "(пусто)";
   const variantsCount = clamp(payload?.variantsCount, 1, 5, 1);
   const hasReference = Boolean(payload?.referenceCard || payload?.referencePreviewUrl);
   const hasSource = Boolean(payload?.sourceCard || payload?.sourcePreviewUrl);
+  const instructionText = formatImproveInstructionText(payload);
 
   return [
-    "Задача: проанализировать слабые места текущей карточки маркетплейса перед улучшением.",
+    "Задача: провести арт-дирекшн аудит текущей карточки маркетплейса и подготовить план заметного улучшения, а не косметических правок.",
     "Верни только валидный JSON со следующими полями:",
     "{",
     '  "score": number,',
     '  "summary": string,',
+    '  "productIdentity": string,',
+    '  "mustPreserve": string[],',
     '  "issues": [{ "key": string, "title": string, "severity": "high"|"medium"|"low", "note": string }],',
     '  "recommendations": string[],',
+    '  "transformationStrength": "focused"|"strong"|"rebuild",',
+    '  "improvementMode": string,',
+    '  "rebuildMode": string,',
+    '  "changePlan": [{ "area": string, "change": string, "why": string }],',
     '  "marketplaceFormat": string,',
+    '  "generationPrompt": string,',
     '  "reference": { "uploaded": boolean, "active": boolean, "note": string }',
     "}",
     "Правила:",
     "- используй ровно следующие issue keys: design, readability, composition, accent, cta, overload, categoryFit",
     "- score должен быть в диапазоне 0..100",
-    "- recommendations должны содержать 2-4 коротких действия",
+    "- recommendations должны содержать 3-4 коротких действия",
+    "- productIdentity должен кратко и конкретно описывать тот же товар, который нужно сохранить",
+    "- mustPreserve должны содержать 2-5 признаков, которые нельзя потерять при улучшении",
+    "- changePlan должен содержать 3-4 конкретных структурных изменения, а не общие фразы",
+    "- generationPrompt должен быть одним production-ready prompt для image AI на русском языке",
+    "- generationPrompt обязан требовать same product identity, visible before/after difference, clear hierarchy, grouped facts и запрет cosmetic shifts",
+    "- если карточка слабая, нельзя предлагать barely-visible polish: improvement must be visible already in thumbnail",
+    "- если score < 70 или есть 2+ issues с severity=high, transformationStrength не может быть focused",
+    "- даже focused означает заметное усиление минимум по 2 осям, strong/rebuild — минимум по 3 осям из: hierarchy, readability, composition, emphasis, cleanup",
     "",
     "Входные данные:",
     "- mode: " + mode,
@@ -610,6 +627,10 @@ const buildImproveAnalyzeUserText = (payload) => {
     "- variantsCount: " + String(variantsCount),
     "- sourceUploaded: " + String(hasSource),
     "- referenceUploaded: " + String(hasReference),
+    "",
+    "Пожелания пользователя:",
+    userPrompt,
+    ...(instructionText ? ["", "Внутренняя инструкция улучшения:", instructionText] : []),
   ].join("\n");
 };
 
@@ -689,27 +710,127 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
 
   const hasReference = Boolean(payload?.referenceCard || payload?.referencePreviewUrl);
   const referenceActive = toText(payload?.mode).toLowerCase() === "reference" && hasReference;
+  const score = clamp(parsed?.score, 0, 100, 62);
+  const highSeverityCount = issues.filter((item) => item.severity === "high").length;
+  const normalizeStrength = (value) => {
+    const strength = toText(value).toLowerCase();
+    if (strength === "focused" || strength === "strong" || strength === "rebuild") return strength;
+    return "";
+  };
+  const inferredStrength = (() => {
+    if (score <= 55 || highSeverityCount >= 3) return "rebuild";
+    if (score <= 74 || highSeverityCount >= 2) return "strong";
+    return "focused";
+  })();
+  const transformationStrength = normalizeStrength(parsed?.transformationStrength) || inferredStrength;
+  const productIdentity = toText(parsed?.productIdentity)
+    || "Тот же товар с исходной карточки без подмены ассортимента.";
+  const mustPreserve = (Array.isArray(parsed?.mustPreserve) ? parsed.mustPreserve : [])
+    .map((item) => toText(item))
+    .filter(Boolean)
+    .slice(0, 5);
+  const changePlan = (Array.isArray(parsed?.changePlan) ? parsed.changePlan : [])
+    .map((item) => ({
+      area: toText(item?.area),
+      change: toText(item?.change),
+      why: toText(item?.why),
+    }))
+    .filter((item) => item.area || item.change || item.why)
+    .slice(0, 4);
+  const fallbackChangePlan = [
+    {
+      area: "hero",
+      change: "Сделать один доминирующий hero-блок вокруг главной выгоды товара.",
+      why: "Покупатель быстрее считывает оффер и понимает, зачем открыть карточку.",
+    },
+    {
+      area: "facts",
+      change: "Собрать вторичную информацию в один компактный модуль вместо россыпи мелких элементов.",
+      why: "Карточка выглядит чище и лучше работает на мобильном экране.",
+    },
+    {
+      area: "cta",
+      change: referenceActive
+        ? "Адаптировать CTA и акценты под стиль референса, не теряя товарную выгоду."
+        : "Сделать CTA или proof-point более контрастным и конкретным.",
+      why: "Фокус смещается к продаже, а не к декоративным деталям.",
+    },
+  ];
+  const resolvedChangePlan = changePlan.length ? changePlan : fallbackChangePlan;
+  const resolvedMustPreserve = mustPreserve.length
+    ? mustPreserve
+    : [
+        "тот же товар без подмены модели и категории",
+        "узнаваемые форма, материал или ключевые детали продукта",
+        "реальный брендинг и упаковка, если они видны на исходнике",
+      ];
+  const improvementMode =
+    toText(parsed?.improvementMode)
+    || (referenceActive
+      ? "Адаптация под стиль референса с более сильной иерархией"
+      : transformationStrength === "rebuild"
+        ? "Структурный typographic rebuild"
+        : transformationStrength === "strong"
+          ? "Сильная переработка оффера и композиции"
+          : "Сфокусированное усиление иерархии");
+  const rebuildMode =
+    toText(parsed?.rebuildMode)
+    || (referenceActive
+      ? "Reference-adapted editorial"
+      : transformationStrength === "rebuild"
+        ? "Poster Headline Block"
+        : transformationStrength === "strong"
+          ? "Split Panel System"
+          : "Focused hero cleanup");
+  const marketplaceFormat =
+    toText(parsed?.marketplaceFormat) || "Готовый формат для маркетплейса с чистой иерархией и CTA.";
+  const generationPrompt = toText(parsed?.generationPrompt || parsed?.prompt) || [
+    "Создай заметно улучшенную карточку товара для маркетплейса на основе исходного изображения.",
+    "Сохрани тот же товар без подмены модели, бренда, формы, цвета и комплектации.",
+    "Что обязательно сохранить: " + resolvedMustPreserve.join("; ") + ".",
+    "Нужна не косметика, а заметная переработка иерархии, читаемости, композиции и продажного фокуса.",
+    "Режим улучшения: " + improvementMode + ".",
+    "Режим перестройки: " + rebuildMode + ".",
+    "Сила улучшения: " + transformationStrength + ".",
+    "План изменений: " + resolvedChangePlan
+      .map((item, index) => String(index + 1) + ") " + [item.area, item.change, item.why].filter(Boolean).join(" — "))
+      .join("; ") + ".",
+    "Формат: " + marketplaceFormat + ".",
+    referenceActive
+      ? "Используй второй референс как источник визуального языка и ритма, но не копируй чужой товар."
+      : "",
+    toText(payload?.userPrompt || payload?.prompt)
+      ? "Учти пожелания пользователя: " + toText(payload?.userPrompt || payload?.prompt) + "."
+      : "",
+    "Весь видимый текст только на русском языке.",
+    "Убери платформенные бейджи и слова вроде маркетплейс, Ozon, Wildberries, WB, если это не часть реального брендинга товара.",
+    "Разница до и после должна быть заметна уже в миниатюре.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return {
-    score: clamp(parsed?.score, 0, 100, 62),
+    score,
     summary:
       toText(parsed?.summary) ||
       (referenceActive
-        ? "Анализ завершен с учетом стиля референса."
-        : "Анализ завершен: выявлены проблемы конверсии и читаемости."),
+        ? "Анализ завершен: карточке нужен более сильный продающий rebuild с учетом стиля референса."
+        : "Анализ завершен: карточке нужен заметный upgrade по иерархии, читаемости и офферу."),
+    productIdentity,
+    mustPreserve: resolvedMustPreserve,
     issues,
     recommendations: recommendations.length ? recommendations : [
       "Усилить иерархию первого экрана вокруг одной ключевой выгоды.",
       "Сделать CTA понятнее и заметнее.",
       "Снизить визуальный перегруз во вторичных блоках.",
     ],
-    improvementPlan: recommendations.length ? recommendations : [
-      "Усилить иерархию первого экрана вокруг одной ключевой выгоды.",
-      "Сделать CTA понятнее и заметнее.",
-      "Снизить визуальный перегруз во вторичных блоках.",
-    ],
-    marketplaceFormat:
-      toText(parsed?.marketplaceFormat) || "Готовый формат для маркетплейса с чистой иерархией и CTA.",
+    improvementPlan: resolvedChangePlan.map((item) => item.change).filter(Boolean),
+    transformationStrength,
+    improvementMode,
+    rebuildMode,
+    changePlan: resolvedChangePlan,
+    marketplaceFormat,
+    generationPrompt,
     reference: {
       uploaded: hasReference,
       active: referenceActive,
@@ -1121,7 +1242,7 @@ const createOpenAIProvider = (config) => {
       {
         role: "system",
         content:
-          "Ты AI-ревьюер качества карточек маркетплейсов и конверсионного UX. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
+          "Ты AI-ревьюер и арт-директор карточек маркетплейсов. Ищи bottleneck-и продажи, а не косметику. Если карточка слабая, выбирай заметный rebuild, а не минимальные правки. Возвращай только строгий JSON. Все строковые поля должны быть на русском языке.",
       },
     ];
 

@@ -95,6 +95,7 @@ const createBillingService = (deps) => {
   const adminAuth = adminApp ? adminApp.auth() : null;
   const inFlightOperations = new Map();
   const completedOperations = new Map();
+  const LOCAL_DEV_USER_ID = "local-dev-user";
 
   const ensureFileStoreDir = () => {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -207,13 +208,18 @@ const createBillingService = (deps) => {
     };
   };
 
+  const resolveStarterTokensForUid = (uid) => {
+    return normalizeUid(uid) === LOCAL_DEV_USER_ID ? Math.max(starterTokens, 200) : starterTokens;
+  };
+
   const buildStarterAccount = (uid) => {
     const timestamp = nowIso();
+    const resolvedStarterTokens = resolveStarterTokensForUid(uid);
     return {
       uid,
       planId: "start",
-      balanceTokens: starterTokens,
-      totalGrantedTokens: starterTokens,
+      balanceTokens: resolvedStarterTokens,
+      totalGrantedTokens: resolvedStarterTokens,
       totalSpentTokens: 0,
       totalPromoTokens: 0,
       createdAt: timestamp,
@@ -247,6 +253,7 @@ const createBillingService = (deps) => {
     const store = seedFilePromos(readFileStore());
     const users = ensureObject(store.users);
     const ledgers = ensureObject(store.ledgers);
+    const resolvedStarterTokens = resolveStarterTokensForUid(uid);
 
     if (!users[uid]) {
       const account = buildStarterAccount(uid);
@@ -256,11 +263,11 @@ const createBillingService = (deps) => {
         source: "starter",
         label: "Стартовый бонус",
         actionCode: "starter_grant",
-        tokensDelta: starterTokens,
+        tokensDelta: resolvedStarterTokens,
         balanceBefore: 0,
-        balanceAfter: starterTokens,
+        balanceAfter: resolvedStarterTokens,
         meta: {
-          starterTokens,
+          starterTokens: resolvedStarterTokens,
         },
         createdAt: account.createdAt,
       });
@@ -272,6 +279,38 @@ const createBillingService = (deps) => {
         account: buildAccountSummary(account),
         ledger: [starterEntry],
       };
+    }
+
+    const existingAccount = ensureObject(users[uid]);
+    const existingLedger = Array.isArray(ledgers[uid]) ? ledgers[uid] : [];
+    const existingGrantedTokens = clamp(existingAccount.totalGrantedTokens, 0, 100000000, 0);
+
+    if (normalizeUid(uid) === LOCAL_DEV_USER_ID && existingGrantedTokens < resolvedStarterTokens) {
+      const topUpTokens = resolvedStarterTokens - existingGrantedTokens;
+      const balanceBefore = clamp(existingAccount.balanceTokens, 0, 100000000, 0);
+      const topUpEntry = buildCreditEntry({
+        id: buildLedgerEntryId("dev-topup", "localhost-" + uid, "local_dev_topup"),
+        source: "starter",
+        label: "Localhost dev balance",
+        actionCode: "local_dev_topup",
+        tokensDelta: topUpTokens,
+        balanceBefore,
+        balanceAfter: balanceBefore + topUpTokens,
+        meta: {
+          starterTokens: resolvedStarterTokens,
+          appliedForUid: uid,
+        },
+        createdAt: nowIso(),
+      });
+
+      existingAccount.balanceTokens = balanceBefore + topUpTokens;
+      existingAccount.totalGrantedTokens = clamp(existingGrantedTokens + topUpTokens, 0, 100000000, 0);
+      existingAccount.updatedAt = topUpEntry.createdAt;
+      users[uid] = existingAccount;
+      ledgers[uid] = sortLedgerEntries([topUpEntry].concat(existingLedger));
+      store.users = users;
+      store.ledgers = ledgers;
+      writeFileStore(store);
     }
 
     const account = buildAccountSummary(users[uid]);
@@ -351,7 +390,7 @@ const createBillingService = (deps) => {
     };
 
     account.balanceTokens = balanceAfter;
-    account.totalSpentTokens = clamp(account.totalSpentTokens, 0, 100000000, 0) + action.tokens;
+    account.totalSpentTokens = clamp(clamp(account.totalSpentTokens, 0, 100000000, 0) + action.tokens, 0, 100000000, 0);
     account.updatedAt = entry.createdAt;
     users[uid] = account;
     ledgers[uid] = sortLedgerEntries([entry].concat(Array.isArray(ledgers[uid]) ? ledgers[uid] : []));
@@ -548,6 +587,7 @@ const createBillingService = (deps) => {
     await seedFirestorePromos();
 
     const accountRef = getFirestoreAccountRef(uid);
+    const resolvedStarterTokens = resolveStarterTokensForUid(uid);
 
     await firestore.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(accountRef);
@@ -559,11 +599,11 @@ const createBillingService = (deps) => {
         source: "starter",
         label: "Стартовый бонус",
         actionCode: "starter_grant",
-        tokensDelta: starterTokens,
+        tokensDelta: resolvedStarterTokens,
         balanceBefore: 0,
-        balanceAfter: starterTokens,
+        balanceAfter: resolvedStarterTokens,
         meta: {
-          starterTokens,
+          starterTokens: resolvedStarterTokens,
         },
         createdAt: account.createdAt,
       });
@@ -642,9 +682,10 @@ const createBillingService = (deps) => {
       };
 
       transaction.set(entryRef, entry, { merge: true });
+      const nextTotalSpentTokens = clamp(clamp(account.totalSpentTokens, 0, 100000000, 0) + action.tokens, 0, 100000000, 0);
       transaction.set(accountRef, {
         balanceTokens: balanceAfter,
-        totalSpentTokens: clamp(account.totalSpentTokens, 0, 100000000, 0) + action.tokens,
+        totalSpentTokens: nextTotalSpentTokens,
         updatedAt: entry.createdAt,
       }, { merge: true });
 
@@ -653,7 +694,7 @@ const createBillingService = (deps) => {
         account: buildAccountSummary({
           ...account,
           balanceTokens: balanceAfter,
-          totalSpentTokens: clamp(account.totalSpentTokens, 0, 100000000, 0) + action.tokens,
+          totalSpentTokens: nextTotalSpentTokens,
           updatedAt: entry.createdAt,
         }),
         duplicated: false,

@@ -49,6 +49,23 @@ const normalizeBenefits = (value) => {
   return items.map((item) => toText(item)).filter(Boolean).slice(0, 6);
 };
 
+const normalizeStringList = (value, maxItems) => {
+  const items = Array.isArray(value) ? value : [];
+  return items.map((item) => toText(item)).filter(Boolean).slice(0, maxItems);
+};
+
+const normalizeImproveChangePlan = (value) => {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item) => ({
+      area: toText(item?.area),
+      change: toText(item?.change),
+      why: toText(item?.why),
+    }))
+    .filter((item) => item.area || item.change || item.why)
+    .slice(0, 4);
+};
+
 const splitBenefitText = (value) => {
   return String(value || "")
     .split(/[\n;|•]+/g)
@@ -148,12 +165,14 @@ const normalizeCreateAnalyzeResult = (result, payload, intent) => {
     title: toText(autofillSource.title) || fallbackAutofill.title,
     shortDescription: toText(autofillSource.shortDescription) || fallbackAutofill.shortDescription,
     subtitle: toText(autofillSource.subtitle) || fallbackAutofill.subtitle,
-    characteristics: normalizeCharacteristicList(autofillSource.characteristics).length
-      ? normalizeCharacteristicList(autofillSource.characteristics)
-      : fallbackAutofill.characteristics,
-    benefits: normalizeBenefits(autofillSource.benefits).length
-      ? normalizeBenefits(autofillSource.benefits)
-      : fallbackAutofill.benefits,
+    characteristics: (() => {
+      const c = normalizeCharacteristicList(autofillSource.characteristics);
+      return c.length ? c : fallbackAutofill.characteristics;
+    })(),
+    benefits: (() => {
+      const b = normalizeBenefits(autofillSource.benefits);
+      return b.length ? b : fallbackAutofill.benefits;
+    })(),
   };
 
   if (normalizedIntent === "category") {
@@ -215,8 +234,24 @@ const normalizeImproveAnalyzeResult = (result) => {
 
   return {
     ...safeResult,
+    summary: toText(safeResult.summary),
+    productIdentity: toText(safeResult.productIdentity),
+    mustPreserve: normalizeStringList(safeResult.mustPreserve, 6),
     recommendations,
-    improvementPlan: recommendations,
+    improvementPlan: normalizeStringList(safeResult.improvementPlan, 6).length
+      ? normalizeStringList(safeResult.improvementPlan, 6)
+      : recommendations,
+    transformationStrength: toText(safeResult.transformationStrength),
+    improvementMode: toText(safeResult.improvementMode),
+    rebuildMode: toText(safeResult.rebuildMode),
+    changePlan: normalizeImproveChangePlan(safeResult.changePlan),
+    marketplaceFormat: toText(safeResult.marketplaceFormat),
+    generationPrompt: toText(safeResult.generationPrompt || safeResult.prompt),
+    reference: {
+      uploaded: Boolean(safeResult.reference?.uploaded),
+      active: Boolean(safeResult.reference?.active),
+      note: toText(safeResult.reference?.note),
+    },
   };
 };
 
@@ -237,7 +272,7 @@ const createOpenAIBrainService = (deps) => {
     },
     async improveAnalyze(payload) {
       const result = await adapter.analyzeImproveInput(payload || {});
-      return normalizeImproveAnalyzeResult(result, payload || {});
+      return normalizeImproveAnalyzeResult(result);
     },
   };
 };

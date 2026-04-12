@@ -3,7 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "check": "node scripts/release-verify.js",
+    "check:syntax": "node scripts/release-verify.js syntax",
     "start": "node server.js",
+    "verify:release": "node scripts/release-verify.js",
     "deploy:prod": "zsh ./scripts/deploy-local-sync.sh"
   },
   "engines": {

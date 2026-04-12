@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="./styles.css?v=20260329-27" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260412-11" />
   </head>
   <body>
     <header class="topbar section-wrap">
@@ -106,14 +107,14 @@
           </div>
           <div class="final-cta-preview-grid" aria-label="Галерея примеров KARTOCHKA">
             <article class="final-cta-preview">
-              <img src="./assets/generated/accessories-card.png" alt="Пример карточки аксессуаров" loading="lazy" />
+              <img src="./assets/examples/bioderma-card.png" alt="Пример карточки крема Bioderma" loading="lazy" />
               <div class="final-cta-preview-body">
                 <strong>Premium Look</strong>
                 <p>Чистая композиция и доверие к бренду.</p>
               </div>
             </article>
             <article class="final-cta-preview">
-              <img src="./assets/generated/beauty-sale.png" alt="Пример карточки косметики со скидкой" loading="lazy" />
+              <img src="./assets/examples/youto-card.png" alt="Пример карточки контактных линз Youto" loading="lazy" />
               <div class="final-cta-preview-body">
                 <strong>Tech Product</strong>
                 <p>Ясный first frame для CTR.</p>
@@ -144,7 +145,7 @@
                 </ul>
               </div>
               <div class="feature-card-media">
-                <img src="./assets/examples/process-ai-card.png" alt="AI генерация карточки для дома" loading="lazy" />
+                <img src="./assets/examples/redbull-card.png" alt="Пример карточки энергетического напитка Kratingdaeng Red Bull" loading="lazy" />
               </div>
             </article>
             <article class="feature-card">
@@ -158,7 +159,7 @@
                 </ul>
               </div>
               <div class="feature-card-media">
-                <img src="./assets/examples/process-photo-card.png" alt="Видео-обложка из фото товара" loading="lazy" />
+                <img src="./assets/examples/candle-card.png" alt="Пример карточки ароматической свечи" loading="lazy" />
               </div>
             </article>
           </div>
@@ -327,33 +328,55 @@
         </div>
       </footer>
 
-      <div class="auth-modal hidden" id="authSection" aria-hidden="true">
-        <div class="auth-modal-shell" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-          <div class="auth-visual">
-            <div>
-              <p class="auth-visual-kicker">KARTOCHKA</p>
-              <h2>Личный кабинет</h2>
-              <p>Войдите через Google, чтобы сохранить прогресс и историю генераций в вашем профиле.</p>
-            </div>
-            <div class="auth-visual-card">
-              <img src="./assets/examples/process-photo-card.png" alt="Пример карточки товара" loading="lazy" />
-            </div>
+    </main>
+
+    <div class="auth-modal hidden" id="authSection" aria-hidden="true">
+      <div class="auth-modal-shell" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <div class="auth-visual">
+          <div>
+            <p class="auth-visual-kicker">KARTOCHKA</p>
+            <h2>Личный кабинет</h2>
+            <p>Войдите через Google или email, чтобы сохранить прогресс и историю генераций в вашем профиле.</p>
           </div>
-          <div class="auth-card">
-            <button class="auth-close" id="authCloseBtn" type="button" aria-label="Закрыть">×</button>
-            <h2 id="authTitle">Авторизация</h2>
-            <p class="section-subtitle">Используйте Google-аккаунт</p>
-            <div class="auth-oauth">
-              <button class="btn btn-outline btn-google" id="googleAuthBtn" type="button">
-                <span class="btn-google-icon" aria-hidden="true">G</span>
-                Войти через Google
-              </button>
-            </div>
-            <p id="authMessage" class="status-message" aria-live="polite"></p>
+          <div class="auth-visual-card">
+            <img src="./assets/examples/marshall-card.png" alt="Пример карточки акустики Marshall" loading="lazy" />
           </div>
         </div>
+        <div class="auth-card">
+          <button class="auth-close" id="authCloseBtn" type="button" aria-label="Закрыть">×</button>
+          <h2 id="authTitle">Авторизация</h2>
+          <p class="section-subtitle">Войдите через Google или используйте email и пароль</p>
+          <div class="auth-oauth">
+            <button class="btn btn-outline btn-google" id="googleAuthBtn" type="button">
+              <span class="btn-google-icon" aria-hidden="true">G</span>
+              Войти через Google
+            </button>
+          </div>
+          <div class="auth-divider" aria-hidden="true"><span>или</span></div>
+          <div class="tab-switch auth-mode-switch" role="tablist" aria-label="Способ авторизации">
+            <button class="tab-btn active" id="authEmailLoginTab" type="button" role="tab" aria-selected="true" aria-controls="authEmailLoginPanel">Вход</button>
+            <button class="tab-btn" id="authEmailRegisterTab" type="button" role="tab" aria-selected="false" aria-controls="authEmailRegisterPanel">Регистрация</button>
+          </div>
+          <form class="form-panel active" id="authEmailLoginPanel" novalidate>
+            <label class="field-label" for="authLoginEmail">Email</label>
+            <input id="authLoginEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <label class="field-label" for="authLoginPassword">Пароль</label>
+            <input id="authLoginPassword" name="password" type="password" autocomplete="current-password" placeholder="Введите пароль" />
+            <button class="btn btn-primary" id="emailLoginBtn" type="submit">Войти по email</button>
+          </form>
+          <form class="form-panel" id="authEmailRegisterPanel" novalidate>
+            <label class="field-label" for="authRegisterEmail">Email</label>
+            <input id="authRegisterEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <label class="field-label" for="authRegisterPassword">Пароль</label>
+            <input id="authRegisterPassword" name="password" type="password" autocomplete="new-password" placeholder="Минимум 6 символов" />
+            <label class="field-label" for="authRegisterPasswordConfirm">Повторите пароль</label>
+            <input id="authRegisterPasswordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" placeholder="Повторите пароль" />
+            <button class="btn btn-primary" id="emailRegisterBtn" type="submit">Создать аккаунт</button>
+          </form>
+          <p id="authMessage" class="status-message" aria-live="polite"></p>
+        </div>
       </div>
-    </main>
+    </div>
 
     <main class="workspace section-wrap hidden" id="workspace" aria-hidden="true">
       <div class="workspace-layout">
@@ -368,8 +391,8 @@
           <nav class="workspace-screen-tabs tab-switch" aria-label="Режимы app">
             <button class="tab-btn active" type="button" data-app-mode-btn="create">Создать</button>
             <button class="tab-btn" type="button" data-app-mode-btn="improve">Улучшить</button>
-            <button class="tab-btn" type="button" data-app-mode-btn="animate">Анимировать</button>
             <button class="tab-btn" type="button" data-app-mode-btn="history">История</button>
+            <button class="tab-btn" type="button" data-app-mode-btn="animate">Анимировать</button>
           </nav>
 
           <div class="workspace-user-area" id="workspaceUserArea">
@@ -700,12 +723,21 @@
                       <p class="status-message hidden" id="billingPromoStatus" aria-live="polite"></p>
                     </section>
 
-                    <div class="billing-grid">
+                    <section class="billing-block">
+                      <div class="billing-block-head">
+                        <div>
+                          <h4>Платные планы и пополнение</h4>
+                          <p>В этом релизе не запущены. В кабинете сейчас доступны только баланс, промокоды и история операций.</p>
+                        </div>
+                      </div>
+                    </section>
+
+                    <div class="billing-grid hidden" hidden aria-hidden="true">
                       <section class="billing-block">
                         <div class="billing-block-head">
                           <div>
                             <h4>Тарифы</h4>
-                            <p>UI уже готов, подключение реальной оплаты следующим этапом.</p>
+                            <p>Раздел скрыт до запуска реальной оплаты.</p>
                           </div>
                         </div>
                         <div class="billing-plan-grid" id="billingPlans"></div>
@@ -715,7 +747,7 @@
                         <div class="billing-block-head">
                           <div>
                             <h4>Пакеты токенов</h4>
-                            <p>Подготовили интерфейс пополнения без провайдера оплаты.</p>
+                            <p>Раздел скрыт до запуска провайдера оплаты.</p>
                           </div>
                         </div>
                         <div class="billing-package-grid" id="billingPackages"></div>
@@ -737,216 +769,38 @@
             </div>
           </article>
 
-          <article class="step-card step2-mode hidden improve-mode-screen" data-app-mode-panel="improve">
-            <div class="create-screen-head improve-screen-head">
-              <div class="step-title-row">
-                <h2>Улучшить карточку</h2>
-                <span class="step-done" id="improveDoneBadge" aria-hidden="true">✓</span>
-              </div>
-              <p class="section-subtitle">
-                Загрузите готовую карточку и получите более чистую, премиальную версию в один клик.
-              </p>
+          <article class="step-card step2-mode hidden" data-app-mode-panel="improve">
+            <div class="step-title-row">
+              <h2>Улучшить карточку</h2>
             </div>
+            <p class="section-subtitle">
+              Загрузите карточку и запустите AI-улучшение.
+            </p>
 
-            <section class="enhance-card-shell improve-workbench" aria-label="Улучшение карточки товара">
-              <div class="create-form-card enhance-card-panel improve-workbench-card">
+            <div class="improve-workbench">
+              <div class="create-form-card improve-workbench-card">
                 <div class="create-card-head improve-workbench-head">
-                  <h3>Улучшить карточку товара</h3>
-                  <span>AI-улучшение • 3 токена</span>
+                  <h3>Карточка для улучшения</h3>
+                  <span>PNG, JPG, WEBP</span>
                 </div>
 
-                <div class="improve-workbench-prompt">
-                  <label class="field-label" for="enhanceCardPrompt">Пожелания к улучшению</label>
+                <div id="enhanceCardStage" class="enhance-card-stage"></div>
+
+                <section class="improve-workbench-prompt">
+                  <label class="field-label" for="enhanceCardPrompt">Что улучшить (опционально)</label>
                   <textarea
                     id="enhanceCardPrompt"
-                    placeholder="Например: сделать текст крупнее, усилить контраст заголовка, оставить фон светлым и чище подать товар."
+                    placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
                   ></textarea>
-                </div>
-
-                <div class="enhance-card-stage" id="enhanceCardStage"></div>
-              </div>
-            </section>
-
-            <div class="enhance-card-toast" id="enhanceCardToast" role="status" aria-live="polite"></div>
-
-            <div class="hidden improve-legacy-shell" aria-hidden="true">
-              <div class="improve-form-grid">
-                <div class="improve-main-column">
-                  <section class="create-form-card improve-main-input-card">
-                    <div class="create-card-head">
-                      <h3>Материалы для улучшения</h3>
-                      <span>Основной сценарий</span>
-                    </div>
-
-                    <div class="improve-upload-grid">
-                      <section class="improve-main-block improve-source-block">
-                        <div class="create-card-head">
-                          <h3>Исходная карточка</h3>
-                          <span>Обязательно</span>
-                        </div>
-
-                        <label class="create-upload-dropzone" for="improveImageInput" id="improvePrimaryUploadZone">
-                          <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                          <strong>Загрузите существующую карточку</strong>
-                          <small>PNG, JPG, WEBP • до 10 МБ</small>
-                        </label>
-                        <input class="hidden" id="improveImageInput" type="file" accept="image/png,image/jpeg,image/webp" />
-
-                        <div class="selected-image-preview hidden improve-preview-block" id="improveSelectedPreview">
-                          <p>Исходная карточка</p>
-                          <div class="selected-image-wrap">
-                            <img id="improveSelectedImage" alt="Исходная карточка товара" />
-                          </div>
-                        </div>
-                      </section>
-
-                      <section class="improve-main-block improve-reference-block" id="improveReferencePanel">
-                        <div class="create-card-head">
-                          <h3>Референс</h3>
-                          <span>Если нужен стиль</span>
-                        </div>
-
-                        <label class="create-upload-dropzone improve-upload-dropzone-soft" for="improveReferenceInput" id="improveReferenceUploadZone">
-                          <span class="create-upload-dropzone-icon" aria-hidden="true"></span>
-                          <strong>Добавьте style reference</strong>
-                          <small>Нужен только для режима «в стиле референса»</small>
-                        </label>
-                        <input class="hidden" id="improveReferenceInput" type="file" accept="image/png,image/jpeg,image/webp" />
-
-                        <div class="selected-image-preview hidden improve-preview-block" id="improveReferencePreview">
-                          <p>Референс</p>
-                          <div class="selected-image-wrap">
-                            <img id="improveReferenceImage" alt="Референс для стиля улучшения" />
-                          </div>
-                        </div>
-
-                        <p class="upload-zone-hint improve-reference-note" id="improveReferenceNote">
-                          Опционально, если нужен style match.
-                        </p>
-                      </section>
-                    </div>
-
-                    <section class="improve-main-block improve-comment-block">
-                      <div class="create-card-head">
-                        <h3>Что улучшить</h3>
-                        <span>Optional</span>
-                      </div>
-                      <label class="field-label" for="improvePrompt">Комментарий к улучшению</label>
-                      <textarea
-                        id="improvePrompt"
-                        placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
-                      ></textarea>
-                    </section>
-                  </section>
-                </div>
-
-                <aside class="create-form-card create-form-card-compact improve-control-panel">
-                  <div class="create-card-head">
-                    <h3>Панель улучшения</h3>
-                    <span>Режим и запуск</span>
-                  </div>
-
-                  <div class="improve-panel-mode">
-                    <label class="field-label">Режим улучшения</label>
-                    <div class="improve-mode-switch" id="improveModeSwitch">
-                      <button class="improve-mode-btn active" type="button" data-improve-mode="ai">AI режим</button>
-                      <button class="improve-mode-btn" type="button" data-improve-mode="reference">По референсу</button>
-                    </div>
-                    <p class="improve-mode-summary" id="improveModeSummary">
-                      AI улучшит карточку без style match.
-                    </p>
-                  </div>
-
-                  <div class="create-inline-grid improve-controls-grid">
-                    <div>
-                      <label class="field-label" for="improveVariantsCount">Количество вариантов</label>
-                      <select id="improveVariantsCount">
-                        <option value="1">1 вариант</option>
-                        <option value="2">2 варианта</option>
-                        <option value="3">3 варианта</option>
-                        <option value="4">4 варианта</option>
-                        <option value="5">5 вариантов</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="improve-readiness-panel">
-                    <div class="improve-readiness-head">
-                      <strong>Готовность</strong>
-                      <span class="create-secondary-badge is-neutral" id="improveModeBadge">AI режим</span>
-                    </div>
-                    <div class="improve-signal-grid">
-                      <article class="improve-signal-item">
-                        <span>Режим</span>
-                        <strong id="improveModeSignal">AI режим</strong>
-                      </article>
-                      <article class="improve-signal-item">
-                        <span>Референс</span>
-                        <strong id="improveReferenceSignal">Не нужен</strong>
-                      </article>
-                      <article class="improve-signal-item">
-                        <span>Варианты</span>
-                        <strong id="improveVariantsSignal">1 вариант</strong>
-                      </article>
-                    </div>
-                    <p class="improve-reference-state" id="improveReferenceState" aria-live="polite">
-                      Референс не обязателен.
-                    </p>
-                    <p class="create-cta-hint" id="improveCtaHint">Загрузите исходную карточку, чтобы начать.</p>
-                    <p id="improveStatus" class="status-message" aria-live="polite"></p>
-                    <div class="request-meta" id="improveMeta">
-                      <span>Статус запроса:</span>
-                      <strong>Ожидание исходной карточки</strong>
-                    </div>
-                  </div>
-
-                  <button class="btn btn-primary improve-run-btn" id="improveRunBtn" type="button" disabled>
-                    Запустить улучшение
-                  </button>
-                </aside>
-              </div>
-
-              <div class="improve-analysis-technical-layer hidden" aria-hidden="true">
-                <section class="create-form-card improve-analysis-card is-empty" id="improveAnalysisCard">
-                  <div class="create-card-head">
-                    <h3>AI анализ слабых сторон</h3>
-                    <button class="improve-analyze-btn" id="improveAnalyzeBtn" type="button">Запустить анализ</button>
-                  </div>
-                  <p class="improve-analysis-status" id="improveAnalysisStatus" aria-live="polite">
-                    После загрузки карточки AI покажет, что именно стоит улучшить перед генерацией.
-                  </p>
-                  <div class="improve-analysis-overview">
-                    <div class="improve-analysis-score-wrap">
-                      <span>Оценка текущей карточки</span>
-                      <strong id="improveAnalysisScore">--</strong>
-                    </div>
-                    <p id="improveAnalysisSummary">
-                      Загрузите карточку и запустите анализ, чтобы увидеть причины будущих улучшений.
-                    </p>
-                    <p class="improve-analysis-context" id="improveAnalysisContext">
-                      Режим: стандартное AI-улучшение.
-                    </p>
-                  </div>
-                  <ul class="improve-analysis-issues" id="improveAnalysisIssues" aria-live="polite"></ul>
-                  <div class="improve-analysis-next">
-                    <span>Что AI усилит дальше</span>
-                    <ul id="improveAnalysisRecommendations"></ul>
-                  </div>
                 </section>
               </div>
-
-              <section class="create-results-section improve-results-section hidden" id="improveResultsSection" aria-live="polite">
-                <div class="create-results-head">
-                  <h3>Улучшенные варианты</h3>
-                  <p id="improveResultsCaption">После улучшения здесь появятся варианты карточек.</p>
-                </div>
-                <div class="create-results-processing hidden" id="improveResultsProcessing">
-                  <span class="create-results-spinner" aria-hidden="true"></span>
-                  <p>AI улучшает карточку и подготавливает варианты...</p>
-                </div>
-                <div class="create-results-grid" id="improveResultsGrid"></div>
-              </section>
             </div>
+
+            <div id="enhanceCardToast" class="enhance-card-toast" aria-live="assertive" role="status"></div>
+          </article>
+
+          <article class="step-card step2-mode hidden tools-mode-screen" data-app-mode-panel="tools">
+            <div id="toolsAppRoot"></div>
           </article>
 
           <article class="step-card step2-mode hidden animate-mode-screen" data-app-mode-panel="animate">
@@ -1002,78 +856,112 @@
             <div class="step-title-row history-mode-head">
               <div>
                 <h2>История генераций</h2>
+                <p class="section-subtitle">
+                  Подтвержденные backend-записи create и improve с prompt, входными данными и готовыми результатами.
+                </p>
               </div>
             </div>
 
-            <section class="create-form-card history-mode-list-card">
-              <div class="history-mode-toolbar">
-                <p class="history-mode-stats" id="historyModeStats">0 записей</p>
-                <button class="btn btn-ghost history-mode-clear" id="historyModeClearBtn" type="button">
-                  Очистить историю
-                </button>
-              </div>
-
-              <p class="history-empty" id="historyModeEmpty">Пока нет выполненных генераций.</p>
-              <div class="history-mode-list" id="historyModeList"></div>
-            </section>
-
-            <section class="history-mode-modal hidden" id="historyModeDetails" aria-hidden="true">
-              <button class="history-mode-modal-backdrop" type="button" data-history-modal-close aria-label="Закрыть"></button>
-              <div class="create-form-card history-mode-details" role="dialog" aria-modal="true" aria-labelledby="historyDetailsTitle">
-                <div class="history-mode-details-head">
+            <div class="history-mode-workspace">
+              <section class="create-form-card history-mode-list-card">
+                <div class="history-mode-toolbar">
                   <div>
-                    <h3 id="historyDetailsTitle">Детали записи</h3>
-                    <p class="history-mode-details-date" id="historyDetailsDate">-</p>
+                    <p class="history-mode-stats" id="historyModeStats">0 записей</p>
+                    <p class="history-mode-note" id="historyModeNote">
+                      История показывает только реально сохраненные backend-записи этого профиля.
+                    </p>
                   </div>
-                  <div class="history-mode-details-top-actions">
-                    <span class="history-mode-tag" id="historyDetailsMode">create</span>
-                    <button
-                      class="history-mode-modal-close"
-                      id="historyModeDetailsCloseBtn"
-                      type="button"
-                      aria-label="Закрыть детали истории"
-                    >
-                      ×
+                  <div class="history-mode-toolbar-actions">
+                    <button class="btn btn-ghost history-mode-refresh" id="historyModeRefreshBtn" type="button">
+                      Обновить
+                    </button>
+                    <button class="btn btn-ghost history-mode-clear" id="historyModeClearBtn" type="button">
+                      Очистить историю
                     </button>
                   </div>
                 </div>
 
-                <div class="history-mode-details-meta">
-                  <p class="history-mode-details-count" id="historyDetailsCount">Результатов: 0</p>
-                  <p class="history-mode-details-summary" id="historyDetailsSummary">-</p>
+                <p class="history-empty" id="historyModeEmpty">Пока нет подтвержденных backend-записей.</p>
+                <div class="history-mode-list" id="historyModeList"></div>
+              </section>
+
+              <section class="create-form-card history-mode-details" id="historyModeDetails" aria-live="polite">
+                <p class="history-mode-details-empty" id="historyModeDetailsEmpty">
+                  Выберите запись слева, чтобы посмотреть prompt, исходные данные, AI summary и итоговые результаты.
+                </p>
+
+                <div class="history-mode-details-content hidden" id="historyModeDetailsContent">
+                  <div class="history-mode-details-head">
+                    <div>
+                      <p class="history-mode-details-eyebrow" id="historyDetailsEyebrow">-</p>
+                      <h3 id="historyDetailsTitle">Детали записи</h3>
+                      <p class="history-mode-details-date" id="historyDetailsDate">-</p>
+                    </div>
+                    <div class="history-mode-details-top-actions">
+                      <span class="history-mode-tag" id="historyDetailsMode">create</span>
+                      <button
+                        class="history-mode-inline-close"
+                        id="historyModeDetailsCloseBtn"
+                        type="button"
+                        aria-label="Скрыть детали истории"
+                      >
+                        Скрыть
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="history-mode-details-meta">
+                    <p class="history-mode-details-count" id="historyDetailsCount">Результатов: 0</p>
+                    <p class="history-mode-details-summary" id="historyDetailsSummary">-</p>
+                  </div>
+
+                  <div class="history-mode-details-actions">
+                    <button class="btn btn-ghost history-reuse-btn" id="historyReusePromptBtn" type="button">
+                      Использовать prompt
+                    </button>
+                    <button class="btn btn-primary history-reuse-btn" id="historyReuseBtn" type="button">
+                      Использовать входные данные
+                    </button>
+                    <button class="btn btn-outline history-reuse-btn" id="historyOpenResultBtn" type="button">
+                      Открыть результат
+                    </button>
+                  </div>
+
+                  <section class="history-mode-block">
+                    <h4>Параметры запроса</h4>
+                    <div class="history-mode-kv-grid" id="historyDetailsInputs"></div>
+                  </section>
+
+                  <section class="history-mode-block">
+                    <h4>Что вводил пользователь</h4>
+                    <p class="history-mode-details-prompt" id="historyDetailsHighlights">-</p>
+                  </section>
+
+                  <section class="history-mode-block">
+                    <h4>Изображения пользователя</h4>
+                    <div class="history-mode-upload-grid" id="historyDetailsUploads"></div>
+                  </section>
+
+                  <section class="history-mode-block">
+                    <div class="history-mode-block-head">
+                      <h4>Prompt</h4>
+                      <p class="history-mode-block-caption" id="historyDetailsPromptMeta">-</p>
+                    </div>
+                    <p class="history-mode-details-prompt" id="historyDetailsPrompt">-</p>
+                  </section>
+
+                  <section class="history-mode-block">
+                    <h4>AI summary / analysis</h4>
+                    <div class="history-mode-ai" id="historyDetailsAi"></div>
+                  </section>
+
+                  <section class="history-mode-block">
+                    <h4>Итоговые результаты</h4>
+                    <div class="history-mode-details-previews" id="historyDetailsResults"></div>
+                  </section>
                 </div>
-
-                <section class="history-mode-block">
-                  <h4>Исходные входные данные</h4>
-                  <div class="history-mode-kv-grid" id="historyDetailsInputs"></div>
-                </section>
-
-                <section class="history-mode-block">
-                  <h4>Изображения пользователя</h4>
-                  <div class="history-mode-upload-grid" id="historyDetailsUploads"></div>
-                </section>
-
-                <section class="history-mode-block">
-                  <h4>Prompt</h4>
-                  <p class="history-mode-details-prompt" id="historyDetailsPrompt">-</p>
-                </section>
-
-                <section class="history-mode-block">
-                  <h4>Дополнительные пожелания</h4>
-                  <p class="history-mode-details-prompt" id="historyDetailsHighlights">-</p>
-                </section>
-
-                <section class="history-mode-block">
-                  <h4>AI summary / analysis</h4>
-                  <div class="history-mode-ai" id="historyDetailsAi"></div>
-                </section>
-
-                <section class="history-mode-block">
-                  <h4>Итоговые результаты</h4>
-                  <div class="history-mode-details-previews" id="historyDetailsResults"></div>
-                </section>
-              </div>
-            </section>
+              </section>
+            </div>
 
             <section class="history-preview-modal hidden" id="historyPreviewModal" aria-hidden="true">
               <button class="history-preview-backdrop" type="button" data-history-preview-close aria-label="Закрыть просмотр"></button>
@@ -1114,7 +1002,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js?v=20260329-3"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260329-11"></script>
-    <script src="./improve-card-flow.js?v=20260329-5"></script>
+    <script src="./app.js?v=20260405-12"></script>
+    <script src="./improve-card-flow.js?v=20260402-1"></script>
+    <script src="./tools-module.js?v=20260331-1"></script>
+    <script src="./ui-loading-theme.js?v=20260331-1"></script>
   </body>
 </html>

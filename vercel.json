@@ -1,7 +1,48 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/**/*.js": {
       "includeFiles": "server/prompts/*.md"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/app",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/:mode(create|improve|tools|animate|history)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "app\\..+"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:mode(create|improve|tools|animate|history)",
+      "has": [
+        {
+          "type": "host",
+          "value": "app\\..+"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/",
+      "missing": [
+        {
+          "type": "host",
+          "value": "app\\..+"
+        }
+      ],
+      "destination": "/public.html"
+    }
+  ]
 }

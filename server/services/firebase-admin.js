@@ -1,6 +1,11 @@
 "use strict";
 
-const admin = require("firebase-admin");
+let admin = null;
+try {
+  admin = require("firebase-admin");
+} catch (error) {
+  admin = null;
+}
 
 const { toText } = require("../utils");
 
@@ -17,6 +22,10 @@ const canUseDefaultCredentials = () => {
 
 const getFirebaseAdminApp = (config) => {
   if (cachedApp !== undefined) return cachedApp;
+  if (!admin) {
+    cachedApp = null;
+    return cachedApp;
+  }
 
   const projectId = toText(config?.projectId || process.env.FIREBASE_ADMIN_PROJECT_ID);
   const clientEmail = toText(config?.clientEmail || process.env.FIREBASE_ADMIN_CLIENT_EMAIL);
@@ -55,6 +64,10 @@ const getFirebaseAdminApp = (config) => {
 
 const getFirebaseAdminFirestore = (config) => {
   if (cachedFirestore !== undefined) return cachedFirestore;
+  if (!admin) {
+    cachedFirestore = null;
+    return cachedFirestore;
+  }
 
   const app = getFirebaseAdminApp(config);
   if (!app) {

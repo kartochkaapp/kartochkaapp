@@ -14,7 +14,7 @@ const PROMPT_FILES = Object.freeze({
   }),
   improveCard: Object.freeze({
     key: "server/prompts/improve-card-instruction.md",
-    fileName: "improve-card-instruction.md",
+    fileName: "improve-card-instruction-v2.md",
   }),
 });
 

@@ -84,6 +84,10 @@ const getRuntimeConfig = () => {
       storeMode: toText(process.env.BILLING_STORE_MODE) || "auto",
       promoSeeds: toText(process.env.BILLING_PROMO_SEEDS),
     },
+    history: {
+      storeMode: toText(process.env.HISTORY_STORE_MODE) || "auto",
+      maxItems: toNumber(process.env.HISTORY_MAX_ITEMS, 30),
+    },
     firebaseAdmin: {
       projectId: toText(process.env.FIREBASE_ADMIN_PROJECT_ID),
       clientEmail: toText(process.env.FIREBASE_ADMIN_CLIENT_EMAIL),
