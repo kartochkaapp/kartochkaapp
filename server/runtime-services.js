@@ -12,6 +12,7 @@ const { createHistoryService } = require("./services/history-service");
 const { createAiLogService } = require("./services/ai-log-service");
 const { createBillingService } = require("./services/billing-service");
 const { createNanoBananaService } = require("./services/nano-banana-service");
+const { createTextReplaceService } = require("./services/text-replace-service");
 const { createEnhanceCardHandler } = require("./routes/enhance-card");
 const { createKartochkaHandlers } = require("./routes/kartochka");
 
@@ -48,8 +49,19 @@ const getRuntimeServices = () => {
   const openaiBrainService = createOpenAIBrainService({
     adapter: openaiBrainAdapter,
   });
+  const textReplaceService = createTextReplaceService({
+    apiKey: runtime.openrouter.apiKey,
+    baseUrl: runtime.openrouter.baseUrl,
+    referer: runtime.openrouter.referer,
+    title: runtime.openrouter.title,
+    timeoutMs: runtime.app.requestTimeoutMs,
+    locatorModel: runtime.openrouter.textReplaceLocatorModel,
+    editorModel: runtime.openrouter.textReplaceEditorModel,
+    defaultImageModel: runtime.openrouter.model,
+  });
   const generationService = createGenerationService({
     adapter: openrouterGenerationAdapter,
+    textReplaceService,
   });
   const historyService = createHistoryService({
     filePath: resolveHistoryStoreFilePath(runtime),

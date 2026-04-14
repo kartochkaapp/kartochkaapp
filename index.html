@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="./styles.css?v=20260329-27" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
-    <link rel="stylesheet" href="./theme-refresh.css?v=20260412-20" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260413-4" />
   </head>
   <body>
     <header class="topbar section-wrap">
@@ -560,30 +560,44 @@
                 <section class="create-form-card create-product-card">
                   <div class="create-card-head create-product-card-head">
                     <div>
-                      <h3>Контент карточки</h3>
+                      <h3 id="createProductCardTitle">Контент карточки</h3>
                     </div>
                     <button class="btn btn-outline create-autofill-btn" id="createAutofillBtn" type="button">
                       Автозаполнить AI
                     </button>
                   </div>
 
-                  <label class="field-label" for="createProductTitle">Главный текст</label>
-                  <textarea
-                    id="createProductTitle"
-                    placeholder="Например: Мгновенное сияние кожи"
-                  ></textarea>
+                  <div id="createProductTextFields">
+                    <label class="field-label" for="createProductTitle">Главный текст</label>
+                    <textarea
+                      id="createProductTitle"
+                      placeholder="Например: Мгновенное сияние кожи"
+                    ></textarea>
 
-                  <label class="field-label" for="createProductShortDescription">Второй уровень текста</label>
-                  <textarea
-                    id="createProductShortDescription"
-                    placeholder="Например: Пептиды, увлажнение, ровный тон"
-                  ></textarea>
+                    <label class="field-label" for="createProductShortDescription">Второй уровень текста</label>
+                    <textarea
+                      id="createProductShortDescription"
+                      placeholder="Например: Пептиды, увлажнение, ровный тон"
+                    ></textarea>
 
-                  <label class="field-label" for="createProductThirdLevelText">Третий уровень текста</label>
-                  <textarea
-                    id="createProductThirdLevelText"
-                    placeholder="Например: Легкая формула, подходит для ежедневного ухода"
-                  ></textarea>
+                    <label class="field-label" for="createProductThirdLevelText">Третий уровень текста</label>
+                    <textarea
+                      id="createProductThirdLevelText"
+                      placeholder="Например: Легкая формула, подходит для ежедневного ухода"
+                    ></textarea>
+                  </div>
+
+                  <div class="create-text-replace-panel hidden" id="createTextReplacePanel">
+                    <p class="create-text-replace-intro">
+                      Сохраните карточку один в один и укажите только те фрагменты текста, которые нужно заменить.
+                    </p>
+
+                    <div class="create-text-replace-list" id="createTextReplaceList"></div>
+
+                    <button class="btn btn-outline create-text-replace-add" id="createTextReplaceAddBtn" type="button">
+                      + Добавить еще замену
+                    </button>
+                  </div>
 
                   <div class="hidden" aria-hidden="true">
                     <textarea id="createDescription"></textarea>
@@ -621,10 +635,6 @@
 
                   <p class="create-cta-hint" id="createCtaHint">Сначала добавьте фото товара.</p>
                   <p id="createStatus" class="status-message hidden" aria-live="polite"></p>
-                  <div class="request-meta" id="createMeta">
-                    <span>Статус запроса:</span>
-                    <strong>Ожидание данных</strong>
-                  </div>
                 </section>
               </aside>
 
@@ -1002,7 +1012,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js?v=20260329-3"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260405-12"></script>
+    <script src="./app.js?v=20260413-2"></script>
     <script src="./improve-card-flow.js?v=20260402-1"></script>
     <script src="./tools-module.js?v=20260331-1"></script>
     <script src="./ui-loading-theme.js?v=20260331-1"></script>

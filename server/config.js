@@ -57,6 +57,8 @@ const toNumber = (value, fallback) => {
 const getRuntimeConfig = () => {
   loadEnvFiles();
 
+  const resolvedOpenRouterModel = toText(process.env.OPENROUTER_MODEL) || "google/gemini-3-pro-image-preview";
+
   return {
     app: {
       host: toText(process.env.HOST) || "0.0.0.0",
@@ -75,7 +77,9 @@ const getRuntimeConfig = () => {
     openrouter: {
       apiKey: toText(process.env.OPENROUTER_API_KEY),
       baseUrl: toText(process.env.OPENROUTER_BASE_URL) || "https://openrouter.ai/api/v1",
-      model: toText(process.env.OPENROUTER_MODEL) || "google/gemini-3.1-flash-image-preview",
+      model: resolvedOpenRouterModel,
+      textReplaceLocatorModel: toText(process.env.OPENROUTER_TEXT_REPLACE_LOCATOR_MODEL) || "google/gemini-2.5-flash",
+      textReplaceEditorModel: toText(process.env.OPENROUTER_TEXT_REPLACE_EDITOR_MODEL) || resolvedOpenRouterModel,
       referer: toText(process.env.OPENROUTER_REFERER) || "http://localhost:2020",
       title: toText(process.env.OPENROUTER_TITLE) || "KARTOCHKA",
     },

@@ -154,11 +154,17 @@ USER TEXT нужно передавать в итоговый промт и на
 
 ---
 
+## Принцип работы со стеклом и полупрозрачными элементами
+
+Стекло, полупрозрачность, reflective layers и liquid-like формы не являются обязательной частью сильной карточки. Это один из возможных material-приемов. Используй такие элементы только если они действительно поддерживают выбранную дизайн-концепцию, category fit, световую логику и общую композицию. Не делай стекло ни обязательным атрибутом premium-стиля, ни автоматическим украшением сцены.
+
+---
+
 ## Что запрещено в визуальной логике
 
 Запрещено:
 - generic glow
-- random liquid glass
+- liquid-glass, glassy or translucent effects used by default, without concept, role or category fit
 - случайные дуги без функции
 - floating packshot на пустом градиенте
 - товар маленького масштаба
@@ -173,7 +179,7 @@ USER TEXT нужно передавать в итоговый промт и на
 - композиция по схеме “товар + фон + подпись”
 - длинный Level 1, разорванный товаром по центру
 - частичное перекрытие текста, если из-за этого текст перестает читаться
-- стеклянные или прозрачные слои, которые закрывают товар без композиционной причины
+- стеклянные, прозрачные или полупрозрачные слои, которые добавлены ради эффекта и не усиливают композицию, категорию или читаемость
 
 ---
 
@@ -465,7 +471,7 @@ Background-behind-product logic подходит только для:
 - reflective treatment
 - masked fill
 - outline + fill
-- soft translucency
+- soft translucency, if it fits the concept
 - embossed or inset feeling
 - controlled overlap
 
@@ -474,7 +480,8 @@ Background-behind-product logic подходит только для:
 - treatment должен быть связан с категорией товара
 - силуэт букв должен оставаться чистым
 - treatment не должен ломать текст 1 в 1
-- если используется прозрачность или фактура, текст все равно должен читаться быстро
+- если используется прозрачность, стеклянность, отражение или фактура, текст все равно должен читаться быстро
+- стеклянный или полупрозрачный treatment не является обязательным и применяется только если он усиливает конкретную дизайн-концепцию
 - один доминирующий treatment и максимум 1–2 поддерживающих лучше, чем набор несвязанных эффектов
 
 ### 9. Typographic Spine
@@ -527,7 +534,7 @@ Level 2 и Level 3 не должны быть равными по роли, ма
 Если контейнеры есть, выбери одну семью:
 - soft clinical card
 - editorial label
-- glass info chip
+- glass info chip, if justified by the material language
 - matte inset panel
 - structured trust strip
 - slim utility tag
@@ -570,7 +577,7 @@ Level 2 и Level 3 не должны быть равными по роли, ма
 - strip
 - material cue
 - detail window
-- translucent panel
+- translucent panel, if justified by the concept
 - stage element
 
 Финальный промт должен явно содержать:
@@ -582,7 +589,7 @@ Level 2 и Level 3 не должны быть равными по роли, ма
 У товара должна быть сценическая опора.
 
 Это может быть:
-- glass shelf
+- glass shelf, if justified by the scene
 - podium
 - vessel
 - rounded color field
@@ -596,7 +603,12 @@ Stage:
 - не должен быть декоративным пятном
 
 ### 18. Material Choreography
-Если в сцене есть стекло, жидкость, капли, крем, botanical cue, ingredient cue, translucent material или glossy stage, они должны быть физически правдоподобными.
+Если в сцене появляются стекло, жидкость, капли, крем, botanical cue, ingredient cue, translucent material или glossy stage, они должны быть физически правдоподобными. Эти приемы не являются обязательными и используются только когда действительно поддерживают категорию, световую логику и общий visual thesis.
+
+Базовый принцип:
+- стекло, полупрозрачность и liquid-like эффекты не являются стилем по умолчанию
+- выбирай их только если они усиливают category fit, material language, глубину сцены или premium-характер кадра
+- если концепция сильнее работает без стекла, используй другие материалы и формы
 
 Правила:
 - естественная толщина
@@ -617,7 +629,7 @@ Stage:
 
 Практическое правило:
 - перекрытие допустимо, если оно композиционно оправдано
-- если стеклянный элемент можно убрать без потери идеи, он был не нужен
+- стеклянные и полупрозрачные элементы не нужно добавлять по умолчанию; используй их только когда без них концепция становится беднее или менее цельной
 - лучше одно сильное оправданное перекрытие, чем несколько случайных
 
 ### 20. Negative Space Control
@@ -645,7 +657,7 @@ Stage:
 7. Есть ли один главный типографический жест?
 8. Есть ли сцепка текста и товара?
 9. Есть ли 2–4 связанных элемента среды, а не маленький реквизит?
-10. Естественны ли формы, пластины, стекло, капли, панели?
+10. Естественны ли формы, пластины, стекло, капли и панели, если они вообще используются?
 11. Контейнеры выглядят как одна family?
 12. Связаны ли фон, текст, stage и support-модули в одну систему?
 13. Не добавляется ли никакой дополнительный текст вне USER TEXT?
@@ -779,7 +791,7 @@ Stage:
 - **do not leave large dead sterile space**
 - **text must function as a design element, not as a caption**
 - **make LEVEL 1 feel like a designed typographic object, not just a large caption**
-- **LEVEL 1 may use multiple coordinated treatments such as translucency, texture, tint, masking or reflective material logic, but only if readability remains fast and the treatments belong to one coherent system**
+- **LEVEL 1 may use multiple coordinated treatments such as translucency, texture, tint, masking or reflective material logic, but only if readability remains fast, the treatments belong to one coherent system, and such treatment fits the concept**
 - **do not overload LEVEL 1 with unrelated effects; keep one dominant treatment and at most one or two supporting treatments**
 - **if LEVEL 1 is long, keep it fully readable and do not split the word or phrase with the product body**
 - **use behind-the-product typography only for short robust text that remains instantly legible**
@@ -787,9 +799,9 @@ Stage:
 - **do not let the product cut through the middle of a long word or phrase**
 - **build a multi-layered environment, not a single decorative object**
 - **use 2 to 4 connected environmental elements**
-- **use naturally formed overlays, plates or glass elements with believable geometry**
+- **if overlays, plates, translucent or glass-like elements are used, give them believable geometry and make them feel native to the concept**
 - **container modules must feel editorial and intentional, not like generic rounded boxes**
-- **a translucent or glass-like layer may partially overlap the product if it looks intentional and premium**
+- **a translucent or glass-like layer may partially overlap the product if it looks intentional, category-appropriate and compositionally justified**
 - **the environment must read as one whole-card composition, not as a few small floating objects**
 - **use at least one large-format module that spans a significant zone of the canvas**
 - **secondary objects must support one unified composition, not appear as isolated decorations**

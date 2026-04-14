@@ -52,6 +52,15 @@ const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, 
 const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }) => {
   const firstResult = Array.isArray(results) ? results[0] : null;
   const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
+  const errorDetailsText = error?.details
+    ? (() => {
+      try {
+        return typeof error.details === "string" ? error.details : JSON.stringify(error.details);
+      } catch (stringifyError) {
+        return "";
+      }
+    })()
+    : "";
 
   return {
     action: "createGenerate",
@@ -63,7 +72,7 @@ const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }
     imageModel: toText(debug.imageModel),
     requestText: toText(debug.requestText),
     promptMode: toText(payload?.promptMode || debug.promptMode),
-    responseText: toText(debug.responseText),
+    responseText: error ? errorDetailsText : toText(debug.responseText),
     imageCount: Number.isFinite(Number(debug.imageCount))
       ? Number(debug.imageCount)
       : (Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0),

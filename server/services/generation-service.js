@@ -34,6 +34,7 @@ const ensureResultList = (value, message) => {
 
 const createGenerationService = (deps) => {
   const adapter = deps?.adapter;
+  const textReplaceService = deps?.textReplaceService;
   if (!adapter || typeof adapter.executeCreateGeneration !== "function" || typeof adapter.executeImproveGeneration !== "function") {
     throw new GenerationServiceError({
       status: 500,
@@ -44,6 +45,17 @@ const createGenerationService = (deps) => {
 
   return {
     async createGenerate(payload) {
+      if (textReplaceService && typeof textReplaceService.isTextReplaceTemplate === "function" && textReplaceService.isTextReplaceTemplate(payload)) {
+        if (typeof textReplaceService.createGenerate !== "function") {
+          throw new GenerationServiceError({
+            status: 500,
+            code: "text_replace_not_configured",
+            message: "Text replace service is not configured",
+          });
+        }
+        const results = await textReplaceService.createGenerate(payload || {});
+        return ensureResultList(results, "textReplace createGenerate must return an array");
+      }
       const results = await adapter.executeCreateGeneration(payload || {});
       return ensureResultList(results, "createGenerate must return an array");
     },

@@ -133,6 +133,11 @@
   const createInstructionAttachBtn = document.getElementById("createInstructionAttachBtn");
   const createInstructionInput = document.getElementById("createInstructionInput");
   const createInstructionState = document.getElementById("createInstructionState");
+  const createProductCardTitle = document.getElementById("createProductCardTitle");
+  const createProductTextFields = document.getElementById("createProductTextFields");
+  const createTextReplacePanel = document.getElementById("createTextReplacePanel");
+  const createTextReplaceList = document.getElementById("createTextReplaceList");
+  const createTextReplaceAddBtn = document.getElementById("createTextReplaceAddBtn");
   const createProductTitle = document.getElementById("createProductTitle");
   const createProductShortDescription = document.getElementById("createProductShortDescription");
   const createProductThirdLevelText = document.getElementById("createProductThirdLevelText");
@@ -668,6 +673,17 @@
     usePreviewAsReference: false,
     tags: ["свой промт", "ручной", "direct", "no rewrite"],
   });
+  const CREATE_TEXT_REPLACE_TEMPLATE = Object.freeze({
+    id: "tpl-preserve-card-replace-text",
+    title: "Сохранение карточки",
+    description: "Сохраняет изображение карточки один в один и меняет только выбранные фрагменты текста.",
+    tab: "custom",
+    previewUrl: "",
+    sourceLabel: "TXT",
+    kind: "text-replace",
+    usePreviewAsReference: false,
+    tags: ["сохранение карточки", "замена текста", "exact preserve", "replace text"],
+  });
   const CREATE_DEFAULT_TEMPLATE_ID = CREATE_BEST_INSTRUCTION_TEMPLATE.id;
   const CREATE_TEMPLATE_TABS = new Set(["all"]);
   const CREATE_USEFUL_SETTINGS_DEFAULTS = Object.freeze({
@@ -866,6 +882,8 @@
   let createBestModelTier = "good";
   let createGenerationNotesExpanded = false;
   const createSelectedFiles = [];
+  let createTextReplaceRuleId = 1;
+  let createTextReplaceRules = [{ id: createTextReplaceRuleId, from: "", to: "" }];
   let createActiveTemplateTab = "all";
   let createTemplateSearchQuery = "";
   let createSelectedTemplateId = CREATE_DEFAULT_TEMPLATE_ID;
@@ -1001,7 +1019,7 @@
     const selectedTemplate = typeof getCreateSelectedTemplate === "function"
       ? getCreateSelectedTemplate()
       : null;
-    return isCreateDirectPromptTemplate(selectedTemplate)
+    return usesCreateDirectGenerationPrompt(selectedTemplate)
       ? "create_generate_custom"
       : ((CREATE_BEST_MODEL_OPTIONS[createBestModelTier] || CREATE_BEST_MODEL_OPTIONS.good).billingActionCode);
   };
@@ -1891,6 +1909,7 @@
 
   const createFilePreviewUrls = new Map();
   const createFileDataUrls = new Map();
+  const createOriginalFileDataUrls = new Map();
   const createTemplatePreviewDataUrls = new Map();
 
   const getCreateFilePreviewUrl = (file) => {
@@ -1909,6 +1928,7 @@
       createFilePreviewUrls.delete(key);
     }
     createFileDataUrls.delete(key);
+    createOriginalFileDataUrls.delete(key);
   };
 
   const readFileAsDataUrl = (file) => {
@@ -2032,11 +2052,30 @@
     return dataUrl;
   };
 
+  const getCreateOriginalFileDataUrl = async (file) => {
+    const key = getCreateFileKey(file);
+    if (createOriginalFileDataUrls.has(key)) {
+      return createOriginalFileDataUrls.get(key) || "";
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    createOriginalFileDataUrls.set(key, dataUrl);
+    return dataUrl;
+  };
+
   const buildCreateImageDataUrls = async () => {
     const urls = await Promise.all(createSelectedFiles.map((file) => getCreateFileDataUrl(file)));
     const prepared = urls.filter(Boolean);
     if (createSelectedFiles.length > 0 && prepared.length !== createSelectedFiles.length) {
       throw new Error("Не удалось подготовить одно или несколько фото для AI. Оставьте PNG, JPG или WEBP и попробуйте другое изображение.");
+    }
+    return prepared;
+  };
+
+  const buildCreateOriginalImageDataUrls = async () => {
+    const urls = await Promise.all(createSelectedFiles.map((file) => getCreateOriginalFileDataUrl(file)));
+    const prepared = urls.filter(Boolean);
+    if (createSelectedFiles.length > 0 && prepared.length !== createSelectedFiles.length) {
+      throw new Error("Не удалось прочитать одно или несколько фото для режима замены текста.");
     }
     return prepared;
   };
@@ -2082,7 +2121,7 @@
   };
 
   const getCreateTemplateLibrary = () => {
-    return [CREATE_BEST_INSTRUCTION_TEMPLATE, CREATE_DIRECT_PROMPT_TEMPLATE];
+    return [CREATE_BEST_INSTRUCTION_TEMPLATE, CREATE_TEXT_REPLACE_TEMPLATE, CREATE_DIRECT_PROMPT_TEMPLATE];
   };
 
   const getCreateSelectedTemplate = () => {
@@ -2092,6 +2131,14 @@
 
   const isCreateDirectPromptTemplate = (template) => {
     return toText(template?.kind) === "custom-prompt";
+  };
+
+  const isCreateTextReplaceTemplate = (template) => {
+    return toText(template?.kind) === "text-replace";
+  };
+
+  const usesCreateDirectGenerationPrompt = (template) => {
+    return isCreateDirectPromptTemplate(template) || isCreateTextReplaceTemplate(template);
   };
 
   const isCreateDirectPromptSelected = () => {
@@ -2143,6 +2190,7 @@
 
   const getCreateTemplateKindLabel = (template) => {
     if (template?.kind === "custom-prompt") return "Ручной";
+    if (template?.kind === "text-replace") return "Замена текста";
     if (template?.kind === "instruction-template") return "Адаптивный";
     if (template?.kind === "preset") return "Пресет";
     if (template?.tab === "reference") return "Референс";
@@ -2153,6 +2201,7 @@
 
   const getCreateTemplatePlaceholderText = (template) => {
     if (template?.kind === "custom-prompt") return "PROMPT";
+    if (template?.kind === "text-replace") return "TXT";
     if (template?.kind === "instruction-template") return template?.title || "Лучший";
     const sourceLabel = String(template?.sourceLabel || "").trim();
     if (sourceLabel) return sourceLabel.slice(0, 3).toUpperCase();
@@ -2235,6 +2284,9 @@
   };
 
   const buildCreateUserText = () => {
+    if (isCreateTextReplaceTemplate(getCreateSelectedTemplate())) {
+      return buildCreateTextReplaceSummary();
+    }
     const levels = getCreateCardTextLevels();
 
     return [
@@ -2245,6 +2297,9 @@
   };
 
   const buildCreateContentCardText = () => {
+    if (isCreateTextReplaceTemplate(getCreateSelectedTemplate())) {
+      return buildCreateTextReplaceSummary();
+    }
     const levels = getCreateCardTextLevels();
 
     return [
@@ -2256,6 +2311,94 @@
 
   const buildCreateGenerationNotesValue = () => {
     return toText(createGenerationNotes?.value);
+  };
+
+  const ensureCreateTextReplaceRules = () => {
+    if (!Array.isArray(createTextReplaceRules) || !createTextReplaceRules.length) {
+      createTextReplaceRuleId += 1;
+      createTextReplaceRules = [{ id: createTextReplaceRuleId, from: "", to: "" }];
+    }
+  };
+
+  const getCreateTextReplaceRules = () => {
+    ensureCreateTextReplaceRules();
+    return createTextReplaceRules
+      .map((rule) => ({
+        id: Number(rule?.id) || 0,
+        from: toText(rule?.from),
+        to: toText(rule?.to),
+      }))
+      .filter((rule) => rule.from || rule.to);
+  };
+
+  const buildCreateTextReplaceSummary = () => {
+    const rules = getCreateTextReplaceRules();
+    if (!rules.length) return "";
+    return rules
+      .map((rule) => "Заменить: \"" + rule.from + "\" → \"" + rule.to + "\"")
+      .join("\n");
+  };
+
+  const buildCreateTextReplacePrompt = () => {
+    const rules = getCreateTextReplaceRules();
+    const replacementLines = rules.length
+      ? rules.map((rule, index) => String(index + 1) + ') replace "' + rule.from + '" with "' + rule.to + '"').join("; ")
+      : '1) replace "" with ""';
+
+    return "Use the uploaded image as the exact visual source and preserve the entire card one to one: keep the product, packaging, composition, crop, perspective, lighting, colors, shadows, reflections, materials, background, decorative elements, badges, panels, typography style, text placement, text scale, line breaks and visual hierarchy as close to the original as possible. Do not redesign, restyle, recompose, enhance or simplify the card. Replace only these visible text fragments: "
+      + replacementLines
+      + ". Do not change any other text. Do not add any new words, labels or captions. If one of the source fragments is missing in the image, do not invent anything and leave the rest unchanged. Keep the image in a strict vertical 3:4 format and preserve the card appearance as faithfully as possible while updating only the requested text fragments.";
+  };
+
+  const renderCreateTextReplaceRules = () => {
+    if (!createTextReplaceList) return;
+    ensureCreateTextReplaceRules();
+    createTextReplaceList.textContent = "";
+
+    createTextReplaceRules.forEach((rule, index) => {
+      const row = document.createElement("div");
+      row.className = "create-text-replace-row";
+      row.dataset.ruleId = String(rule.id);
+
+      const fromField = document.createElement("label");
+      fromField.className = "create-text-replace-field";
+      const fromLabel = document.createElement("span");
+      fromLabel.className = "field-label";
+      fromLabel.textContent = "Текст, который заменить";
+      const fromInput = document.createElement("textarea");
+      fromInput.className = "create-text-replace-textarea";
+      fromInput.value = rule.from;
+      fromInput.placeholder = "Например: Ультра увлажнение";
+      fromInput.dataset.replaceField = "from";
+      fromInput.dataset.ruleId = String(rule.id);
+
+      const toField = document.createElement("label");
+      toField.className = "create-text-replace-field";
+      const toLabel = document.createElement("span");
+      toLabel.className = "field-label";
+      toLabel.textContent = "На какой текст заменить";
+      const toInput = document.createElement("textarea");
+      toInput.className = "create-text-replace-textarea";
+      toInput.value = rule.to;
+      toInput.placeholder = "Например: Интенсивное питание";
+      toInput.dataset.replaceField = "to";
+      toInput.dataset.ruleId = String(rule.id);
+
+      const actions = document.createElement("div");
+      actions.className = "create-text-replace-row-actions";
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-outline create-text-replace-remove";
+      removeBtn.dataset.removeReplaceRule = String(rule.id);
+      removeBtn.textContent = index === 0 && createTextReplaceRules.length === 1 ? "Очистить" : "Удалить";
+
+      fromField.append(fromLabel, fromInput);
+      toField.append(toLabel, toInput);
+      actions.append(removeBtn);
+      row.append(fromField, toField, actions);
+      createTextReplaceList.append(row);
+    });
   };
 
   const hasCreateSettingsControls = [
@@ -2893,7 +3036,12 @@
   const renderCreateSelectedTemplateSummary = () => {
     const template = getCreateSelectedTemplate();
     const isDirectPrompt = isCreateDirectPromptTemplate(template);
+    const isTextReplace = isCreateTextReplaceTemplate(template);
     const isInstructionTemplate = isCreateInstructionTemplate(template);
+    const needsInitialTextReplaceRender =
+      Boolean(isTextReplace)
+      && Boolean(createTextReplaceList)
+      && (!createTextReplaceList.children.length || createTextReplacePanel?.classList.contains("hidden"));
     const selectedTemplateThumb = createSelectedTemplateThumbPlaceholder?.parentElement || null;
 
     if (createSelectedTemplateTitle) {
@@ -2923,14 +3071,22 @@
     if (createSelectedTemplateCard) {
       createSelectedTemplateCard.title = isDirectPrompt
         ? "Сейчас выбран режим «Свой промт»"
+        : isTextReplace
+          ? "Сейчас выбран режим «Сохранение карточки»"
         : isInstructionTemplate
           ? "Сейчас выбран шаблон «Лучший»"
           : (template?.sourceUrl || template?.title || "Открыть библиотеку шаблонов");
       createSelectedTemplateCard.classList.toggle("hidden", isDirectPrompt);
       createSelectedTemplateCard.classList.remove("is-text-only");
-      createSelectedTemplateCard.classList.toggle("is-with-parameters", isInstructionTemplate);
+      createSelectedTemplateCard.classList.toggle("is-with-parameters", isInstructionTemplate || isTextReplace);
     }
     createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
+    createTextReplacePanel?.classList.toggle("hidden", !isTextReplace);
+    createProductTextFields?.classList.toggle("hidden", isTextReplace);
+    createAutofillBtn?.classList.toggle("hidden", isTextReplace);
+    if (createProductCardTitle) {
+      createProductCardTitle.textContent = isTextReplace ? "Замена текста" : "Контент карточки";
+    }
     if (!isInstructionTemplate) {
       createGenerationNotesExpanded = false;
     } else if (buildCreateGenerationNotesValue()) {
@@ -2938,6 +3094,9 @@
     }
     syncCreateGenerationNotesState();
     createCustomPromptPanel?.classList.toggle("hidden", !isDirectPrompt);
+    if (needsInitialTextReplaceRender) {
+      renderCreateTextReplaceRules();
+    }
     syncCreateInstructionState();
     syncCreateBestModelState();
     syncCreateGenerationNotesState();
@@ -3245,11 +3404,18 @@
   };
 
   const getCreateValidationError = () => {
+    const selectedTemplate = getCreateSelectedTemplate();
     if (createSelectedFiles.length < 1) return "Добавьте минимум 1 фото товара";
     if (createSelectedFiles.length > CREATE_UPLOAD_MAX_FILES) {
       return "Допустимо максимум " + String(CREATE_UPLOAD_MAX_FILES) + " фото";
     }
-    if (createPromptMode === "custom" && (createCustomPrompt?.value || "").trim().length < 12) {
+    if (isCreateTextReplaceTemplate(selectedTemplate)) {
+      const hasValidReplaceRule = getCreateTextReplaceRules().some((rule) => rule.from && rule.to);
+      if (!hasValidReplaceRule) {
+        return "Добавьте хотя бы одну пару «что заменить → на что заменить»";
+      }
+    }
+    if (isCreateDirectPromptTemplate(selectedTemplate) && (createCustomPrompt?.value || "").trim().length < 12) {
       return "В режиме «Свой промпт» заполните собственный промпт";
     }
     if (!(createMarketplace?.value || "").trim()) return "Выберите маркетплейс";
@@ -3266,7 +3432,7 @@
     if (!nextTemplate) return;
 
     createSelectedTemplateId = nextId;
-    syncCreatePromptMode(isCreateDirectPromptTemplate(nextTemplate) ? "custom" : "ai");
+    syncCreatePromptMode(usesCreateDirectGenerationPrompt(nextTemplate) ? "custom" : "ai");
   };
 
   const renderCreateFiles = () => {
@@ -4081,6 +4247,8 @@
     syncCreateLegacyFields();
 
     const validationError = getCreateValidationError();
+    const selectedTemplate = getCreateSelectedTemplate();
+    const isTextReplace = isCreateTextReplaceTemplate(selectedTemplate);
     const autofillInputError = getCreateAutofillInputError();
     const createGenerateActionCode = getCreateGenerateBillingActionCode();
     const createGenerateTokenLocked = !hasEnoughTokens(createGenerateActionCode);
@@ -4106,8 +4274,8 @@
 
     if (createAutofillBtn) {
       setButtonCostLabel(createAutofillBtn, "Автозаполнить AI", "create_autofill");
-      createAutofillBtn.toggleAttribute("disabled", controlsLocked || Boolean(autofillInputError) || createAutofillTokenLocked);
-      createAutofillBtn.classList.toggle("is-loading", createAutofillPhase === "loading");
+      createAutofillBtn.toggleAttribute("disabled", isTextReplace || controlsLocked || Boolean(autofillInputError) || createAutofillTokenLocked);
+      createAutofillBtn.classList.toggle("is-loading", !isTextReplace && createAutofillPhase === "loading");
     }
 
     syncCreateBestModelState();
@@ -4125,6 +4293,10 @@
     if (createGenerationNotes) createGenerationNotes.toggleAttribute("disabled", controlsLocked);
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
+    createTextReplaceAddBtn?.toggleAttribute("disabled", controlsLocked);
+    createTextReplaceList?.querySelectorAll("textarea, button[data-remove-replace-rule]").forEach((node) => {
+      node.toggleAttribute("disabled", controlsLocked);
+    });
     if (createTemplateSearchInput) createTemplateSearchInput.toggleAttribute("disabled", controlsLocked);
     if (createAddCharacteristicBtn) createAddCharacteristicBtn.toggleAttribute("disabled", controlsLocked);
     if (createEditImageBtn) {
@@ -4140,7 +4312,7 @@
     });
 
     if (createCustomPrompt) {
-      const disableCustomPrompt = controlsLocked || createPromptMode !== "custom";
+      const disableCustomPrompt = controlsLocked || createPromptMode !== "custom" || isTextReplace;
       createCustomPrompt.toggleAttribute("disabled", disableCustomPrompt);
       if (disableCustomPrompt) {
         createCustomPrompt.setAttribute("aria-disabled", "true");
@@ -4209,13 +4381,15 @@
           + ", доступно " + formatTokenCount(getBillingBalanceTokens()) + ".";
       } else if (createSelectedFiles.length < 1) {
         createCtaHint.textContent = "Шаг 1: добавьте фото товара.";
+      } else if (isTextReplace) {
+        createCtaHint.textContent = "Укажите, какой текст заменить и на что заменить. Изображение карточки сохранится максимально близко к исходнику.";
       } else if (createPromptMode === "custom" && customPromptValue.length < 12) {
         createCtaHint.textContent = "Шаг 3: введите свой промт.";
       } else if (validationError) {
         createCtaHint.textContent = validationError;
       } else if (createGeneratedResults.length) {
         createCtaHint.textContent = "Готово. Можно экспортировать карточку или запустить новую генерацию.";
-      } else if (createPromptMode === "custom") {
+      } else if (createPromptMode === "custom" && !isTextReplace) {
         createCtaHint.textContent = "Шаг 4: запускайте генерацию по своему промту.";
       } else if (
         !getCreateProductTitleValue()
@@ -6416,6 +6590,9 @@
   const resolveCreatePromptForGeneration = () => {
     syncCreateLegacyFields();
     const selectedTemplate = getCreateSelectedTemplate();
+    if (isCreateTextReplaceTemplate(selectedTemplate)) {
+      return buildCreateTextReplacePrompt();
+    }
     if (usesCreateInstructionPromptFlow(selectedTemplate)) {
       const aiPrompt = typeof createAiPromptOutput?.value === "string" ? createAiPromptOutput.value : "";
       if (aiPrompt.trim()) return aiPrompt;
@@ -6447,8 +6624,10 @@
     const cardsCount = Number(createCardsCount?.value || 1);
     const hasInsight = Boolean(createInsightData);
     const insightIsStale = hasInsight && createInsightFingerprint !== getCreateInsightFingerprint();
-    const imageDataUrls = await buildCreateImageDataUrls();
     const selectedTemplate = getCreateSelectedTemplate();
+    const imageDataUrls = isCreateTextReplaceTemplate(selectedTemplate)
+      ? await buildCreateOriginalImageDataUrls()
+      : await buildCreateImageDataUrls();
     const referencePreviewUrl = await getCreateTemplateReferencePreviewUrl(selectedTemplate);
     const title = getCreateProductTitleValue();
     const shortDescription = getCreateProductShortDescriptionValue();
@@ -6468,10 +6647,15 @@
       marketplace: (createMarketplace?.value || "").trim(),
       cardsCount: Number.isFinite(cardsCount) ? cardsCount : 1,
       cardGoal: "Конверсионная карточка товара для маркетплейса",
-      generationMode: isCreateDirectPromptTemplate(selectedTemplate) ? "custom" : normalizeCreateTemplateTab(createActiveTemplateTab),
+      generationMode: usesCreateDirectGenerationPrompt(selectedTemplate) ? "custom" : normalizeCreateTemplateTab(createActiveTemplateTab),
       densityMode: settings.infoDensity || CREATE_USEFUL_SETTINGS_DEFAULTS.infoDensity,
       productCategory: hasInsight && !insightIsStale ? createInsightData?.category || "" : "",
-      userNotes: createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : "",
+      userNotes: isCreateTextReplaceTemplate(selectedTemplate)
+        ? buildCreateTextReplaceSummary()
+        : (createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : ""),
+      textReplacements: isCreateTextReplaceTemplate(selectedTemplate)
+        ? getCreateTextReplaceRules()
+        : [],
       aiModelTier: getCreateBestModelOption().id,
       openAiModel: getCreateBestModelOption().openAiModel,
       openAiReasoningEffort: getCreateBestModelOption().reasoningEffort,
@@ -7934,6 +8118,47 @@
     createGenerationNotesToggle?.focus();
   });
 
+  createTextReplaceAddBtn?.addEventListener("click", () => {
+    createTextReplaceRuleId += 1;
+    createTextReplaceRules.push({ id: createTextReplaceRuleId, from: "", to: "" });
+    renderCreateTextReplaceRules();
+    syncCreateFormState();
+  });
+
+  createTextReplaceList?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLTextAreaElement)) return;
+    const ruleId = Number(target.dataset.ruleId || 0);
+    const field = String(target.dataset.replaceField || "");
+    if (!ruleId || (field !== "from" && field !== "to")) return;
+    const rule = createTextReplaceRules.find((item) => item.id === ruleId);
+    if (!rule) return;
+    rule[field] = target.value;
+    syncCreateFormState();
+  });
+
+  createTextReplaceList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const removeBtn = target.closest("[data-remove-replace-rule]");
+    if (!removeBtn) return;
+    const ruleId = Number(removeBtn.getAttribute("data-remove-replace-rule") || 0);
+    if (!ruleId) return;
+
+    if (createTextReplaceRules.length === 1) {
+      createTextReplaceRules = createTextReplaceRules.map((rule) => ({
+        ...rule,
+        from: "",
+        to: "",
+      }));
+    } else {
+      createTextReplaceRules = createTextReplaceRules.filter((rule) => rule.id !== ruleId);
+    }
+
+    renderCreateTextReplaceRules();
+    syncCreateFormState();
+  });
+
   createGenerateBtn?.addEventListener("click", async () => {
     const validationError = getCreateValidationError();
     if (validationError) {
@@ -7960,7 +8185,7 @@
 
     try {
       const selectedTemplate = getCreateSelectedTemplate();
-      const isDirectPromptTemplate = isCreateDirectPromptTemplate(selectedTemplate);
+      const isDirectPromptTemplate = usesCreateDirectGenerationPrompt(selectedTemplate);
       const usesInstructionPromptFlow = usesCreateInstructionPromptFlow(selectedTemplate);
 
       if (usesInstructionPromptFlow) {
