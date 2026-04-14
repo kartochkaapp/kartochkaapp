@@ -1,8 +1,14 @@
 "use strict";
 
-const sharp = require("sharp");
-
 const { extractJsonObject, toText } = require("../../utils");
+
+let sharpModule = null;
+const getSharp = () => {
+  if (!sharpModule) {
+    sharpModule = require("sharp");
+  }
+  return sharpModule;
+};
 
 const buildLocatorPrompt = (searchText, width, height) => {
   return [
@@ -34,6 +40,7 @@ const createTextReplaceLocator = (deps) => {
   }
 
   const findTextBbox = async ({ imageBuffer, searchText }) => {
+    const sharp = getSharp();
     const query = toText(searchText);
     if (!Buffer.isBuffer(imageBuffer) || !query) {
       throw new Error("findTextBbox requires imageBuffer and searchText");

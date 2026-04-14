@@ -2317,7 +2317,14 @@
     if (!Array.isArray(createTextReplaceRules) || !createTextReplaceRules.length) {
       createTextReplaceRuleId += 1;
       createTextReplaceRules = [{ id: createTextReplaceRuleId, from: "", to: "" }];
+      return;
     }
+    const firstRule = createTextReplaceRules[0];
+    createTextReplaceRules = [{
+      id: Number(firstRule?.id) || 1,
+      from: toText(firstRule?.from),
+      to: toText(firstRule?.to),
+    }];
   };
 
   const getCreateTextReplaceRules = () => {
@@ -2355,7 +2362,7 @@
     ensureCreateTextReplaceRules();
     createTextReplaceList.textContent = "";
 
-    createTextReplaceRules.forEach((rule, index) => {
+    createTextReplaceRules.slice(0, 1).forEach((rule) => {
       const row = document.createElement("div");
       row.className = "create-text-replace-row";
       row.dataset.ruleId = String(rule.id);
@@ -2391,7 +2398,7 @@
       removeBtn.type = "button";
       removeBtn.className = "btn btn-outline create-text-replace-remove";
       removeBtn.dataset.removeReplaceRule = String(rule.id);
-      removeBtn.textContent = index === 0 && createTextReplaceRules.length === 1 ? "Очистить" : "Удалить";
+      removeBtn.textContent = "Очистить";
 
       fromField.append(fromLabel, fromInput);
       toField.append(toLabel, toInput);
@@ -3083,7 +3090,12 @@
     createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
     createTextReplacePanel?.classList.toggle("hidden", !isTextReplace);
     createProductTextFields?.classList.toggle("hidden", isTextReplace);
-    createAutofillBtn?.classList.toggle("hidden", isTextReplace);
+    if (createAutofillBtn) {
+      createAutofillBtn.classList.toggle("hidden", isTextReplace);
+      createAutofillBtn.toggleAttribute("hidden", isTextReplace);
+      createAutofillBtn.setAttribute("aria-hidden", isTextReplace ? "true" : "false");
+      createAutofillBtn.style.display = isTextReplace ? "none" : "";
+    }
     if (createProductCardTitle) {
       createProductCardTitle.textContent = isTextReplace ? "Замена текста" : "Контент карточки";
     }
@@ -4276,6 +4288,9 @@
       setButtonCostLabel(createAutofillBtn, "Автозаполнить AI", "create_autofill");
       createAutofillBtn.toggleAttribute("disabled", isTextReplace || controlsLocked || Boolean(autofillInputError) || createAutofillTokenLocked);
       createAutofillBtn.classList.toggle("is-loading", !isTextReplace && createAutofillPhase === "loading");
+      createAutofillBtn.toggleAttribute("hidden", isTextReplace);
+      createAutofillBtn.setAttribute("aria-hidden", isTextReplace ? "true" : "false");
+      createAutofillBtn.style.display = isTextReplace ? "none" : "";
     }
 
     syncCreateBestModelState();
@@ -4293,7 +4308,6 @@
     if (createGenerationNotes) createGenerationNotes.toggleAttribute("disabled", controlsLocked);
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
-    createTextReplaceAddBtn?.toggleAttribute("disabled", controlsLocked);
     createTextReplaceList?.querySelectorAll("textarea, button[data-remove-replace-rule]").forEach((node) => {
       node.toggleAttribute("disabled", controlsLocked);
     });
@@ -8118,13 +8132,6 @@
     createGenerationNotesToggle?.focus();
   });
 
-  createTextReplaceAddBtn?.addEventListener("click", () => {
-    createTextReplaceRuleId += 1;
-    createTextReplaceRules.push({ id: createTextReplaceRuleId, from: "", to: "" });
-    renderCreateTextReplaceRules();
-    syncCreateFormState();
-  });
-
   createTextReplaceList?.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLTextAreaElement)) return;
@@ -8145,15 +8152,11 @@
     const ruleId = Number(removeBtn.getAttribute("data-remove-replace-rule") || 0);
     if (!ruleId) return;
 
-    if (createTextReplaceRules.length === 1) {
-      createTextReplaceRules = createTextReplaceRules.map((rule) => ({
-        ...rule,
-        from: "",
-        to: "",
-      }));
-    } else {
-      createTextReplaceRules = createTextReplaceRules.filter((rule) => rule.id !== ruleId);
-    }
+    createTextReplaceRules = createTextReplaceRules.map((rule) => ({
+      ...rule,
+      from: rule.id === ruleId ? "" : rule.from,
+      to: rule.id === ruleId ? "" : rule.to,
+    })).slice(0, 1);
 
     renderCreateTextReplaceRules();
     syncCreateFormState();

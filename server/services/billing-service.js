@@ -27,6 +27,26 @@ const FILE_STORE_SHAPE = Object.freeze({
 
 const DEFAULT_STARTER_TOKENS = 12;
 const OPERATION_RESULT_TTL_MS = 10 * 60 * 1000;
+const BUILTIN_PROMO_SEEDS = Object.freeze([
+  {
+    code: "WELCOME50",
+    tokens: 50,
+    active: true,
+    description: "Стартовый бонус",
+    expiresAt: "",
+    maxRedemptions: 500,
+    perUserLimit: 5,
+  },
+  {
+    code: "START100",
+    tokens: 100,
+    active: true,
+    description: "Бонусный стартовый промокод",
+    expiresAt: "",
+    maxRedemptions: 0,
+    perUserLimit: 1,
+  },
+]);
 
 const ensureObject = (value) => {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -82,10 +102,44 @@ const parsePromoSeeds = (rawValue) => {
   }
 };
 
+const mergePromoSeeds = (dynamicSeeds) => {
+  const merged = new Map();
+
+  (Array.isArray(dynamicSeeds) ? dynamicSeeds : []).forEach((seed) => {
+    if (!seed?.code) return;
+    merged.set(seed.code, seed);
+  });
+
+  BUILTIN_PROMO_SEEDS.forEach((seed) => {
+    merged.set(seed.code, seed);
+  });
+
+  return Array.from(merged.values());
+};
+
+const buildPromoRecordFromSeed = (seed, existing) => {
+  const current = ensureObject(existing);
+  const timestamp = nowIso();
+
+  return {
+    code: seed.code,
+    tokens: seed.tokens,
+    active: seed.active !== false,
+    description: seed.description || "",
+    expiresAt: seed.expiresAt || "",
+    maxRedemptions: seed.maxRedemptions || 0,
+    perUserLimit: seed.perUserLimit || 1,
+    redemptionCount: clamp(current.redemptionCount, 0, 1000000, 0),
+    redeemedByUsers: ensureObject(current.redeemedByUsers),
+    createdAt: toText(current.createdAt) || timestamp,
+    updatedAt: timestamp,
+  };
+};
+
 const createBillingService = (deps) => {
   const rootDir = toText(deps?.rootDir) || process.cwd();
   const starterTokens = clamp(deps?.starterTokens, 0, 1000000, DEFAULT_STARTER_TOKENS);
-  const promoSeeds = parsePromoSeeds(deps?.promoSeedsRaw || process.env.BILLING_PROMO_SEEDS);
+  const promoSeeds = mergePromoSeeds(parsePromoSeeds(deps?.promoSeedsRaw || process.env.BILLING_PROMO_SEEDS));
   const storeMode = toText(deps?.storeMode || process.env.BILLING_STORE_MODE).toLowerCase();
   const filePath = toText(deps?.filePath) || resolveBillingStoreFilePath(rootDir);
   const firebaseConfig = ensureObject(deps?.firebaseAdmin);
@@ -135,20 +189,7 @@ const createBillingService = (deps) => {
   const seedFilePromos = (store) => {
     const promoCodes = ensureObject(store.promoCodes);
     promoSeeds.forEach((seed) => {
-      if (promoCodes[seed.code]) return;
-      promoCodes[seed.code] = {
-        code: seed.code,
-        tokens: seed.tokens,
-        active: seed.active !== false,
-        description: seed.description || "",
-        expiresAt: seed.expiresAt || "",
-        maxRedemptions: seed.maxRedemptions || 0,
-        perUserLimit: seed.perUserLimit || 1,
-        redemptionCount: 0,
-        redeemedByUsers: {},
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
+      promoCodes[seed.code] = buildPromoRecordFromSeed(seed, promoCodes[seed.code]);
     });
     store.promoCodes = promoCodes;
     return store;
@@ -513,8 +554,9 @@ const createBillingService = (deps) => {
     const tokens = clamp(promo.tokens, 1, 100000000, 0);
     const balanceBefore = clamp(account.balanceTokens, 0, 100000000, 0);
     const balanceAfter = balanceBefore + tokens;
+    const redemptionOrdinal = userRedeemCount + 1;
     const entry = buildCreditEntry({
-      id: buildLedgerEntryId("promo", code + "-" + uid, code),
+      id: buildLedgerEntryId("promo", code + "-" + uid + "-" + String(redemptionOrdinal), code),
       source: "promo",
       label: "Промокод " + code,
       actionCode: "promo_redeem",
@@ -563,20 +605,7 @@ const createBillingService = (deps) => {
     await Promise.all(promoSeeds.map(async (seed) => {
       const ref = firestore.collection("promoCodes").doc(seed.code);
       const snapshot = await ref.get();
-      if (snapshot.exists) return;
-      await ref.set({
-        code: seed.code,
-        tokens: seed.tokens,
-        active: seed.active !== false,
-        description: seed.description || "",
-        expiresAt: seed.expiresAt || "",
-        maxRedemptions: seed.maxRedemptions || 0,
-        perUserLimit: seed.perUserLimit || 1,
-        redemptionCount: 0,
-        redeemedByUsers: {},
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      });
+      await ref.set(buildPromoRecordFromSeed(seed, snapshot.exists ? snapshot.data() : null), { merge: true });
     }));
   };
 
@@ -760,26 +789,14 @@ const createBillingService = (deps) => {
 
     const accountRef = getFirestoreAccountRef(uid);
     const promoRef = firestore.collection("promoCodes").doc(code);
-    const ledgerId = buildLedgerEntryId("promo", code + "-" + uid, code);
-    const ledgerRef = getFirestoreLedgerRef(uid, ledgerId);
 
     let result = null;
 
     await firestore.runTransaction(async (transaction) => {
-      const [accountSnapshot, promoSnapshot, ledgerSnapshot] = await Promise.all([
+      const [accountSnapshot, promoSnapshot] = await Promise.all([
         transaction.get(accountRef),
         transaction.get(promoRef),
-        transaction.get(ledgerRef),
       ]);
-
-      if (ledgerSnapshot.exists) {
-        throw new BillingServiceError({
-          status: 409,
-          code: "promo_already_redeemed",
-          message: "Promo code already redeemed",
-          userMessage: "Этот промокод уже использован для вашего аккаунта.",
-        });
-      }
 
       if (!promoSnapshot.exists) {
         throw new BillingServiceError({
@@ -836,6 +853,9 @@ const createBillingService = (deps) => {
       const tokens = clamp(promo.tokens, 1, 100000000, 0);
       const balanceBefore = clamp(account.balanceTokens, 0, 100000000, 0);
       const balanceAfter = balanceBefore + tokens;
+      const redemptionOrdinal = userRedeemCount + 1;
+      const ledgerId = buildLedgerEntryId("promo", code + "-" + uid + "-" + String(redemptionOrdinal), code);
+      const ledgerRef = getFirestoreLedgerRef(uid, ledgerId);
       const entry = buildCreditEntry({
         id: ledgerId,
         source: "promo",

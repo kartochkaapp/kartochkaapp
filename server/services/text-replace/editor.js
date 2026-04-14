@@ -1,8 +1,14 @@
 "use strict";
 
-const sharp = require("sharp");
-
 const { toText } = require("../../utils");
+
+let sharpModule = null;
+const getSharp = () => {
+  if (!sharpModule) {
+    sharpModule = require("sharp");
+  }
+  return sharpModule;
+};
 
 /**
  * Build a prompt for replacing one or more text fragments in an image.
@@ -55,6 +61,7 @@ const createTextReplaceEditor = (deps) => {
    * }}
    */
   const editImage = async ({ imageBuffer, replacements, aspectRatio }) => {
+    const sharp = getSharp();
     if (!Buffer.isBuffer(imageBuffer)) throw new Error("editImage requires imageBuffer");
     if (!Array.isArray(replacements) || !replacements.length) throw new Error("editImage requires replacements");
 

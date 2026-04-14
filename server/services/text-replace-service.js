@@ -1,7 +1,5 @@
 "use strict";
 
-const sharp = require("sharp");
-
 const { toText } = require("../utils");
 const { createTextReplaceOpenRouterClient } = require("./text-replace/openrouter-client");
 const { createTextReplaceLocator } = require("./text-replace/locator");
@@ -62,6 +60,14 @@ const buildPipelineRequestText = (replacements) => {
   return replacements
     .map((item, index) => String(index + 1) + '. replace "' + item.from + '" -> "' + item.to + '"')
     .join("\n");
+};
+
+let sharpModule = null;
+const getSharp = () => {
+  if (!sharpModule) {
+    sharpModule = require("sharp");
+  }
+  return sharpModule;
 };
 
 // ── Gemini standard output sizes ────────────────────────────────────────────
@@ -146,6 +152,7 @@ const createTextReplaceService = (config) => {
       });
     }
 
+    const sharp = getSharp();
     const originalBuffer = await sharp(decoded.buffer).png().toBuffer();
     const imageMeta = await sharp(originalBuffer).metadata();
     const imageWidth = Number(imageMeta.width || 0);

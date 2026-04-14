@@ -1,8 +1,15 @@
 "use strict";
 
-const sharp = require("sharp");
+let sharpModule = null;
+const getSharp = () => {
+  if (!sharpModule) {
+    sharpModule = require("sharp");
+  }
+  return sharpModule;
+};
 
 const createFeatherMask = async (width, height, featherPx) => {
+  const sharp = getSharp();
   const inset = Math.max(0, featherPx);
   const svg = [
     '<svg width="' + String(width) + '" height="' + String(height) + '" xmlns="http://www.w3.org/2000/svg">',
@@ -18,6 +25,7 @@ const createFeatherMask = async (width, height, featherPx) => {
 };
 
 const compositeEdit = async ({ originalBuffer, editedCropBuffer, bbox, featherPx = 3 }) => {
+  const sharp = getSharp();
   // editedCropBuffer is produced by the service by cropping the bbox region out of
   // the full edited image that was already scaled to original image dimensions.
   // Therefore editedCropBuffer should already be bbox.w × bbox.h.
