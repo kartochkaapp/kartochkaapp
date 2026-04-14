@@ -14,8 +14,6 @@ const hashText = (value) => {
   return crypto.createHash("sha256").update(source).digest("hex").slice(0, 16);
 };
 
-const waitMs = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
-
 const buildResponseDebug = (value, maxLength = 1200) => {
   const text = toText(value);
   return {
@@ -853,7 +851,6 @@ const createOpenAIProvider = (config) => {
   const defaultReasoningEffort = toText(config?.reasoningEffort) || "medium";
   const apiKey = toText(config?.apiKey);
   const timeoutMs = clamp(config?.timeoutMs, 1000, 300000, 300000);
-  const retryDelaysMs = [900, 1800];
 
   const resolveModelProfile = (payload) => {
     if (toText(payload?.aiModelTier).toLowerCase() === "best") {
@@ -879,50 +876,37 @@ const createOpenAIProvider = (config) => {
     }
 
     let response;
-    let lastError = null;
-    for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
-      try {
-        response = await requestJson({
-          url: endpoint,
-          method: "POST",
-          timeoutMs,
-          headers: {
-            Authorization: "Bearer " + apiKey,
-          },
-          body: {
-            model: toText(profile?.model) || defaultModel,
-            reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
-            response_format: { type: "json_object" },
-            messages,
-          },
-        });
-        lastError = null;
-        break;
-      } catch (error) {
-        lastError = error;
-        const shouldRetry = error instanceof HttpClientError
-          && (error.status === 429 || error.retryable)
-          && attempt < retryDelaysMs.length;
-        if (!shouldRetry) break;
-        await waitMs(retryDelaysMs[attempt]);
-      }
-    }
-    if (lastError) {
-      if (lastError instanceof HttpClientError) {
+    try {
+      response = await requestJson({
+        url: endpoint,
+        method: "POST",
+        timeoutMs,
+        headers: {
+          Authorization: "Bearer " + apiKey,
+        },
+        body: {
+          model: toText(profile?.model) || defaultModel,
+          reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
+          response_format: { type: "json_object" },
+          messages,
+        },
+      });
+    } catch (error) {
+      if (error instanceof HttpClientError) {
         throw new OpenAIProviderError({
-          status: lastError.status || 502,
-          code: lastError.code || "openai_upstream_error",
+          status: error.status || 502,
+          code: error.code || "openai_upstream_error",
           message: "OpenAI request failed",
-          retryable: lastError.retryable,
-          details: lastError.details,
-          cause: lastError,
+          retryable: error.retryable,
+          details: error.details,
+          cause: error,
         });
       }
       throw new OpenAIProviderError({
         status: 502,
         code: "openai_request_failed",
         message: "OpenAI request failed",
-        cause: lastError,
+        cause: error,
       });
     }
 
@@ -954,49 +938,36 @@ const createOpenAIProvider = (config) => {
     }
 
     let response;
-    let lastError = null;
-    for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
-      try {
-        response = await requestJson({
-          url: endpoint,
-          method: "POST",
-          timeoutMs,
-          headers: {
-            Authorization: "Bearer " + apiKey,
-          },
-          body: {
-            model: toText(profile?.model) || defaultModel,
-            reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
-            messages,
-          },
-        });
-        lastError = null;
-        break;
-      } catch (error) {
-        lastError = error;
-        const shouldRetry = error instanceof HttpClientError
-          && (error.status === 429 || error.retryable)
-          && attempt < retryDelaysMs.length;
-        if (!shouldRetry) break;
-        await waitMs(retryDelaysMs[attempt]);
-      }
-    }
-    if (lastError) {
-      if (lastError instanceof HttpClientError) {
+    try {
+      response = await requestJson({
+        url: endpoint,
+        method: "POST",
+        timeoutMs,
+        headers: {
+          Authorization: "Bearer " + apiKey,
+        },
+        body: {
+          model: toText(profile?.model) || defaultModel,
+          reasoning_effort: toText(profile?.reasoningEffort) || defaultReasoningEffort,
+          messages,
+        },
+      });
+    } catch (error) {
+      if (error instanceof HttpClientError) {
         throw new OpenAIProviderError({
-          status: lastError.status || 502,
-          code: lastError.code || "openai_upstream_error",
+          status: error.status || 502,
+          code: error.code || "openai_upstream_error",
           message: "OpenAI request failed",
-          retryable: lastError.retryable,
-          details: lastError.details,
-          cause: lastError,
+          retryable: error.retryable,
+          details: error.details,
+          cause: error,
         });
       }
       throw new OpenAIProviderError({
         status: 502,
         code: "openai_request_failed",
         message: "OpenAI request failed",
-        cause: lastError,
+        cause: error,
       });
     }
 
