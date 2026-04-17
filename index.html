@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="./styles.css?v=20260329-27" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
-    <link rel="stylesheet" href="./theme-refresh.css?v=20260416-2" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260417-4" />
   </head>
   <body>
     <header class="topbar section-wrap">
@@ -630,6 +630,18 @@
                     </a>
                   </div>
 
+                  <section class="create-results-section hidden" id="createResultsSection" aria-live="polite">
+                    <div class="create-results-head">
+                      <h3>Результаты</h3>
+                      <p id="createResultsCaption">После генерации здесь появятся варианты карточек.</p>
+                    </div>
+                    <div class="create-results-processing hidden" id="createResultsProcessing">
+                      <span class="create-results-spinner" aria-hidden="true"></span>
+                      <p>AI подготавливает результат...</p>
+                    </div>
+                    <div class="create-results-grid create-results-grid-compact" id="createResultsGrid"></div>
+                  </section>
+
                   <p class="create-cta-hint" id="createCtaHint">Сначала добавьте фото товара.</p>
                   <p id="createStatus" class="status-message hidden" aria-live="polite"></p>
                   <div class="request-meta" id="createMeta">
@@ -1010,7 +1022,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js?v=20260329-3"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260416-1"></script>
+    <script src="./app.js?v=20260417-2"></script>
     <script src="./improve-card-flow.js?v=20260402-1"></script>
     <script src="./tools-module.js?v=20260331-1"></script>
     <script src="./ui-loading-theme.js?v=20260331-1"></script>

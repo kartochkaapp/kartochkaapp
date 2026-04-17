@@ -41,15 +41,12 @@ const normalizeReplacements = (payload) => {
     .filter((item) => item.from && item.to);
 };
 
-const expandBbox = (bbox, padding, imageWidth, imageHeight) => {
-  // Large horizontal margin: at least 100px or 50% of bbox width on each side.
-  // Large glyphs and display text often have ink that extends well past
-  // what the AI locator returns — the extra buffer ensures those pixels
-  // are taken from the edited (clean) image rather than the original.
-  const baseX = typeof padding === "object" ? Number(padding.x) : Number(padding);
-  const baseY = typeof padding === "object" ? Number(padding.y) : Number(padding);
-  const padX = Math.max(100, Math.round(bbox.w * Math.max(baseX, 0.5)));
-  const padY = Math.max(20, Math.round(bbox.h * Math.max(baseY, 0.2)));
+// Tight expansion around locator bbox: max(20px, 10%) on each side.
+// Just enough to cover anti-aliasing halo and minor glyph overreach —
+// much smaller than the old 50%+100px approach.
+const expandBbox = (bbox, _padding, imageWidth, imageHeight) => {
+  const padX = Math.max(20, Math.round(bbox.w * 0.20));
+  const padY = Math.max(20, Math.round(bbox.h * 0.20));
   const x = Math.max(0, bbox.x - padX);
   const y = Math.max(0, bbox.y - padY);
   const w = Math.min(imageWidth - x, bbox.w + padX * 2);
@@ -76,30 +73,23 @@ const getSharp = () => {
   return sharpModule;
 };
 
-// ── Gemini standard output sizes ────────────────────────────────────────────
-// Gemini image models output at fixed resolutions tied to their aspect_ratio
-// parameter.  We pick the closest native ratio to the card's actual proportions
-// so the scale factors (srcW→gemW, srcH→gemH) are as equal as possible.
-// Equal scale factors = no per-axis distortion when we resize the cropped
-// response back to the original bbox dimensions.
-// Using 1024-based sizes: this matches Gemini 2.5 Image Preview's native output
-// resolution and preserves detail for small text that would be lost at 512.
-const GEMINI_SIZES = [
-  { label: "1:1",  val: 1,       w: 1024, h: 1024 },
-  { label: "4:3",  val: 4 / 3,   w: 1024, h: 768  },
-  { label: "3:4",  val: 3 / 4,   w: 768,  h: 1024 },
-  { label: "16:9", val: 16 / 9,  w: 1024, h: 576  },
-  { label: "9:16", val: 9 / 16,  w: 576,  h: 1024 },
-];
-
-const pickGeminiTarget = (imgW, imgH) => {
-  const r = imgW / imgH;
-  return GEMINI_SIZES.reduce((best, cur) =>
+// Derive aspect ratio label from actual image dimensions — no hardcoded sizes.
+const getAspectLabel = (w, h) => {
+  const r = w / h;
+  const known = [
+    { label: "1:1",  val: 1       },
+    { label: "4:3",  val: 4 / 3   },
+    { label: "3:4",  val: 3 / 4   },
+    { label: "16:9", val: 16 / 9  },
+    { label: "9:16", val: 9 / 16  },
+  ];
+  return known.reduce((best, cur) =>
     Math.abs(cur.val - r) < Math.abs(best.val - r) ? cur : best
-  );
+  ).label;
 };
 
-// Scale a bbox from one image size to another.
+// Scale a bbox when Gemini returns a different size than the input.
+// If sizes are identical this is a no-op (sx = sy = 1).
 const scaleBbox = (bbox, fromW, fromH, toW, toH) => {
   const sx = toW / fromW;
   const sy = toH / fromH;
@@ -191,116 +181,118 @@ const createTextReplaceService = (config) => {
     const imageWidth = Number(imageMeta.width || 0);
     const imageHeight = Number(imageMeta.height || 0);
 
-    // ── Phase 1: locate all text fragments in the original image ──────────────
+    // ── Phase 1: send full image to Gemini editor ─────────────────────────────
+    const aspectLabel = getAspectLabel(imageWidth, imageHeight);
+    console.log(
+      "[text-replace] editing full image",
+      imageWidth + "×" + imageHeight,
+      "| aspect:", aspectLabel,
+      "| replacements:", replacements.length,
+    );
+
+    let edited;
+    try {
+      edited = await editor.editImageWithRetry({
+        imageBuffer: originalBuffer,
+        replacements,
+        aspectRatio: aspectLabel,
+      });
+    } catch (err) {
+      console.error("[text-replace] editor ERROR:", err?.message, err?.code, JSON.stringify(err?.details)?.slice(0, 400));
+      const errStatus = Number(err?.status);
+      const errDetails = JSON.stringify(err?.details || "").toLowerCase();
+      const errMessage = String(err?.message || "").toLowerCase();
+      const isCreditsExhausted = errStatus === 402
+        || errDetails.includes("credits")
+        || errDetails.includes("credit limit")
+        || errDetails.includes("afford")
+        || errMessage.includes("credits");
+      if (isCreditsExhausted) {
+        throw new TextReplaceServiceError({
+          status: 402,
+          code: "text_replace_credits_exhausted",
+          message: "Кончились кредиты AI-сервиса. Обратитесь к @ones_thunder",
+          cause: err,
+        });
+      }
+      throw err;
+    }
+
+    const editedMeta = await sharp(edited.buffer).metadata();
+    const editedW = Number(editedMeta.width || imageWidth);
+    const editedH = Number(editedMeta.height || imageHeight);
+    console.log("[text-replace] Gemini output:", editedW + "×" + editedH,
+      editedW === imageWidth && editedH === imageHeight ? "(same size ✓)" : "(size changed)");
+
+    // ── Phase 2: locate NEW text in the edited image ───────────────────────────
     const located = [];
     for (const replacement of replacements) {
       let result;
       try {
         result = await locator.findTextBbox({
-          imageBuffer: originalBuffer,
-          searchText: replacement.from,
+          imageBuffer: edited.buffer,
+          searchText: replacement.to,
         });
-        console.log('[text-replace] located "' + replacement.from + '":', JSON.stringify(result.bbox));
+        console.log('[text-replace] post-edit located "' + replacement.to + '":', JSON.stringify(result.bbox));
       } catch (error) {
-        console.error('[text-replace] locator ERROR for "' + replacement.from + '":', error?.message);
+        console.error('[text-replace] post-edit locator ERROR for "' + replacement.to + '":', error?.message);
         throw new TextReplaceServiceError({
           status: 422,
           code: "text_replace_not_found",
-          message: 'Не удалось найти текст "' + replacement.from + '" на карточке.',
+          message: 'Gemini заменил текст, но не удалось найти "' + replacement.to + '" в результате.',
           details: { replacement },
           cause: error,
         });
       }
+
+      const bbox = expandBbox(result.bbox, padding, editedW, editedH);
+
+      // Debug: save crop from edited image at located bbox
+      const debugCropPath = "/tmp/text-replace-locator-crop-" + Date.now() + ".png";
+      await sharp(edited.buffer)
+        .extract({ left: result.bbox.x, top: result.bbox.y, width: result.bbox.w, height: result.bbox.h })
+        .png().toBuffer()
+        .then((buf) => require("fs").writeFileSync(debugCropPath, buf));
+      console.log('[text-replace] post-edit crop saved to:', debugCropPath, '(should contain "' + replacement.to + '")');
+
       located.push({
         replacement,
-        bbox: expandBbox(result.bbox, padding, imageWidth, imageHeight),
+        bbox,
         rawBbox: result.bbox,
         locatorRequestText: result.requestText,
         locatorResponseText: result.responseText,
       });
     }
 
-    // ── Phase 2-4: per-replacement context-crop → edit → composite ────────────
-    // KNOWN WORKING version. For each located text we extract a CONTEXT CROP
-    // around it (minimum 768px). The text occupies a large fraction of this
-    // crop so Gemini treats it as a prominent feature to edit — critical for
-    // small text that the model otherwise leaves untouched when shown the
-    // full card. We composite the ENTIRE edited crop back: replacement
-    // succeeds reliably. May cause slight deformation at crop edges (mitigated
-    // by 8px feather).
+    // ── Phase 3: extract from edited, paste onto original ─────────────────────
     let currentBuffer = originalBuffer;
     const debugSteps = [];
 
     for (const item of located) {
-      const { bbox } = item;
-      const context = computeContextCrop(bbox, imageWidth, imageHeight);
-      const cropAspect = pickGeminiTarget(context.width, context.height);
-
-      const cropBuffer = await sharp(currentBuffer)
-        .extract({
-          left: context.left,
-          top: context.top,
-          width: context.width,
-          height: context.height,
-        })
-        .png()
-        .toBuffer();
-
-      // bbox re-expressed in coordinates local to the context crop
-      const localBbox = {
-        x: bbox.x - context.left,
-        y: bbox.y - context.top,
-        w: bbox.w,
-        h: bbox.h,
-      };
+      const { bbox, rawBbox } = item;
 
       console.log(
-        '[text-replace] editing "' + item.replacement.from + '"',
-        "| context crop:", context.width + "×" + context.height,
-        "at (" + context.left + "," + context.top + ")",
-        "| aspect:", cropAspect.label
+        '[text-replace] compositing "' + item.replacement.from + '" → "' + item.replacement.to + '"',
+        "| new text at:", JSON.stringify(rawBbox),
+        "| paste region:", JSON.stringify(bbox),
       );
 
-      let edited;
-      try {
-        edited = await editor.editImageWithRetry({
-          imageBuffer: cropBuffer,
-          replacements: [{
-            from: item.replacement.from,
-            to: item.replacement.to,
-            bbox: localBbox,
-          }],
-          aspectRatio: cropAspect.label,
-        });
-      } catch (err) {
-        console.error("[text-replace] editor ERROR:", err?.message, err?.code, JSON.stringify(err?.details)?.slice(0, 400));
-        throw err;
-      }
-
-      // Rescale Gemini's output back to the context crop's native dimensions.
-      const editedContextBuffer = await sharp(edited.buffer)
-        .resize(context.width, context.height, { fit: "fill" })
+      const editedRegion = await sharp(edited.buffer)
+        .extract({ left: bbox.x, top: bbox.y, width: bbox.w, height: bbox.h })
         .png()
         .toBuffer();
 
-      // Composite the entire edited context crop back onto the current buffer.
       currentBuffer = await compositeEdit({
         originalBuffer: currentBuffer,
-        editedCropBuffer: editedContextBuffer,
-        bbox: {
-          x: context.left,
-          y: context.top,
-          w: context.width,
-          h: context.height,
-        },
-        featherPx: Math.max(featherPx, 8),
+        editedCropBuffer: editedRegion,
+        bbox,
+        featherPx,
       });
 
       debugSteps.push({
         replacement: item.replacement,
-        bbox: item.rawBbox,
-        crop: bbox,
-        contextCrop: context,
+        newBbox: rawBbox,
+        pasteRegion: bbox,
         locatorRequestText: item.locatorRequestText,
         locatorResponseText: item.locatorResponseText,
         editorRequestText: edited.requestText,
@@ -308,64 +300,93 @@ const createTextReplaceService = (config) => {
       });
     }
 
-    const previewUrl = "data:image/png;base64," + currentBuffer.toString("base64");
+    const ts = Date.now();
+    require("fs").writeFileSync("/tmp/text-replace-gemini-output-" + ts + ".png", edited.buffer);
+    require("fs").writeFileSync("/tmp/text-replace-final-" + ts + ".png", currentBuffer);
+    console.log("[text-replace] debug saved: gemini-output and final (" + ts + ")");
+
+    const geminiPreviewUrl = "data:image/png;base64," + edited.buffer.toString("base64");
+    const finalPreviewUrl = "data:image/png;base64," + currentBuffer.toString("base64");
     const summary = replacements
       .map((item) => '"' + item.from + '" -> "' + item.to + '"')
       .join(", ");
+    const requestText = buildPipelineRequestText(replacements);
+    const debugPayload = payload?.debugMode ? {
+      flow: "create_text_replace",
+      imageModel: toText(config?.editorModel) || "google/gemini-2.5-flash-image-preview",
+      locatorModel: toText(config?.locatorModel) || "google/gemini-2.5-flash",
+      imageCount: 1,
+      requestText: [
+        "TEXT REPLACE PIPELINE",
+        requestText,
+        "",
+        debugSteps.map((step, index) => {
+          return [
+            "STEP " + String(index + 1),
+            "LOCATOR REQUEST:",
+            step.locatorRequestText,
+            "",
+            "LOCATOR RESPONSE:",
+            step.locatorResponseText,
+            "",
+            "EDITOR REQUEST:",
+            step.editorRequestText,
+            "",
+            "EDITOR RESPONSE:",
+            step.editorResponseText,
+          ].join("\n");
+        }).join("\n\n"),
+      ].join("\n"),
+      responseText: JSON.stringify({
+        replacements,
+        steps: debugSteps.map((step) => ({
+          replacement: step.replacement,
+          newBbox: step.newBbox,
+          pasteRegion: step.pasteRegion,
+        })),
+        output: {
+          width: imageWidth,
+          height: imageHeight,
+        },
+      }),
+    } : undefined;
 
-    return [{
-      id: "text-replace-" + String(Date.now()),
-      variantNumber: 1,
-      totalVariants: 1,
-      previewUrl,
-      title: "Сохранение карточки",
-      marketplace: toText(payload?.marketplace) || "Маркетплейс",
-      style: "Точечная замена текста",
-      focus: "Изменены только указанные текстовые фрагменты",
-      format: "Locate → crop → edit → composite",
-      changes: summary,
-      promptPreview: buildPipelineRequestText(replacements).slice(0, 240),
-      downloadName: "kartochka-text-replace-1.png",
-      __debug: payload?.debugMode ? {
-        flow: "create_text_replace",
-        imageModel: toText(config?.editorModel) || "google/gemini-2.5-flash-image-preview",
-        locatorModel: toText(config?.locatorModel) || "google/gemini-2.5-flash",
-        imageCount: 1,
-        requestText: [
-          "TEXT REPLACE PIPELINE",
-          buildPipelineRequestText(replacements),
-          "",
-          debugSteps.map((step, index) => {
-            return [
-              "STEP " + String(index + 1),
-              "LOCATOR REQUEST:",
-              step.locatorRequestText,
-              "",
-              "LOCATOR RESPONSE:",
-              step.locatorResponseText,
-              "",
-              "EDITOR REQUEST:",
-              step.editorRequestText,
-              "",
-              "EDITOR RESPONSE:",
-              step.editorResponseText,
-            ].join("\n");
-          }).join("\n\n"),
-        ].join("\n"),
-        responseText: JSON.stringify({
-          replacements,
-          steps: debugSteps.map((step) => ({
-            replacement: step.replacement,
-            bbox: step.bbox,
-            crop: step.crop,
-          })),
-          output: {
-            width: imageWidth,
-            height: imageHeight,
-          },
-        }),
-      } : undefined,
-    }];
+    return [
+      {
+        id: "text-replace-gemini-" + String(ts),
+        variantNumber: 1,
+        totalVariants: 2,
+        previewUrl: geminiPreviewUrl,
+        title: "Gemini-версия",
+        resultRole: "gemini",
+        isIntermediate: true,
+        marketplace: toText(payload?.marketplace) || "Маркетплейс",
+        style: "Полный результат Gemini",
+        focus: "Изображение после AI-редактора до локального композита",
+        format: "Gemini image editor output",
+        changes: summary,
+        promptPreview: requestText.slice(0, 240),
+        downloadName: "kartochka-text-replace-gemini.png",
+        __debug: debugPayload,
+      },
+      {
+        id: "text-replace-final-" + String(ts),
+        variantNumber: 2,
+        totalVariants: 2,
+        previewUrl: finalPreviewUrl,
+        title: "Карточка с замененным текстом",
+        resultRole: "final",
+        isIntermediate: false,
+        marketplace: toText(payload?.marketplace) || "Маркетплейс",
+        style: "Финальный композит",
+        focus: "В оригинал вставлены только области с замененным текстом",
+        format: "Locate → crop → composite",
+        changes: summary,
+        promptPreview: requestText.slice(0, 240),
+        downloadName: "kartochka-text-replace-final.png",
+        __debug: debugPayload,
+      },
+    ];
   };
 
   return {

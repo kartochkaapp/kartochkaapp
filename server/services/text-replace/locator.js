@@ -18,49 +18,48 @@ const buildLocatorPrompt = (searchText, width, height, mode) => {
         "MULTI-WORD PHRASE: The target is " + String(wordCount) + ' words: "' + String(searchText) + '".',
         "Your bounding box MUST span ALL words from the first character of the first word",
         "to the last character of the last word — in a single rectangle.",
-        "Do NOT return a box for only part of the phrase. Cover the entire phrase end-to-end.",
       ]
     : [];
 
   const base = [
-    "You are a precise text locator for image editing.",
+    "Detect the bounding box of the text \"" + String(searchText) + "\" in this image.",
     "",
-    'TASK: Find the exact bounding box of the text "' + String(searchText) + '" in this image.',
+    "Output ONLY a JSON object in this EXACT format (Gemini standard spatial format):",
+    '{"box_2d": [ymin, xmin, ymax, xmax]}',
     "",
-    "IMAGE DIMENSIONS: " + String(width) + " x " + String(height) + " pixels (width x height).",
-    "",
-    "CRITICAL: The target text may be VERY SMALL. Scan the ENTIRE image carefully —",
-    "including edges, corners, product labels, fine print, packaging, price tags,",
-    "tiny captions, small numbers, secondary text. Do NOT skip text just because it is small.",
-    "If you see any text that matches — even partially or in small size — report it.",
-    ...multiWordNote,
+    "The coordinates MUST be normalized integers in the range 0-1000,",
+    "where (0,0) is the top-left corner and (1000,1000) is the bottom-right.",
+    "- ymin = top edge of the text (0=top of image, 1000=bottom)",
+    "- xmin = left edge of the text (0=left of image, 1000=right)",
+    "- ymax = bottom edge of the text",
+    "- xmax = right edge of the text",
     "",
     "RULES:",
-    '- Return the tightest rectangle that contains the COMPLETE text "' + String(searchText) + '".',
-    "- Coordinates are in pixels. Origin (0,0) is top-left. x grows right, y grows down.",
-    "- If the text appears multiple times, return the largest or most prominent occurrence.",
-    "- Be generous vertically to include full ascenders, descenders and punctuation.",
-    "- Be generous horizontally: x starts at the leftmost pixel of the first character,",
-    "  x+w ends at the rightmost pixel of the last character. Include all characters.",
-    "- Respond with ONLY a single JSON object. No prose. No markdown fences.",
+    '- Return the tightest rectangle containing the COMPLETE text "' + String(searchText) + '".',
+    "- If the text appears multiple times, return the LARGEST or most PROMINENT occurrence",
+    "  (large headline text beats small print on packaging).",
+    "- Scan the entire image — text may be at edges, corners, or overlays.",
+    "- Include full character ascenders/descenders with a small vertical margin.",
+    ...multiWordNote,
     "",
-    'FORMAT: {"x": <int>, "y": <int>, "w": <int>, "h": <int>}',
-    "",
-    'Only if the text is 100% NOT visible anywhere in the image, respond with: {"found": false}',
+    "If the text is 100% absent from the image, output: {\"found\": false}",
+    "No prose. No markdown. No explanations. Only the JSON object.",
   ];
 
   if (mode === "retry") {
-    base.splice(4, 0,
+    base.splice(2, 0,
       "",
-      "THIS IS A RETRY. The first attempt failed. Look HARDER and more carefully.",
-      "Zoom mentally into every area of the image. Check packaging labels, small numbers,",
-      "corners, anywhere text might hide at small scale. The text IS there — find it.",
+      "RETRY: The previous attempt was wrong. Look carefully at ALL text in the image,",
+      "especially large/prominent text that may be display headlines rather than fine print.",
     );
   }
 
   return base.join("\n");
 };
 
+// Parse Gemini's official spatial format: {"box_2d": [ymin, xmin, ymax, xmax]}
+// with values normalized to 0-1000. Convert to pixel {x, y, w, h}.
+// Fall back to legacy {x, y, w, h} if present (old prompt style).
 const parseLocatorResponse = (rawText, query, width, height) => {
   const parsed = extractJsonObject(rawText);
   if (!parsed) {
@@ -70,19 +69,39 @@ const parseLocatorResponse = (rawText, query, width, height) => {
     return { notFound: true };
   }
 
-  const x = Number(parsed.x);
-  const y = Number(parsed.y);
-  const w = Number(parsed.w);
-  const h = Number(parsed.h);
-  if (![x, y, w, h].every(Number.isFinite)) {
-    return { error: "Locator returned invalid bbox" };
+  let xPx;
+  let yPx;
+  let wPx;
+  let hPx;
+
+  // Primary: Gemini spatial format [ymin, xmin, ymax, xmax] in 0-1000
+  const box2d = Array.isArray(parsed.box_2d) ? parsed.box_2d : null;
+  if (box2d && box2d.length === 4 && box2d.every((v) => Number.isFinite(Number(v)))) {
+    const [ymin, xmin, ymax, xmax] = box2d.map(Number);
+    xPx = (xmin / 1000) * width;
+    yPx = (ymin / 1000) * height;
+    wPx = ((xmax - xmin) / 1000) * width;
+    hPx = ((ymax - ymin) / 1000) * height;
+  } else {
+    // Fallback: legacy {x, y, w, h} format
+    const x = Number(parsed.x);
+    const y = Number(parsed.y);
+    const w = Number(parsed.w);
+    const h = Number(parsed.h);
+    if (![x, y, w, h].every(Number.isFinite)) {
+      return { error: "Locator returned invalid bbox" };
+    }
+    xPx = x;
+    yPx = y;
+    wPx = w;
+    hPx = h;
   }
 
   const bbox = {
-    x: Math.max(0, Math.floor(x)),
-    y: Math.max(0, Math.floor(y)),
-    w: Math.max(1, Math.ceil(w)),
-    h: Math.max(1, Math.ceil(h)),
+    x: Math.max(0, Math.floor(xPx)),
+    y: Math.max(0, Math.floor(yPx)),
+    w: Math.max(1, Math.ceil(wPx)),
+    h: Math.max(1, Math.ceil(hPx)),
   };
   bbox.w = Math.min(bbox.w, Math.max(1, width - bbox.x));
   bbox.h = Math.min(bbox.h, Math.max(1, height - bbox.y));
@@ -92,7 +111,9 @@ const parseLocatorResponse = (rawText, query, width, height) => {
 
 const createTextReplaceLocator = (deps) => {
   const client = deps?.client;
-  const model = toText(deps?.model) || "google/gemini-2.5-flash";
+  // Pro by default — spatial/bbox detection needs the stronger model.
+  // Flash consistently returns wrong coordinates for small text on packaging.
+  const model = toText(deps?.model) || "google/gemini-2.5-pro";
   const fallbackModel = toText(deps?.fallbackModel) || "google/gemini-2.5-pro";
 
   if (!client || typeof client.callOpenRouter !== "function") {
@@ -146,9 +167,10 @@ const createTextReplaceLocator = (deps) => {
       try {
         const rawText = await callLocator({ modelId: attempt.modelId, prompt, base64 });
         lastRawText = rawText;
+        console.log('[text-replace] locator raw response (' + attempt.label + '):', rawText.slice(0, 300));
         const result = parseLocatorResponse(rawText, query, width, height);
         if (result.bbox) {
-          console.log('[text-replace] locator found via ' + attempt.label + ':', JSON.stringify(result.bbox));
+          console.log('[text-replace] locator found via ' + attempt.label + ':', JSON.stringify(result.bbox), '| image:', width + 'x' + height);
           return { bbox: result.bbox, requestText: prompt, responseText: rawText };
         }
         if (result.error) {

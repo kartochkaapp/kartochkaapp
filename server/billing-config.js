@@ -27,6 +27,12 @@ const BILLING_ACTIONS = Object.freeze({
     tokens: 3,
     visible: true,
   }),
+  create_generate_text_replace: Object.freeze({
+    code: "create_generate_text_replace",
+    label: "Замена текста",
+    tokens: 6,
+    visible: true,
+  }),
   create_prompt_assist: Object.freeze({
     code: "create_prompt_assist",
     label: "AI промт",

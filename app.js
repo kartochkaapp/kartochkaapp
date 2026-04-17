@@ -1019,6 +1019,9 @@
     const selectedTemplate = typeof getCreateSelectedTemplate === "function"
       ? getCreateSelectedTemplate()
       : null;
+    if (isCreateTextReplaceTemplate(selectedTemplate)) {
+      return "create_generate_text_replace";
+    }
     return usesCreateDirectGenerationPrompt(selectedTemplate)
       ? "create_generate_custom"
       : ((CREATE_BEST_MODEL_OPTIONS[createBestModelTier] || CREATE_BEST_MODEL_OPTIONS.good).billingActionCode);
@@ -1503,8 +1506,24 @@
       };
     }
 
+    // If the server sent a specific userMessage (e.g. credits exhausted),
+    // use it for both the displayed message and the meta label.
+    const serverMessage = error instanceof Error && toText(error.message) ? error.message : "";
+    const errorStatus = Number(error?.status);
+    const isCreditsError = errorStatus === 402
+      || toText(error?.code) === "text_replace_credits_exhausted"
+      || (serverMessage.toLowerCase().includes("кредит") && serverMessage.toLowerCase().includes("ones_thunder"));
+    if (isCreditsError) {
+      const creditsMsg = serverMessage || "Кончились кредиты AI-сервиса. Обратитесь к @ones_thunder";
+      return {
+        message: creditsMsg,
+        type: "error",
+        metaValue: creditsMsg,
+        isInterrupted: false,
+      };
+    }
     return {
-      message: error instanceof Error && toText(error.message) ? error.message : fallbackMessage,
+      message: serverMessage || fallbackMessage,
       type: "error",
       metaValue: toText(options?.errorMeta) || fallbackMessage,
       isInterrupted: false,
@@ -3241,6 +3260,8 @@
     const activeResult = getActiveCreateResult();
     const selectedTemplate = getCreateSelectedTemplate();
     const isDirectPrompt = isCreateDirectPromptTemplate(selectedTemplate);
+    const isTextReplaceTemplate = isCreateTextReplaceTemplate(selectedTemplate);
+    const shouldExportAllTextReplaceResults = isTextReplaceTemplate && createGeneratedResults.length > 1;
     const hasPhoto = createSelectedFiles.length > 0;
     const uploadUrl = createSelectedFiles[0] ? getCreateFilePreviewUrl(createSelectedFiles[0]) : "";
     const previewUrl = activeResult?.previewUrl || selectedTemplate?.previewUrl || uploadUrl;
@@ -3311,6 +3332,7 @@
       createExportBtn.setAttribute("aria-disabled", canExport ? "false" : "true");
       createExportBtn.href = canExport ? activeResult.previewUrl : "#";
       createExportBtn.download = canExport ? activeResult.downloadName || "kartochka-prevyu.png" : "";
+      createExportBtn.textContent = shouldExportAllTextReplaceResults ? "Экспортировать 2 файла" : "Экспортировать";
     }
 
     if (createImproveBtn) {
@@ -5832,7 +5854,52 @@
 
     historyModeEmpty?.classList.add("hidden");
 
-    // Gallery: one card per result image
+    const createHistoryExportLink = (href, downloadName) => {
+      const exportLink = document.createElement("a");
+      exportLink.className = "btn history-gallery-export-btn";
+      exportLink.textContent = "Скачать";
+      exportLink.href = href;
+      exportLink.download = downloadName;
+      exportLink.setAttribute("aria-label", "Скачать карточку");
+      exportLink.addEventListener("click", (e) => e.stopPropagation());
+      return exportLink;
+    };
+
+    const isTextReplaceHistoryEntry = (entry, results) => {
+      if (entry?.input?.selectedTemplateId === "tpl-preserve-card-replace-text") return true;
+      return results.some((result) => {
+        const marker = [
+          result?.id,
+          result?.title,
+          result?.downloadName,
+        ].map((item) => String(item || "").toLowerCase()).join(" ");
+        return marker.includes("text-replace") || marker.includes("gemini");
+      });
+    };
+
+    const getTextReplaceStackResults = (results) => {
+      const normalized = Array.isArray(results) ? results.filter((result) => result?.previewUrl) : [];
+      const getMarker = (result) => [
+        result?.id,
+        result?.title,
+        result?.downloadName,
+        result?.resultRole,
+        result?.style,
+      ].map((item) => String(item || "").toLowerCase()).join(" ");
+      const geminiResult = normalized.find((result) => getMarker(result).includes("gemini"));
+      const finalResult = normalized.find((result) => {
+        const marker = getMarker(result);
+        return marker.includes("final") || marker.includes("финаль") || marker.includes("замен");
+      });
+      return [geminiResult, finalResult]
+        .filter(Boolean)
+        .filter((result, index, list) => list.findIndex((item) => item === result) === index)
+        .concat(normalized)
+        .filter((result, index, list) => list.findIndex((item) => item === result) === index)
+        .slice(0, 2);
+    };
+
+    // Gallery: one card per result image, except text-replace pairs stay grouped.
     historyEntries.forEach((entry) => {
       const results = Array.isArray(entry?.results) && entry.results.length
         ? entry.results
@@ -5844,6 +5911,53 @@
                 title: entry.title + (i > 0 ? " " + String(i + 1) : ""),
               }))
             : [{ id: "", previewUrl: entry.previewUrl, downloadName: "", title: entry.title }]);
+
+      if (isTextReplaceHistoryEntry(entry, results) && results.length > 1) {
+        const stackResults = getTextReplaceStackResults(results);
+        const stackCard = document.createElement("article");
+        stackCard.className = "history-gallery-card history-gallery-stack-card";
+
+        stackResults.forEach((result) => {
+          const imgUrl = sanitizeHistoryPreviewUrl(result.previewUrl, entry.mode);
+          if (!imgUrl) return;
+
+          const item = document.createElement("div");
+          item.className = "history-gallery-stack-item";
+          item.tabIndex = 0;
+          item.setAttribute("role", "button");
+          item.setAttribute("aria-label", "Открыть результат: " + (result.title || entry.title || "Карточка"));
+
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          img.alt = result.title || entry.title || "Карточка";
+          img.loading = "lazy";
+          img.decoding = "async";
+          img.addEventListener("error", () => { img.src = getHistoryFallbackPreview(entry.mode); });
+
+          const label = document.createElement("span");
+          label.className = "history-gallery-stack-label";
+          label.textContent = result.title || "Вариант";
+
+          const overlay = document.createElement("span");
+          overlay.className = "history-gallery-overlay";
+          overlay.append(createHistoryExportLink(imgUrl, result.downloadName || buildHistoryExportName(entry, result)));
+
+          item.append(img, label, overlay);
+          item.addEventListener("click", () => openHistoryPreviewModal(entry.id, result.id || ""));
+          item.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openHistoryPreviewModal(entry.id, result.id || "");
+            }
+          });
+          stackCard.append(item);
+        });
+
+        if (stackCard.children.length) {
+          historyModeList.append(stackCard);
+        }
+        return;
+      }
 
       results.forEach((result) => {
         const imgUrl = sanitizeHistoryPreviewUrl(result.previewUrl, entry.mode);
@@ -5862,15 +5976,7 @@
         const overlay = document.createElement("div");
         overlay.className = "history-gallery-overlay";
 
-        const exportLink = document.createElement("a");
-        exportLink.className = "btn history-gallery-export-btn";
-        exportLink.textContent = "Скачать";
-        exportLink.href = imgUrl;
-        exportLink.download = result.downloadName || buildHistoryExportName(entry, result);
-        exportLink.setAttribute("aria-label", "Скачать карточку");
-        exportLink.addEventListener("click", (e) => e.stopPropagation());
-
-        overlay.append(exportLink);
+        overlay.append(createHistoryExportLink(imgUrl, result.downloadName || buildHistoryExportName(entry, result)));
         card.append(img, overlay);
 
         card.addEventListener("click", () => openHistoryPreviewModal(entry.id, result.id || ""));
@@ -5998,6 +6104,7 @@
   };
 
   const buildCreateHistoryPayload = async (payload, results) => {
+    const historyResults = Array.isArray(results) ? results : [];
     const files = createSelectedFiles.slice(0, CREATE_UPLOAD_MAX_FILES);
     const uploadsWithPreview = await Promise.all(
       files.map(async (file, index) => {
@@ -6027,7 +6134,7 @@
       return item.upload;
     });
 
-    const normalizedResults = await Promise.all((Array.isArray(results) ? results : [])
+    const normalizedResults = await Promise.all(historyResults
       .slice(0, CREATE_UPLOAD_MAX_FILES)
       .map(async (result, index) => {
         const rawPreview = String(result.previewUrl || "").trim();
@@ -6564,6 +6671,24 @@
     return (safeName || "history-preview") + ".png";
   };
 
+  const downloadCreateResultFiles = (results) => {
+    const downloadable = (Array.isArray(results) ? results : [])
+      .filter((result) => String(result?.previewUrl || "").trim());
+
+    downloadable.forEach((result, index) => {
+      window.setTimeout(() => {
+        const link = document.createElement("a");
+        link.href = result.previewUrl;
+        link.download = result.downloadName || ("kartochka-result-" + String(index + 1) + ".png");
+        link.rel = "noopener";
+        link.style.display = "none";
+        document.body.append(link);
+        link.click();
+        link.remove();
+      }, index * 180);
+    });
+  };
+
   const setCreateResultsProcessing = (isProcessing) => {
     if (!createResultsSection || !createResultsProcessing || !createResultsGrid) return;
     createResultsSection.classList.remove("hidden");
@@ -6706,10 +6831,14 @@
 
     createResultsGrid.textContent = "";
     const totalResults = createGeneratedResults.length;
+    const selectedTemplate = getCreateSelectedTemplate();
+    const isTextReplaceResults = isCreateTextReplaceTemplate(selectedTemplate);
 
     if (!totalResults) {
       createResultsCaption.textContent = "После генерации здесь появятся варианты карточек.";
       createResultsSection.classList.add("hidden");
+      createResultsSection.classList.remove("is-text-replace-results");
+      createResultsGrid.classList.remove("create-results-grid-stacked");
       renderCreatePreviewPanel();
       return;
     }
@@ -6718,16 +6847,24 @@
       createActivePreviewResultId = createGeneratedResults[0]?.id || "";
     }
 
+    createResultsSection.classList.toggle("is-text-replace-results", isTextReplaceResults);
+    createResultsGrid.classList.toggle("create-results-grid-stacked", isTextReplaceResults);
+
     const marketplace = createMarketplace?.value || "маркетплейс";
-    createResultsCaption.textContent =
-      "Сгенерировано " + String(totalResults) + " " + formatCardsWord(totalResults) + " для " + marketplace + ".";
-    const selectedTemplateTitle = getCreateSelectedTemplate()?.title || "Шаблон";
+    createResultsCaption.textContent = isTextReplaceResults
+      ? "Подготовлены 2 файла: Gemini-версия и финальная карточка."
+      : "Сгенерировано " + String(totalResults) + " " + formatCardsWord(totalResults) + " для " + marketplace + ".";
+    const selectedTemplateTitle = selectedTemplate?.title || "Шаблон";
 
     createGeneratedResults.forEach((result) => {
       const card = document.createElement("article");
       card.className = "create-result-card create-result-card-compact";
+      card.classList.toggle("is-text-replace-result", isTextReplaceResults);
       card.classList.toggle("is-active", result.id === createActivePreviewResultId);
       card.dataset.resultPreviewId = result.id;
+      card.setAttribute("role", "button");
+      card.tabIndex = 0;
+      card.setAttribute("aria-label", "Открыть результат: " + (result.title || selectedTemplateTitle));
 
       const media = document.createElement("div");
       media.className = "create-result-media";
@@ -6742,9 +6879,14 @@
       body.className = "create-result-body";
 
       const title = document.createElement("h4");
-      title.textContent = selectedTemplateTitle;
+      title.textContent = isTextReplaceResults ? (result.title || selectedTemplateTitle) : selectedTemplateTitle;
 
       body.append(title);
+      if (isTextReplaceResults) {
+        const subtitle = document.createElement("p");
+        subtitle.textContent = result.focus || result.style || "Нажмите, чтобы открыть этот вариант в превью.";
+        body.append(subtitle);
+      }
       card.append(media, body);
       createResultsGrid.append(card);
     });
@@ -7828,6 +7970,21 @@
     renderCreateResults();
   });
 
+  createResultsGrid?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const previewButton = target.closest("[data-result-preview-id]");
+    if (!(previewButton instanceof HTMLElement)) return;
+    event.preventDefault();
+
+    const resultId = previewButton.dataset.resultPreviewId || "";
+    if (!resultId) return;
+
+    createActivePreviewResultId = resultId;
+    renderCreateResults();
+  });
+
   createImagesInput?.addEventListener("change", () => {
     addCreateFiles(createImagesInput.files);
     createImagesInput.value = "";
@@ -8075,6 +8232,14 @@
     if (createExportBtn.getAttribute("aria-disabled") === "true") {
       event.preventDefault();
       setStatusMessage(createStatus, "Сначала сгенерируйте карточку, чтобы экспортировать превью.", "");
+      return;
+    }
+
+    const selectedTemplate = getCreateSelectedTemplate();
+    if (isCreateTextReplaceTemplate(selectedTemplate) && createGeneratedResults.length > 1) {
+      event.preventDefault();
+      downloadCreateResultFiles(createGeneratedResults);
+      setStatusMessage(createStatus, "Экспортируем Gemini-версию и финальную карточку.", "success");
     }
   });
 
@@ -8133,6 +8298,8 @@
   });
 
   createGenerateBtn?.addEventListener("click", async () => {
+    if (createIsGenerating) return;
+
     const validationError = getCreateValidationError();
     if (validationError) {
       setStatusMessage(createStatus, validationError, "error");
@@ -8214,7 +8381,10 @@
       if (requestId !== createGenerationRequestId) return;
 
       createGeneratedResults = Array.isArray(results) ? results : [];
-      createActivePreviewResultId = createGeneratedResults[0]?.id || "";
+      const preferredTextReplaceResult = isCreateTextReplaceTemplate(getCreateSelectedTemplate())
+        ? createGeneratedResults.find((result) => String(result?.id || "").includes("final")) || null
+        : null;
+      createActivePreviewResultId = preferredTextReplaceResult?.id || createGeneratedResults[0]?.id || "";
       setCreateResultsProcessing(false);
       renderCreateResults();
 

@@ -10,6 +10,7 @@ const { HistoryServiceError } = require("./services/history-service");
 const { AiLogServiceError } = require("./services/ai-log-service");
 const { NanoBananaServiceError } = require("./services/nano-banana-service");
 const { BillingServiceError } = require("./services/billing-service");
+const { TextReplaceServiceError } = require("./services/text-replace-service");
 
 class RequestBodyError extends Error {
   /**
@@ -115,6 +116,22 @@ const toApiErrorPayload = (error) => {
       code: error.code,
       message: error.message,
       userMessage: error.status >= 500 ? fallback.userMessage : error.message,
+      details: error.details || null,
+    };
+  }
+
+  if (error instanceof TextReplaceServiceError) {
+    const code = toText(error.code);
+    const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 500;
+    let userMessage = error.message;
+    if (code === "text_replace_credits_exhausted" || status === 402) {
+      userMessage = "Кончились кредиты AI-сервиса. Обратитесь к @ones_thunder";
+    }
+    return {
+      status,
+      code: code || "text_replace_error",
+      message: error.message,
+      userMessage,
       details: error.details || null,
     };
   }

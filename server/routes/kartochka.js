@@ -209,6 +209,9 @@ const resolveCreateAnalyzeBillingAction = (context) => {
 };
 
 const resolveCreateGenerateBillingAction = (payload) => {
+  const templateKind = toText(payload?.selectedTemplate?.kind || payload?.reference?.kind).toLowerCase();
+  if (templateKind === "text-replace") return "create_generate_text_replace";
+
   const promptMode = toText(payload?.promptMode).toLowerCase();
   if (promptMode === "custom") return "create_generate_custom";
   return toText(payload?.aiModelTier).toLowerCase() === "best"
