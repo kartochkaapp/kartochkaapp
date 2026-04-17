@@ -3826,3 +3826,120 @@ body:not(.workspace-active) .pricing .section-shell-pricing {
     max-height: 128px !important;
   }
 }
+
+/* ── History preview modal — contained inside history section ────────────── */
+
+/* Anchor the history article so the modal can be absolute inside it */
+#workspace .history-mode-screen {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Override fixed → absolute so it stays inside the section */
+#workspace .history-preview-modal {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 10 !important;
+  border-radius: inherit !important;
+}
+
+/* ── History Gallery (redesign) ──────────────────────────────────────────── */
+
+/* Full-width single-column layout, hide details panel */
+#workspace .history-mode-workspace {
+  display: block !important;
+}
+#workspace .history-mode-details {
+  display: none !important;
+}
+#workspace .history-mode-list-card {
+  max-width: none !important;
+  width: 100% !important;
+  border-radius: var(--r-lg) !important;
+}
+
+/* Gallery grid */
+#workspace .history-mode-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+  gap: var(--s-3) !important;
+  padding: var(--s-4) !important;
+}
+
+/* Individual gallery card */
+.history-gallery-card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.15));
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.history-gallery-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.history-gallery-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.22s ease;
+}
+.history-gallery-card:hover img {
+  transform: scale(1.04);
+}
+
+/* Hover overlay */
+.history-gallery-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.1) 50%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: var(--s-3);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.history-gallery-card:hover .history-gallery-overlay {
+  opacity: 1;
+}
+
+/* Export button inside overlay */
+.history-gallery-export-btn {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  padding: 6px 12px !important;
+  border-radius: var(--r-sm) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(4px) !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+.history-gallery-export-btn:hover {
+  background: rgba(0, 0, 0, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Toolbar cleanup */
+#workspace .history-mode-toolbar {
+  padding: var(--s-3) var(--s-4) var(--s-2) !important;
+  border-bottom: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.12)) !important;
+}
+
+@media (max-width: 520px) {
+  #workspace .history-mode-list {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    gap: var(--s-2) !important;
+    padding: var(--s-3) !important;
+  }
+}

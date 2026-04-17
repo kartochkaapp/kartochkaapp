@@ -866,6 +866,40 @@ const createOpenAIProvider = (config) => {
     };
   };
 
+  const throwOpenAIHttpError = (error) => {
+    if (!(error instanceof HttpClientError)) {
+      throw new OpenAIProviderError({
+        status: 502,
+        code: "openai_request_failed",
+        message: "OpenAI request failed",
+        cause: error,
+      });
+    }
+    const body = error.details;
+    const openaiCode = toText(body?.error?.code || body?.error?.type);
+    const openaiMsg = toText(body?.error?.message);
+    let friendlyMessage = "OpenAI request failed (HTTP " + String(error.status || "?") + ")";
+    if (openaiCode === "insufficient_quota") {
+      friendlyMessage = "OpenAI quota exceeded — add credits at platform.openai.com/settings/billing";
+    } else if (openaiCode === "invalid_api_key" || error.status === 401) {
+      friendlyMessage = "OpenAI API key is invalid or not configured";
+    } else if (openaiCode && openaiMsg) {
+      friendlyMessage = "OpenAI error [" + openaiCode + "]: " + openaiMsg.slice(0, 200);
+    }
+    console.error("[openai]", friendlyMessage, "| status:", error.status, "| openai_code:", openaiCode || "(none)");
+    throw new OpenAIProviderError({
+      status: error.status || 502,
+      code: openaiCode || error.code || "openai_upstream_error",
+      message: friendlyMessage,
+      userMessage: openaiCode === "insufficient_quota"
+        ? "На аккаунте OpenAI кончились кредиты. Пополните баланс на platform.openai.com."
+        : undefined,
+      retryable: error.retryable,
+      details: error.details,
+      cause: error,
+    });
+  };
+
   const callChatJson = async (messages, profile) => {
     if (!apiKey) {
       throw new OpenAIProviderError({
@@ -892,22 +926,7 @@ const createOpenAIProvider = (config) => {
         },
       });
     } catch (error) {
-      if (error instanceof HttpClientError) {
-        throw new OpenAIProviderError({
-          status: error.status || 502,
-          code: error.code || "openai_upstream_error",
-          message: "OpenAI request failed",
-          retryable: error.retryable,
-          details: error.details,
-          cause: error,
-        });
-      }
-      throw new OpenAIProviderError({
-        status: 502,
-        code: "openai_request_failed",
-        message: "OpenAI request failed",
-        cause: error,
-      });
+      throwOpenAIHttpError(error);
     }
 
     const assistantText = extractMessageText(response);
@@ -953,22 +972,7 @@ const createOpenAIProvider = (config) => {
         },
       });
     } catch (error) {
-      if (error instanceof HttpClientError) {
-        throw new OpenAIProviderError({
-          status: error.status || 502,
-          code: error.code || "openai_upstream_error",
-          message: "OpenAI request failed",
-          retryable: error.retryable,
-          details: error.details,
-          cause: error,
-        });
-      }
-      throw new OpenAIProviderError({
-        status: 502,
-        code: "openai_request_failed",
-        message: "OpenAI request failed",
-        cause: error,
-      });
+      throwOpenAIHttpError(error);
     }
 
     const assistantText = extractMessageText(response);

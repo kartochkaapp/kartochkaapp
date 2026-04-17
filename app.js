@@ -4561,9 +4561,7 @@
         ? "Показаны локальные mock-записи. Это demo-режим, а не production persistence."
         : "В mock-режиме здесь появятся локальные demo-записи.";
     }
-    return historyEntries.length
-      ? "Показаны реально сохраненные записи из backend-профиля."
-      : "История читает только реально сохраненные backend-записи этого профиля.";
+    return "";
   };
 
   const getHistoryDefaultEmptyText = () => {
@@ -5709,6 +5707,8 @@
   };
 
   const renderHistoryDetails = () => {
+    // Details panel is hidden in gallery design
+    return;
     if (!historyModeDetails) return;
 
     const selectedEntry = getHistoryEntryById(selectedHistoryEntryId) || null;
@@ -5805,6 +5805,7 @@
     if (!historyModeList) return;
 
     historyModeList.textContent = "";
+
     if (historyModeStats) {
       historyModeStats.textContent = historyIsLoading
         ? (historyEntries.length ? "Обновляем историю..." : "Загружаем историю...")
@@ -5826,86 +5827,55 @@
           ? "Загружаем историю из backend..."
           : (historySyncStatus.message || getHistoryDefaultEmptyText());
       }
-      closeHistoryDetailsModal();
       return;
     }
 
     historyModeEmpty?.classList.add("hidden");
-    if (!getHistoryEntryById(selectedHistoryEntryId)) {
-      selectedHistoryEntryId = historyEntries[0]?.id || "";
-      historyDetailsVisible = Boolean(selectedHistoryEntryId);
-    }
 
+    // Gallery: one card per result image
     historyEntries.forEach((entry) => {
-      const item = document.createElement("article");
-      item.className = "history-mode-item";
-      item.classList.toggle("is-active", historyDetailsVisible && entry.id === selectedHistoryEntryId);
+      const results = Array.isArray(entry?.results) && entry.results.length
+        ? entry.results
+        : (Array.isArray(entry?.resultPreviews) && entry.resultPreviews.length
+            ? entry.resultPreviews.map((url, i) => ({
+                id: "",
+                previewUrl: url,
+                downloadName: "",
+                title: entry.title + (i > 0 ? " " + String(i + 1) : ""),
+              }))
+            : [{ id: "", previewUrl: entry.previewUrl, downloadName: "", title: entry.title }]);
 
-      const previewWrap = document.createElement("button");
-      previewWrap.type = "button";
-      previewWrap.className = "history-mode-item-preview";
-      previewWrap.dataset.historyPreviewId = entry.id;
+      results.forEach((result) => {
+        const imgUrl = sanitizeHistoryPreviewUrl(result.previewUrl, entry.mode);
+        if (!imgUrl) return;
 
-      const previewImage = document.createElement("img");
-      previewImage.src = sanitizeHistoryPreviewUrl(entry.previewUrl, entry.mode);
-      previewImage.alt = entry.view?.displayTitle || entry.title;
-      previewImage.loading = "lazy";
-      previewImage.decoding = "async";
-      previewImage.addEventListener("error", () => {
-        previewImage.src = getHistoryFallbackPreview(entry.mode);
+        const card = document.createElement("article");
+        card.className = "history-gallery-card";
+
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.alt = result.title || entry.title || "Карточка";
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.addEventListener("error", () => { img.src = getHistoryFallbackPreview(entry.mode); });
+
+        const overlay = document.createElement("div");
+        overlay.className = "history-gallery-overlay";
+
+        const exportLink = document.createElement("a");
+        exportLink.className = "btn history-gallery-export-btn";
+        exportLink.textContent = "Скачать";
+        exportLink.href = imgUrl;
+        exportLink.download = result.downloadName || buildHistoryExportName(entry, result);
+        exportLink.setAttribute("aria-label", "Скачать карточку");
+        exportLink.addEventListener("click", (e) => e.stopPropagation());
+
+        overlay.append(exportLink);
+        card.append(img, overlay);
+
+        card.addEventListener("click", () => openHistoryPreviewModal(entry.id, result.id || ""));
+        historyModeList.append(card);
       });
-
-      const modeTag = document.createElement("span");
-      modeTag.className = "history-mode-tag " + getHistoryModeTag(entry.mode);
-      modeTag.textContent = entry.view?.modeLabel || getHistoryModeLabel(entry.mode);
-
-      previewWrap.append(previewImage, modeTag);
-
-      const title = document.createElement("p");
-      title.className = "history-mode-item-title";
-      title.textContent = entry.view?.displayTitle || entry.title;
-
-      const meta = document.createElement("p");
-      meta.className = "history-mode-item-meta";
-      meta.textContent =
-        formatHistoryDate(entry.createdAt) +
-        " • " +
-        String(entry.resultsCount) +
-        " " +
-        formatCardsWord(entry.resultsCount);
-
-      meta.textContent =
-        formatHistoryDateTime(entry.createdAt) +
-        " • " +
-        buildHistoryResultsCountLabel(entry.resultsCount);
-
-      const summary = document.createElement("p");
-      summary.className = "history-mode-item-summary";
-      summary.textContent = entry.view?.displaySummary || entry.summary;
-
-      const badges = document.createElement("div");
-      badges.className = "history-mode-item-badges";
-      [
-        entry.view?.promptModeLabel || getHistoryPromptModeLabel(entry),
-        entry.mode === "create"
-          ? (entry.input.marketplace || "")
-          : (entry.input.referenceStyle ? "Reference style" : ""),
-        buildHistoryUploadsCountLabel(entry.uploads.length),
-      ].filter(Boolean).forEach((labelText) => {
-        const badge = document.createElement("span");
-        badge.className = "history-mode-chip";
-        badge.textContent = labelText;
-        badges.append(badge);
-      });
-
-      const contentButton = document.createElement("button");
-      contentButton.type = "button";
-      contentButton.className = "history-mode-item-main";
-      contentButton.dataset.historyOpenId = entry.id;
-      contentButton.append(meta, title, summary, badges);
-
-      item.append(previewWrap, contentButton);
-      historyModeList.append(item);
     });
   };
 

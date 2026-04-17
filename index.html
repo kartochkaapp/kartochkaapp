@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="./styles.css?v=20260329-27" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css" />
-    <link rel="stylesheet" href="./theme-refresh.css?v=20260413-4" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260416-2" />
   </head>
   <body>
     <header class="topbar section-wrap">
@@ -632,6 +632,10 @@
 
                   <p class="create-cta-hint" id="createCtaHint">Сначала добавьте фото товара.</p>
                   <p id="createStatus" class="status-message hidden" aria-live="polite"></p>
+                  <div class="request-meta" id="createMeta">
+                    <span>Статус запроса:</span>
+                    <strong>Ожидание данных</strong>
+                  </div>
                 </section>
               </aside>
 
@@ -863,9 +867,6 @@
             <div class="step-title-row history-mode-head">
               <div>
                 <h2>История генераций</h2>
-                <p class="section-subtitle">
-                  Подтвержденные backend-записи create и improve с prompt, входными данными и готовыми результатами.
-                </p>
               </div>
             </div>
 
@@ -1009,7 +1010,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="./services/kartochka-services.js?v=20260329-3"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260414-4"></script>
+    <script src="./app.js?v=20260416-1"></script>
     <script src="./improve-card-flow.js?v=20260402-1"></script>
     <script src="./tools-module.js?v=20260331-1"></script>
     <script src="./ui-loading-theme.js?v=20260331-1"></script>

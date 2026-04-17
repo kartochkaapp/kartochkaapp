@@ -42,8 +42,14 @@ const normalizeReplacements = (payload) => {
 };
 
 const expandBbox = (bbox, padding, imageWidth, imageHeight) => {
-  const padX = Math.round(bbox.w * padding);
-  const padY = Math.round(bbox.h * padding);
+  // Large horizontal margin: at least 100px or 50% of bbox width on each side.
+  // Large glyphs and display text often have ink that extends well past
+  // what the AI locator returns — the extra buffer ensures those pixels
+  // are taken from the edited (clean) image rather than the original.
+  const baseX = typeof padding === "object" ? Number(padding.x) : Number(padding);
+  const baseY = typeof padding === "object" ? Number(padding.y) : Number(padding);
+  const padX = Math.max(100, Math.round(bbox.w * Math.max(baseX, 0.5)));
+  const padY = Math.max(20, Math.round(bbox.h * Math.max(baseY, 0.2)));
   const x = Math.max(0, bbox.x - padX);
   const y = Math.max(0, bbox.y - padY);
   const w = Math.min(imageWidth - x, bbox.w + padX * 2);
@@ -76,13 +82,14 @@ const getSharp = () => {
 // so the scale factors (srcW→gemW, srcH→gemH) are as equal as possible.
 // Equal scale factors = no per-axis distortion when we resize the cropped
 // response back to the original bbox dimensions.
-// Using 512-based sizes to keep token usage low for image editing requests.
+// Using 1024-based sizes: this matches Gemini 2.5 Image Preview's native output
+// resolution and preserves detail for small text that would be lost at 512.
 const GEMINI_SIZES = [
-  { label: "1:1",  val: 1,        w: 512,  h: 512  },
-  { label: "4:3",  val: 4 / 3,   w: 512,  h: 384  },
-  { label: "3:4",  val: 3 / 4,   w: 384,  h: 512  },
-  { label: "16:9", val: 16 / 9,  w: 512,  h: 288  },
-  { label: "9:16", val: 9 / 16,  w: 288,  h: 512  },
+  { label: "1:1",  val: 1,       w: 1024, h: 1024 },
+  { label: "4:3",  val: 4 / 3,   w: 1024, h: 768  },
+  { label: "3:4",  val: 3 / 4,   w: 768,  h: 1024 },
+  { label: "16:9", val: 16 / 9,  w: 1024, h: 576  },
+  { label: "9:16", val: 9 / 16,  w: 576,  h: 1024 },
 ];
 
 const pickGeminiTarget = (imgW, imgH) => {
@@ -101,6 +108,32 @@ const scaleBbox = (bbox, fromW, fromH, toW, toH) => {
   const w = Math.min(Math.ceil(bbox.w * sx), toW - x);
   const h = Math.min(Math.ceil(bbox.h * sy), toH - y);
   return { x, y, w: Math.max(1, w), h: Math.max(1, h) };
+};
+
+// Compute a "context crop" around a bbox: big enough for Gemini to see the
+// text as a prominent feature (not a tiny speck), but still a cropped region
+// so small text becomes relatively large in the editor's view.
+const computeContextCrop = (bbox, imageWidth, imageHeight) => {
+  const minSize = 768;
+  const factor = 4;
+
+  const targetW = Math.max(minSize, bbox.w * factor);
+  const targetH = Math.max(minSize, bbox.h * factor);
+
+  const centerX = bbox.x + bbox.w / 2;
+  const centerY = bbox.y + bbox.h / 2;
+
+  let width = Math.min(imageWidth, Math.round(targetW));
+  let height = Math.min(imageHeight, Math.round(targetH));
+  let left = Math.round(centerX - width / 2);
+  let top = Math.round(centerY - height / 2);
+
+  if (left < 0) left = 0;
+  if (top < 0) top = 0;
+  if (left + width > imageWidth) left = imageWidth - width;
+  if (top + height > imageHeight) top = imageHeight - height;
+
+  return { left, top, width, height };
 };
 
 const createTextReplaceService = (config) => {
@@ -187,90 +220,87 @@ const createTextReplaceService = (config) => {
       });
     }
 
-    // ── Phase 2: scale card to nearest Gemini-native size and edit (1 AI call) ─
-    // We send the full card once with ALL replacements described in the prompt.
-    // Gemini returns the full card at the same native ratio (e.g. 3:4 → 768×1024).
-    // ──────────────────────────────────────────────────────────────────────────
-    const gemTarget = pickGeminiTarget(imageWidth, imageHeight);
-
-    const scaledBuffer = await sharp(originalBuffer)
-      .resize(gemTarget.w, gemTarget.h, { fit: "fill" })
-      .png()
-      .toBuffer();
-
-    // Map all bboxes into Gemini coordinate space for the prompt
-    const gemReplacements = located.map((item) => ({
-      from: item.replacement.from,
-      to: item.replacement.to,
-      bbox: scaleBbox(item.bbox, imageWidth, imageHeight, gemTarget.w, gemTarget.h),
-    }));
-
-    console.log(
-      "[text-replace] original:", imageWidth + "×" + imageHeight,
-      "| gemini target:", gemTarget.w + "×" + gemTarget.h, "(" + gemTarget.label + ")",
-      "| replacements:", replacements.length
-    );
-
-    let edited;
-    try {
-      edited = await editor.editImageWithRetry({
-        imageBuffer: scaledBuffer,
-        replacements: gemReplacements,
-        aspectRatio: gemTarget.label,
-      });
-    } catch (err) {
-      console.error("[text-replace] editor ERROR:", err?.message, err?.code, JSON.stringify(err?.details)?.slice(0, 400));
-      throw err;
-    }
-
-    const editedMeta = await sharp(edited.buffer).metadata();
-    const editedW = Number(editedMeta.width || 0) || gemTarget.w;
-    const editedH = Number(editedMeta.height || 0) || gemTarget.h;
-
-    console.log("[text-replace] received:", editedW + "×" + editedH);
-
-    // ── Phase 3: scale Gemini response back to original image dimensions ───────
-    // Scale the FULL edited image to original dimensions first.
-    // Because the card ratio is preserved (3:4 → 3:4), scaleX ≈ scaleY and
-    // fit:"fill" introduces negligible distortion.
-    // After scaling, bbox coordinates are valid again — we simply extract each
-    // region. No per-crop resize math needed.
-    // ──────────────────────────────────────────────────────────────────────────
-    const editedAtOriginalSize = await sharp(edited.buffer)
-      .resize(imageWidth, imageHeight, { fit: "fill" })
-      .png()
-      .toBuffer();
-
-    // ── Phase 4: composite each changed bbox from the rescaled edited image ───
+    // ── Phase 2-4: per-replacement context-crop → edit → composite ────────────
+    // KNOWN WORKING version. For each located text we extract a CONTEXT CROP
+    // around it (minimum 768px). The text occupies a large fraction of this
+    // crop so Gemini treats it as a prominent feature to edit — critical for
+    // small text that the model otherwise leaves untouched when shown the
+    // full card. We composite the ENTIRE edited crop back: replacement
+    // succeeds reliably. May cause slight deformation at crop edges (mitigated
+    // by 8px feather).
     let currentBuffer = originalBuffer;
     const debugSteps = [];
 
     for (const item of located) {
       const { bbox } = item;
+      const context = computeContextCrop(bbox, imageWidth, imageHeight);
+      const cropAspect = pickGeminiTarget(context.width, context.height);
 
-      // Crop directly from the rescaled image — no further coordinate math,
-      // no per-crop resize. The crop is exactly bbox.w × bbox.h pixels.
-      const editedCropBuffer = await sharp(editedAtOriginalSize)
+      const cropBuffer = await sharp(currentBuffer)
         .extract({
-          left: Math.max(0, bbox.x),
-          top: Math.max(0, bbox.y),
-          width: Math.max(1, bbox.w),
-          height: Math.max(1, bbox.h),
+          left: context.left,
+          top: context.top,
+          width: context.width,
+          height: context.height,
         })
         .png()
         .toBuffer();
 
+      // bbox re-expressed in coordinates local to the context crop
+      const localBbox = {
+        x: bbox.x - context.left,
+        y: bbox.y - context.top,
+        w: bbox.w,
+        h: bbox.h,
+      };
+
+      console.log(
+        '[text-replace] editing "' + item.replacement.from + '"',
+        "| context crop:", context.width + "×" + context.height,
+        "at (" + context.left + "," + context.top + ")",
+        "| aspect:", cropAspect.label
+      );
+
+      let edited;
+      try {
+        edited = await editor.editImageWithRetry({
+          imageBuffer: cropBuffer,
+          replacements: [{
+            from: item.replacement.from,
+            to: item.replacement.to,
+            bbox: localBbox,
+          }],
+          aspectRatio: cropAspect.label,
+        });
+      } catch (err) {
+        console.error("[text-replace] editor ERROR:", err?.message, err?.code, JSON.stringify(err?.details)?.slice(0, 400));
+        throw err;
+      }
+
+      // Rescale Gemini's output back to the context crop's native dimensions.
+      const editedContextBuffer = await sharp(edited.buffer)
+        .resize(context.width, context.height, { fit: "fill" })
+        .png()
+        .toBuffer();
+
+      // Composite the entire edited context crop back onto the current buffer.
       currentBuffer = await compositeEdit({
         originalBuffer: currentBuffer,
-        editedCropBuffer,
-        bbox,
-        featherPx,
+        editedCropBuffer: editedContextBuffer,
+        bbox: {
+          x: context.left,
+          y: context.top,
+          w: context.width,
+          h: context.height,
+        },
+        featherPx: Math.max(featherPx, 8),
       });
 
       debugSteps.push({
         replacement: item.replacement,
         bbox: item.rawBbox,
         crop: bbox,
+        contextCrop: context,
         locatorRequestText: item.locatorRequestText,
         locatorResponseText: item.locatorResponseText,
         editorRequestText: edited.requestText,

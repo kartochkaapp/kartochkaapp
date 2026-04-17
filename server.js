@@ -151,6 +151,7 @@ const server = http.createServer(async (request, response) => {
 
   try {
     if (pathname.startsWith("/api/")) {
+      console.log("[req]", method, pathname);
       if (pathname !== "/api/enhance-card" && !pathname.startsWith("/api/kartochka/")) {
         throw new ApiRouteError({
           status: 404,
