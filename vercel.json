@@ -1,11 +1,30 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/**/*.js": {
-      "includeFiles": "server/prompts/*.md"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "server/prompts/*.md"
+        ]
+      }
+    },
+    {
+      "src": "!{api/**,package.json,middleware.[jt]s}",
+      "use": "@vercel/static"
     }
-  },
+  ],
   "rewrites": [
+    {
+      "source": "/api/enhance-card",
+      "destination": "/api/enhance-card.js"
+    },
+    {
+      "source": "/api/kartochka/:action",
+      "destination": "/api/kartochka/:action.js"
+    },
     {
       "source": "/app",
       "destination": "/index.html"

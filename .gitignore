@@ -14,3 +14,4 @@ server/data/ai-log-store.json
 
 .vercel
 .tmp-deploy-local-sync.sh
+.env*.local
