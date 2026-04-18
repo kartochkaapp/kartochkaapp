@@ -1,0 +1,7 @@
+server.js
+.claude/
+.tmp-text-replace/
+docs/
+tmp/
+server/data/
+*.log
