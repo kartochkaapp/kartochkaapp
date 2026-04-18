@@ -137,7 +137,7 @@ const normalizeEntry = (entry, actor, options) => {
     .map((result, index) => ({
       id: scopeToken(result?.id || "result-" + String(index + 1), 120) || "result-" + String(index + 1),
       title: text(result?.title || "Result " + String(index + 1), 180),
-      previewUrl: safeUrl(result?.previewUrl || fallbackPreviews[index] || uploads[index]?.url || uploads[0]?.url),
+      previewUrl: safeUrl(result?.previewUrl || fallbackPreviews[index]),
       variantNumber: clamp(result?.variantNumber, 1, 50, index + 1),
       totalVariants: clamp(result?.totalVariants || result?.total, 1, 50, (entry.results || []).length || fallbackPreviews.length || 1),
       subtitle: text(result?.subtitle || result?.strategy, 240),
@@ -146,6 +146,8 @@ const normalizeEntry = (entry, actor, options) => {
       styleLabel: text(result?.styleLabel, 160),
       referenceStyle: Boolean(result?.referenceStyle),
       downloadName: text(result?.downloadName, 160),
+      resultRole: text(result?.resultRole, 40),
+      isIntermediate: Boolean(result?.isIntermediate),
     }));
 
   const realizedResults = results.length
@@ -221,7 +223,7 @@ const normalizeEntry = (entry, actor, options) => {
     summary,
     prompt: text(entry.prompt, 8000, { keepWhitespace: true, redactDataUrls: true }),
     resultsCount,
-    previewUrl: safeUrl(entry.previewUrl || realizedResults[0]?.previewUrl || uploads[0]?.url),
+    previewUrl: safeUrl(entry.previewUrl || realizedResults[0]?.previewUrl),
     resultPreviews: realizedResults.map((item) => safeUrl(item.previewUrl)).filter(Boolean).slice(0, MAX_RESULTS),
     input: {
       description: text(input.description || entry.description, 2000, { keepWhitespace: true }),
@@ -344,7 +346,7 @@ const normalizeEntry = (entry, actor, options) => {
   }
 
   normalized.resultPreviews = normalized.results.map((item) => safeUrl(item.previewUrl)).filter(Boolean).slice(0, MAX_RESULTS);
-  normalized.previewUrl = safeUrl(normalized.previewUrl) || normalized.resultPreviews[0] || normalized.uploads.map((item) => safeUrl(item.url)).find(Boolean) || "";
+  normalized.previewUrl = safeUrl(normalized.previewUrl) || normalized.resultPreviews[0] || "";
   return normalized;
 };
 

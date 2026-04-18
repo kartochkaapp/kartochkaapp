@@ -6,7 +6,7 @@ const BILLING_ACTIONS = Object.freeze({
   create_autofill: Object.freeze({
     code: "create_autofill",
     label: "Автозаполнить AI",
-    tokens: 2,
+    tokens: 3,
     visible: true,
   }),
   create_generate_best_good: Object.freeze({
@@ -84,7 +84,7 @@ const BILLING_PLANS = Object.freeze([
   Object.freeze({
     id: "pro",
     title: "Pro",
-    priceLabel: "900 ₽/мес",
+    priceLabel: "1 490 ₽/мес",
     description: "100 токенов ежемесячно для регулярной работы с товарами и генерациями.",
     statusLabel: "Оплата подключается",
     ctaLabel: "Скоро",
@@ -93,7 +93,7 @@ const BILLING_PLANS = Object.freeze([
   Object.freeze({
     id: "team",
     title: "Team",
-    priceLabel: "Скоро",
+    priceLabel: "4 490 ₽/мес",
     description: "Для команд и агентств с общим лимитом и управлением доступами.",
     statusLabel: "Оплата подключается",
     ctaLabel: "Скоро",

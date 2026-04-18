@@ -5,6 +5,8 @@ const crypto = require("node:crypto");
 const { HttpClientError, requestJson } = require("../http-client");
 const { toText, extractJsonObject, clamp } = require("../utils");
 
+const TARGET_IMAGE_ASPECT_RATIO = "3:4";
+
 const hashText = (value) => {
   const source = String(value || "");
   if (!source) return "";
@@ -771,7 +773,9 @@ const createOpenRouterProvider = (config) => {
           model,
           modalities: ["image", "text"],
           image_config: {
-            aspect_ratio: "4:5",
+            aspect_ratio: TARGET_IMAGE_ASPECT_RATIO,
+            width: 900,
+            height: 1200,
           },
           messages,
         },
@@ -814,6 +818,8 @@ const createOpenRouterProvider = (config) => {
       debug: {
         ...buildResponseDebug(responseText),
         imageCount: imageUrls.length,
+        requestedWidth: 900,
+        requestedHeight: 1200,
       },
     };
   };

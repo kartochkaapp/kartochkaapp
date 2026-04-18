@@ -128,6 +128,8 @@ const dispatchKartochkaApi = async (pathname, body, requestContext) => {
       return kartochkaHandlers.historyGetById(body, requestContext);
     case "/api/kartochka/historySave":
       return kartochkaHandlers.historySave(body, requestContext);
+    case "/api/kartochka/historyAssetSave":
+      return kartochkaHandlers.historyAssetSave(body, requestContext);
     case "/api/kartochka/billingSummary":
       return kartochkaHandlers.billingSummary(body, requestContext);
     case "/api/kartochka/redeemPromo":
@@ -158,6 +160,18 @@ const server = http.createServer(async (request, response) => {
           code: "route_not_found",
           message: "API route not found",
         });
+      }
+
+      if (method === "GET" && pathname.startsWith("/api/kartochka/historyAsset/")) {
+        const id = decodeURIComponent(pathname.slice("/api/kartochka/historyAsset/".length));
+        const asset = await kartochkaHandlers.historyAssetGet({ id });
+        response.writeHead(200, {
+          "Content-Type": asset.mimeType || "image/jpeg",
+          "Cache-Control": isLocalRuntime() ? "no-store" : "public, max-age=31536000, immutable",
+          "Content-Length": asset.buffer.length,
+        });
+        response.end(asset.buffer);
+        return;
       }
 
       if (method !== "POST") {

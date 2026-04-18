@@ -10,6 +10,9 @@ const getSharp = () => {
   return sharpModule;
 };
 
+const TARGET_CARD_WIDTH = 900;
+const TARGET_CARD_HEIGHT = 1200;
+
 /**
  * Build a prompt for replacing one or more text fragments in an image.
  * @param {Array<{from: string, to: string, bbox: {x,y,w,h}}>} replacements
@@ -124,7 +127,11 @@ const createTextReplaceEditor = (deps) => {
       model,
       modalities: ["image", "text"],
       extraBody: {
-        image_config: aspectRatio ? { aspect_ratio: aspectRatio } : undefined,
+        image_config: {
+          aspect_ratio: aspectRatio || "3:4",
+          width: TARGET_CARD_WIDTH,
+          height: TARGET_CARD_HEIGHT,
+        },
       },
       messages: [{
         role: "user",

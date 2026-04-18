@@ -101,7 +101,6 @@
   const createMeta = document.getElementById("createMeta");
   const createResultsSection = document.getElementById("createResultsSection");
   const createResultsCaption = document.getElementById("createResultsCaption");
-  const createResultsProcessing = document.getElementById("createResultsProcessing");
   const createResultsGrid = document.getElementById("createResultsGrid");
   const createSourcePreviewFrame = document.getElementById("createSourcePreviewFrame");
   const createSourcePreviewImage = document.getElementById("createSourcePreviewImage");
@@ -256,8 +255,10 @@
   const APP_MODES = ["create", "improve", "tools", "animate", "history"];
   const HISTORY_MAX_ITEMS = 30;
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
-  const HISTORY_IMAGE_MAX_DIMENSION = 960;
+  const HISTORY_IMAGE_WIDTH = 900;
+  const HISTORY_IMAGE_HEIGHT = 1200;
   const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
+  const HISTORY_IMAGE_MAX_BYTES = 170 * 1024;
   const API_IMAGE_MAX_DIMENSION = 1280;
   const API_AI_IMAGE_MAX_DIMENSION = 1024;
   const API_IMAGE_JPEG_QUALITY = 0.84;
@@ -858,6 +859,7 @@
           historyList: "/api/kartochka/historyList",
           historyGetById: "/api/kartochka/historyGetById",
           historySave: "/api/kartochka/historySave",
+          historyAssetSave: "/api/kartochka/historyAssetSave",
           billingSummary: "/api/kartochka/billingSummary",
           redeemPromo: "/api/kartochka/redeemPromo",
         },
@@ -1978,6 +1980,20 @@
     });
   };
 
+  const waitForCreateResultImages = async (results, options) => {
+    const urls = (Array.isArray(results) ? results : [])
+      .map((result) => String(result?.previewUrl || "").trim())
+      .filter(Boolean);
+    const minimumCount = Number(options?.minimumCount || 1);
+    if (urls.length < minimumCount) {
+      throw new Error("Не удалось подготовить все изображения результата.");
+    }
+
+    await Promise.all(urls.map((url) =>
+      loadImageElement(url, "Не удалось загрузить изображение результата.")
+    ));
+  };
+
   const buildOptimizedImageDataUrl = async (sourceUrl, options) => {
     const safeUrl = String(sourceUrl || "").trim();
     if (!safeUrl) return "";
@@ -2033,7 +2049,24 @@
     return "";
   };
 
-  const buildHistoryImageSnapshot = async (sourceUrl) => {
+  const saveHistoryImageAsset = async (dataUrl, kind) => {
+    const safeDataUrl = String(dataUrl || "").trim();
+    if (!safeDataUrl || !/^data:image\//i.test(safeDataUrl) || typeof serviceClient?.historyAssetSave !== "function") {
+      return "";
+    }
+
+    try {
+      const saved = await serviceClient.historyAssetSave({
+        dataUrl: safeDataUrl,
+        kind: String(kind || "history-preview").trim() || "history-preview",
+      });
+      return String(saved?.url || "").trim();
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const buildHistoryImageSnapshot = async (sourceUrl, options) => {
     const safeUrl = String(sourceUrl || "").trim();
     if (!safeUrl) return "";
     if (!/^data:image\//i.test(safeUrl) && !/^blob:/i.test(safeUrl)) return safeUrl;
@@ -2044,18 +2077,59 @@
       const height = Number(image.naturalHeight || image.height || 0);
       if (!width || !height) return safeUrl;
 
-      const scale = Math.min(1, HISTORY_IMAGE_MAX_DIMENSION / Math.max(width, height));
-      const targetWidth = Math.max(1, Math.round(width * scale));
-      const targetHeight = Math.max(1, Math.round(height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+      const buildSnapshotAt = (quality) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = HISTORY_IMAGE_WIDTH;
+        canvas.height = HISTORY_IMAGE_HEIGHT;
 
-      const context = canvas.getContext("2d");
-      if (!context) return safeUrl;
-      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+        const context = canvas.getContext("2d");
+        if (!context) return "";
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, HISTORY_IMAGE_WIDTH, HISTORY_IMAGE_HEIGHT);
+        context.drawImage(image, 0, 0, HISTORY_IMAGE_WIDTH, HISTORY_IMAGE_HEIGHT);
+        return canvas.toDataURL("image/jpeg", quality);
+      };
+      const estimateDataUrlBytes = (dataUrl) => {
+        const body = String(dataUrl || "").split(",")[1] || "";
+        return Math.floor((body.length * 3) / 4);
+      };
 
-      return canvas.toDataURL("image/jpeg", HISTORY_IMAGE_JPEG_QUALITY);
+      const attempts = [
+        HISTORY_IMAGE_JPEG_QUALITY,
+        0.76,
+        0.7,
+        0.64,
+        0.58,
+        0.52,
+        0.46,
+        0.4,
+        0.34,
+        0.28,
+        0.22,
+        0.18,
+        0.14,
+        0.1,
+      ];
+      if (options?.preferAsset) {
+        for (const quality of [0.9, 0.84, 0.78, 0.72, 0.66, 0.6, 0.54, 0.48, 0.42, 0.36]) {
+          const snapshot = buildSnapshotAt(quality);
+          if (!snapshot) continue;
+          const savedUrl = await saveHistoryImageAsset(snapshot, options.assetKind || "history-result-preview");
+          if (savedUrl) return savedUrl;
+        }
+      }
+
+      let fallbackSnapshot = "";
+      for (const quality of attempts) {
+        const snapshot = buildSnapshotAt(quality);
+        if (!snapshot) continue;
+        fallbackSnapshot = snapshot;
+        if (estimateDataUrlBytes(snapshot) <= HISTORY_IMAGE_MAX_BYTES) {
+          return snapshot;
+        }
+      }
+
+      return fallbackSnapshot || safeUrl;
     } catch (error) {
       return safeUrl;
     }
@@ -4877,6 +4951,8 @@
       styleLabel: String(result?.styleLabel || "").trim(),
       referenceStyle: Boolean(result?.referenceStyle),
       downloadName: String(result?.downloadName || "").trim(),
+      resultRole: String(result?.resultRole || "").trim(),
+      isIntermediate: Boolean(result?.isIntermediate),
     };
   };
 
@@ -5886,17 +5962,17 @@
         result?.resultRole,
         result?.style,
       ].map((item) => String(item || "").toLowerCase()).join(" ");
-      const geminiResult = normalized.find((result) => getMarker(result).includes("gemini"));
+      const geminiResult = normalized.find((result) => {
+        const marker = getMarker(result);
+        return marker.includes("gemini") || marker.includes("intermediate");
+      });
       const finalResult = normalized.find((result) => {
         const marker = getMarker(result);
         return marker.includes("final") || marker.includes("финаль") || marker.includes("замен");
       });
       return [geminiResult, finalResult]
         .filter(Boolean)
-        .filter((result, index, list) => list.findIndex((item) => item === result) === index)
-        .concat(normalized)
-        .filter((result, index, list) => list.findIndex((item) => item === result) === index)
-        .slice(0, 2);
+        .filter((result, index, list) => list.findIndex((item) => item === result) === index);
     };
 
     // Gallery: one card per result image, except text-replace pairs stay grouped.
@@ -6139,7 +6215,10 @@
       .map(async (result, index) => {
         const rawPreview = String(result.previewUrl || "").trim();
         const previewSource = previewLookup.get(rawPreview) || sanitizeHistoryPreviewUrl(rawPreview, "create");
-        const resolvedPreview = await buildHistoryImageSnapshot(previewSource);
+        const resolvedPreview = await buildHistoryImageSnapshot(previewSource, {
+          preferAsset: true,
+          assetKind: "create-result-preview",
+        });
         return normalizeHistoryResult(
           {
             ...result,
@@ -6160,8 +6239,8 @@
     return {
       summary: summary.slice(0, 180),
       prompt: resolvedPrompt.slice(0, 8000),
-      previewUrl: normalizedResults[0]?.previewUrl || uploads[0]?.url || getHistoryFallbackPreview("create"),
-      resultPreviews: normalizedResults.map((item) => item.previewUrl),
+      previewUrl: normalizedResults.find((item) => item.previewUrl)?.previewUrl || "",
+      resultPreviews: normalizedResults.map((item) => item.previewUrl).filter(Boolean),
       input: {
         description: String(payload?.description || "").trim(),
         highlights: String(payload?.highlights || "").trim(),
@@ -6215,7 +6294,10 @@
       .slice(0, CREATE_UPLOAD_MAX_FILES)
       .map(async (result, index) => {
         const fallbackPreview = uploads[index]?.url || uploads[0]?.url || getHistoryFallbackPreview("improve");
-        const compactPreview = await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(result.previewUrl, "improve"));
+        const compactPreview = await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(result.previewUrl, "improve"), {
+          preferAsset: true,
+          assetKind: "improve-result-preview",
+        });
         return normalizeHistoryResult(
           {
             ...result,
@@ -6301,7 +6383,11 @@
       || "Улучшение карточки"
     ).trim();
     const resolvedResultPreview = await buildHistoryImageSnapshot(
-      resultPreviewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve")
+      resultPreviewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve"),
+      {
+        preferAsset: true,
+        assetKind: "improve-result-preview",
+      }
     );
     const result = normalizeHistoryResult(
       {
@@ -6690,10 +6776,9 @@
   };
 
   const setCreateResultsProcessing = (isProcessing) => {
-    if (!createResultsSection || !createResultsProcessing || !createResultsGrid) return;
-    createResultsSection.classList.remove("hidden");
-    createResultsProcessing.classList.toggle("hidden", !isProcessing);
-    createResultsGrid.classList.toggle("hidden", isProcessing);
+    if (!createResultsSection || !createResultsGrid) return;
+    createResultsSection.classList.toggle("hidden", Boolean(isProcessing));
+    createResultsGrid.classList.toggle("hidden", Boolean(isProcessing));
   };
 
   const resolveCreatePromptForGeneration = () => {
@@ -6824,7 +6909,7 @@
   };
 
   const renderCreateResults = () => {
-    if (!createResultsGrid || !createResultsCaption || !createResultsSection) {
+    if (!createResultsGrid || !createResultsSection) {
       renderCreatePreviewPanel();
       return;
     }
@@ -6835,7 +6920,9 @@
     const isTextReplaceResults = isCreateTextReplaceTemplate(selectedTemplate);
 
     if (!totalResults) {
-      createResultsCaption.textContent = "После генерации здесь появятся варианты карточек.";
+      if (createResultsCaption) {
+        createResultsCaption.textContent = "";
+      }
       createResultsSection.classList.add("hidden");
       createResultsSection.classList.remove("is-text-replace-results");
       createResultsGrid.classList.remove("create-results-grid-stacked");
@@ -6850,10 +6937,9 @@
     createResultsSection.classList.toggle("is-text-replace-results", isTextReplaceResults);
     createResultsGrid.classList.toggle("create-results-grid-stacked", isTextReplaceResults);
 
-    const marketplace = createMarketplace?.value || "маркетплейс";
-    createResultsCaption.textContent = isTextReplaceResults
-      ? "Подготовлены 2 файла: Gemini-версия и финальная карточка."
-      : "Сгенерировано " + String(totalResults) + " " + formatCardsWord(totalResults) + " для " + marketplace + ".";
+    if (createResultsCaption) {
+      createResultsCaption.textContent = "";
+    }
     const selectedTemplateTitle = selectedTemplate?.title || "Шаблон";
 
     createGeneratedResults.forEach((result) => {
@@ -8315,9 +8401,6 @@
     setDoneState(createDoneBadge, false);
     setStatusMessage(createStatus, "Анализируем ваш товар...", "");
     setRequestMeta(createMeta, "Статус запроса:", "Анализируем ваш товар");
-    if (createResultsCaption) {
-      createResultsCaption.textContent = "AI подготавливает варианты карточек...";
-    }
     if (createResultsGrid) {
       createResultsGrid.textContent = "";
     }
@@ -8381,6 +8464,18 @@
       if (requestId !== createGenerationRequestId) return;
 
       createGeneratedResults = Array.isArray(results) ? results : [];
+      if (!createGeneratedResults.length) {
+        throw new Error("Генерация вернула пустой результат.");
+      }
+
+      const isTextReplaceResultSet = isCreateTextReplaceTemplate(getCreateSelectedTemplate());
+      setStatusMessage(createStatus, "Готовим результат", "");
+      setRequestMeta(createMeta, "Статус запроса:", "Готовим результат");
+      await waitForCreateResultImages(createGeneratedResults, {
+        minimumCount: isTextReplaceResultSet ? 2 : 1,
+      });
+      if (requestId !== createGenerationRequestId) return;
+
       const preferredTextReplaceResult = isCreateTextReplaceTemplate(getCreateSelectedTemplate())
         ? createGeneratedResults.find((result) => String(result?.id || "").includes("final")) || null
         : null;
@@ -8388,14 +8483,12 @@
       setCreateResultsProcessing(false);
       renderCreateResults();
 
-      if (!createGeneratedResults.length) {
-        throw new Error("Генерация вернула пустой результат.");
-      }
-
       const total = createGeneratedResults.length;
       setDoneState(createDoneBadge, true);
       setStatusMessage(createStatus, "Готово. Сгенерировано " + String(total) + " " + formatCardsWord(total) + ".", "success");
       setRequestMeta(createMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
+      createIsGenerating = false;
+      syncCreateFormState();
 
       const marketplace = createMarketplace?.value || "Маркетплейс";
       const historyPayload = await buildCreateHistoryPayload(payload, createGeneratedResults);

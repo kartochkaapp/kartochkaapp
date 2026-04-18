@@ -275,6 +275,7 @@ const createKartochkaHandlers = (deps) => {
   const openaiBrainService = deps?.openaiBrainService;
   const generationService = deps?.generationService;
   const historyService = deps?.historyService;
+  const historyAssetService = deps?.historyAssetService;
   const billingService = deps?.billingService;
   const aiLogService = deps?.aiLogService;
 
@@ -299,6 +300,13 @@ const createKartochkaHandlers = (deps) => {
     || typeof historyService.save !== "function"
   ) {
     throw new Error("History service is not configured correctly");
+  }
+  if (
+    !historyAssetService
+    || typeof historyAssetService.save !== "function"
+    || typeof historyAssetService.get !== "function"
+  ) {
+    throw new Error("History asset service is not configured correctly");
   }
   if (
     !billingService
@@ -495,6 +503,16 @@ const createKartochkaHandlers = (deps) => {
     async historySave(body, requestContext) {
       const requestBody = ensureRouteObject(body || {}, "Invalid historySave request body");
       return historyService.save(requestBody, requestContext);
+    },
+
+    async historyAssetSave(body) {
+      const requestBody = ensureRouteObject(body || {}, "Invalid historyAssetSave request body");
+      return historyAssetService.save(requestBody);
+    },
+
+    async historyAssetGet(payload) {
+      const requestBody = ensureRouteObject(payload || {}, "Invalid historyAssetGet request");
+      return historyAssetService.get(requestBody.id);
     },
 
     async billingSummary(body, requestContext) {

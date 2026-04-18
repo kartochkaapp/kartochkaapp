@@ -9,6 +9,7 @@ const { createOpenRouterGenerationAdapter } = require("./adapters/openrouter-gen
 const { createOpenAIBrainService } = require("./services/openai-brain-service");
 const { createGenerationService } = require("./services/generation-service");
 const { createHistoryService } = require("./services/history-service");
+const { createHistoryAssetService } = require("./services/history-asset-service");
 const { createAiLogService } = require("./services/ai-log-service");
 const { createBillingService } = require("./services/billing-service");
 const { createNanoBananaService } = require("./services/nano-banana-service");
@@ -69,6 +70,10 @@ const getRuntimeServices = () => {
     storeMode: runtime.history.storeMode,
     firebaseAdmin: runtime.firebaseAdmin,
   });
+  const historyAssetService = createHistoryAssetService({
+    rootDir: runtime.app.rootDir,
+    firebaseAdmin: runtime.firebaseAdmin,
+  });
   const aiLogService = createAiLogService({
     rootDir: runtime.app.rootDir,
     filePath: resolveAiLogStoreFilePath(runtime),
@@ -89,6 +94,7 @@ const getRuntimeServices = () => {
       openaiBrainService,
       generationService,
       historyService,
+      historyAssetService,
       billingService,
       aiLogService,
     }),

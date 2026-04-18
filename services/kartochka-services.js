@@ -51,6 +51,7 @@
     historyList: "",
     historyGetById: "",
     historySave: "",
+    historyAssetSave: "",
     templatePreview: "",
     billingSummary: "",
     redeemPromo: "",
@@ -1512,6 +1513,15 @@
         };
       },
 
+      async historyAssetSave(payload) {
+        return {
+          id: "mock-history-asset-" + String(Date.now()),
+          url: toText(payload?.dataUrl),
+          mimeType: "image/jpeg",
+          bytes: 0,
+        };
+      },
+
       async templatePreview() {
         await wait(config.delays.createGeneration || 1500);
         const pool = config.previewPools.create;
@@ -1665,6 +1675,22 @@
         return validateHistorySaveResponse(raw);
       },
 
+      async historyAssetSave(payload) {
+        const raw = await postJson("historyAssetSave", payload || {});
+        const data = unwrapEnvelope(raw);
+        const objectValue = ensureObject(data, "historyAssetSave response must be an object");
+        const url = toText(objectValue.url);
+        if (!url) {
+          throw createInvalidResponseError("historyAssetSave response must include url", objectValue);
+        }
+        return {
+          id: toText(objectValue.id),
+          url,
+          mimeType: toText(objectValue.mimeType),
+          bytes: Number(objectValue.bytes) || 0,
+        };
+      },
+
       async templatePreview(payload) {
         const raw = await postJson("templatePreview", { payload });
         const url = toText(raw?.previewUrl);
@@ -1805,6 +1831,10 @@
         return callGateway("historySave", [payload]);
       },
 
+      async historyAssetSave(payload) {
+        return callGateway("historyAssetSave", [payload]);
+      },
+
       async templatePreview(payload) {
         return callGateway("templatePreview", [payload]);
       },
@@ -1871,6 +1901,10 @@
 
       async save(payload) {
         return client.historySave(payload);
+      },
+
+      async saveAsset(payload) {
+        return client.historyAssetSave(payload);
       },
     });
 
