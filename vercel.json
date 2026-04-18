@@ -23,7 +23,11 @@
     },
     {
       "source": "/api/kartochka/historyAsset/:id",
-      "destination": "/api/kartochka/historyAsset.js?id=:id"
+      "destination": "/api/kartochka/historySave.js?assetId=:id"
+    },
+    {
+      "source": "/api/kartochka/historyAssetSave",
+      "destination": "/api/kartochka/historySave.js?action=historyAssetSave"
     },
     {
       "source": "/api/kartochka/:action",
