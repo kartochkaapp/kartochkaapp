@@ -22,6 +22,10 @@
       "destination": "/api/enhance-card.js"
     },
     {
+      "source": "/api/kartochka/historyAsset/:id",
+      "destination": "/api/kartochka/historyAsset.js?id=:id"
+    },
+    {
       "source": "/api/kartochka/:action",
       "destination": "/api/kartochka/:action.js"
     },
