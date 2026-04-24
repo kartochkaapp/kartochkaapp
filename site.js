@@ -110,34 +110,16 @@
   const resolveDedicatedAppBaseUrl = () => {
     const explicitBaseUrl = toText(window.KARTOCHKA_APP_BASE_URL).replace(/\/+$/, "");
     if (explicitBaseUrl) return explicitBaseUrl;
-
-    const hostname = toLowerText(window.location.hostname);
-    if (!hostname || isLocalHostname(hostname) || isPreviewHostname(hostname)) {
-      return "";
-    }
-
-    if (hostname.startsWith("app.")) {
-      return toText(window.location.origin);
-    }
-
-    const publicHostname = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
-    return window.location.protocol + "//app." + publicHostname + (window.location.port ? ":" + window.location.port : "");
+    return toText(window.location.origin);
   };
 
   const buildAppPath = (mode) => {
     const normalizedMode = normalizeAppMode(mode);
-    return normalizedMode === "create" ? "/" : "/" + normalizedMode;
-  };
-
-  const buildLegacyAppUrl = (mode) => {
-    return window.location.origin + "/index.html" + APP_ROUTE_PREFIX + normalizeAppMode(mode);
+    return normalizedMode === "create" ? "/app" : "/app/" + normalizedMode;
   };
 
   const buildAppUrl = (mode) => {
     const dedicatedBaseUrl = resolveDedicatedAppBaseUrl();
-    if (!dedicatedBaseUrl) {
-      return buildLegacyAppUrl(mode);
-    }
     return dedicatedBaseUrl + buildAppPath(mode);
   };
 

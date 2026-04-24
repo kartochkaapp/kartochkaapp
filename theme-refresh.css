@@ -1614,6 +1614,12 @@ body.workspace-active h4 {
   letter-spacing: -0.02em;
 }
 
+body.app-route-loading:not(.workspace-active) #publicView {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 #workspace.workspace,
 .workspace {
   width: 100% !important;

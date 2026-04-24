@@ -146,8 +146,8 @@ const runStaticChecks = () => {
   assert(servicesScript.includes("backgroundEpoch"), "Background interruption tracking is missing");
 
   const deployDoc = readText(path.join("docs", "app-subdomain-deployment.md"));
-  assert(deployDoc.includes("https://app.<domain>/tools"), "Deployment doc does not mention /tools");
-  assert(deployDoc.includes("https://app.<domain>/history"), "Deployment doc does not mention /history");
+  assert(deployDoc.includes("https://<domain>/app/tools"), "Deployment doc does not mention /app/tools");
+  assert(deployDoc.includes("https://<domain>/app/history"), "Deployment doc does not mention /app/history");
 
   log("  OK routes, shipped surfaces, history hooks, and docs/config consistency");
 };

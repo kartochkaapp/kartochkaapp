@@ -803,6 +803,9 @@
   })();
 
   let activeUser = null;
+  let pendingPostAuthMode = "create";
+  let signOutRedirectPending = false;
+  let authRouteBootstrapPending = false;
 
   const buildUserHintHeaders = (user, token) => {
     if (!user) return {};
@@ -1604,18 +1607,7 @@
   const resolveDedicatedAppBaseUrl = () => {
     const explicitBaseUrl = toText(window.KARTOCHKA_APP_BASE_URL).replace(/\/+$/, "");
     if (explicitBaseUrl) return explicitBaseUrl;
-
-    const hostname = toLowerText(window.location.hostname);
-    if (!hostname || isLocalHostname(hostname) || isPreviewHostname(hostname)) {
-      return "";
-    }
-
-    if (hostname.startsWith("app.")) {
-      return toText(window.location.origin);
-    }
-
-    const publicHostname = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
-    return window.location.protocol + "//app." + publicHostname + (window.location.port ? ":" + window.location.port : "");
+    return toText(window.location.origin);
   };
 
   const setAuthMessage = (text, type) => {
@@ -1666,12 +1658,10 @@
 
   const buildAppPath = (mode) => {
     const normalizedMode = normalizeAppMode(mode);
-    return normalizedMode === "create" ? "/" : "/" + normalizedMode;
+    return normalizedMode === "create" ? "/app" : "/app/" + normalizedMode;
   };
 
-  const isDedicatedAppHost = () => {
-    return toLowerText(window.location.hostname).startsWith("app.") && !isLocalHostname(window.location.hostname);
-  };
+  const isDedicatedAppHost = () => /^\/app(?:\/|$)/i.test(window.location.pathname);
 
   const getDedicatedAppUrl = (mode) => {
     const baseUrl = resolveDedicatedAppBaseUrl();
@@ -1692,8 +1682,7 @@
   const parseAppModeFromHash = (hash) => {
     if (typeof hash !== "string") {
       const legacyPathMode = parseAppModeFromPath();
-      const isLegacyPublicPath = /^\/app(?:\/|$)/i.test(window.location.pathname);
-      if (isDedicatedAppHost() || isLegacyPublicPath) {
+      if (isDedicatedAppHost()) {
         return legacyPathMode;
       }
     }
@@ -1722,6 +1711,16 @@
   const replaceAppPath = (mode) => {
     const nextPath = buildAppPath(mode);
     window.history.replaceState(null, "", nextPath + window.location.search);
+  };
+
+  const replacePublicPath = (hash) => {
+    const nextHash = typeof hash === "string" ? hash : "";
+    window.history.replaceState(null, "", "/" + window.location.search + nextHash);
+  };
+
+  const setAppRouteBootstrapPending = (isPending) => {
+    authRouteBootstrapPending = Boolean(isPending);
+    document.body.classList.toggle("app-route-loading", authRouteBootstrapPending);
   };
 
   const openDedicatedApp = (mode, options) => {
@@ -1855,6 +1854,7 @@
           setAuthMessage("Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РІРЅСѓС‚СЂРµРЅРЅРёР№ app", "");
           openAuthModal();
         }
+        setAppRouteBootstrapPending(false);
         return true;
       }
 
@@ -1877,10 +1877,12 @@
       closeWorkspaceView();
       setAuthMessage("Войдите, чтобы открыть внутренний app", "");
       openAuthModal();
+      setAppRouteBootstrapPending(false);
       return true;
     }
 
     openWorkspaceView(activeUser, routeMode);
+    setAppRouteBootstrapPending(false);
     return true;
   };
 
@@ -9182,6 +9184,10 @@
     setAuthMessage("Firebase SDK не загружен", "error");
   }
 
+  if (isDedicatedAppHost()) {
+    setAppRouteBootstrapPending(true);
+  }
+
   googleAuthBtn?.addEventListener("click", async () => {
     if (!auth || !googleProvider) {
       setAuthMessage("Google Auth недоступен: Firebase не подключен", "error");
@@ -9192,15 +9198,11 @@
     setAuthMessage("Открываем Google-авторизацию...", "");
 
     try {
-      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
+      pendingPostAuthMode = parseAppModeFromHash() || activeMode || "create";
       const result = await auth.signInWithPopup(googleProvider);
       activeUser = result.user;
-      await persistUserProfile(result.user);
       syncCabinetButton(result.user);
-      await refreshBillingSummary();
       setAuthMessage("Вход через Google выполнен", "success");
-      closeAuthModal();
-      navigateToAppMode(postAuthMode, { replace: true });
     } catch (error) {
       setAuthMessage(mapAuthError(error), "error");
     } finally {
@@ -9228,15 +9230,11 @@
     setAuthMessage("Проверяем данные и входим...", "");
 
     try {
-      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
+      pendingPostAuthMode = parseAppModeFromHash() || activeMode || "create";
       const result = await auth.signInWithEmailAndPassword(email, password);
       activeUser = result.user || null;
-      await persistUserProfile(result.user);
       syncCabinetButton(result.user);
-      await refreshBillingSummary();
       setAuthMessage("Вход по email выполнен", "success");
-      closeAuthModal();
-      navigateToAppMode(postAuthMode, { replace: true });
     } catch (error) {
       setAuthMessage(mapAuthError(error), "error");
     } finally {
@@ -9275,15 +9273,11 @@
     setAuthMessage("Создаём аккаунт...", "");
 
     try {
-      const postAuthMode = parseAppModeFromHash() || activeMode || "create";
+      pendingPostAuthMode = parseAppModeFromHash() || activeMode || "create";
       const result = await auth.createUserWithEmailAndPassword(email, password);
       activeUser = result.user || null;
-      await persistUserProfile(result.user);
       syncCabinetButton(result.user);
-      await refreshBillingSummary();
       setAuthMessage("Аккаунт создан", "success");
-      closeAuthModal();
-      navigateToAppMode(postAuthMode, { replace: true });
     } catch (error) {
       setAuthMessage(mapAuthError(error), "error");
     } finally {
@@ -9293,37 +9287,34 @@
 
   appSignOutBtn?.addEventListener("click", async () => {
     if (!activeUser) {
+      signOutRedirectPending = false;
+      replacePublicPath("");
       closeWorkspaceView();
-      if (parseAppModeFromHash()) {
-        replaceHash("#top");
-      }
       return;
     }
 
     if (!auth) {
+      signOutRedirectPending = false;
       activeUser = null;
       syncCabinetButton(null);
       syncWorkspaceUser(null);
       void refreshHistory();
       void refreshBillingSummary();
+      replacePublicPath("");
       closeWorkspaceView();
-      if (parseAppModeFromHash()) {
-        replaceHash("#top");
-      }
       return;
     }
 
+    signOutRedirectPending = true;
     appSignOutBtn.setAttribute("disabled", "disabled");
 
     try {
       await auth.signOut();
     } catch (error) {
+      signOutRedirectPending = false;
       setAuthMessage(mapAuthError(error), "error");
     } finally {
       appSignOutBtn.removeAttribute("disabled");
-      if (parseAppModeFromHash()) {
-        replaceHash("#top");
-      }
     }
   });
 
@@ -9332,28 +9323,42 @@
       activeUser = user || null;
       syncCabinetButton(user);
       syncWorkspaceUser(user);
-      await refreshHistory();
-      await refreshBillingSummary();
 
       if (!user) {
+        pendingPostAuthMode = "create";
+        if (signOutRedirectPending) {
+          signOutRedirectPending = false;
+          replacePublicPath("");
+          closeWorkspaceView();
+          closeAuthModal();
+          setAppRouteBootstrapPending(false);
+          void Promise.allSettled([refreshHistory(), refreshBillingSummary()]);
+          return;
+        }
+
         if (parseAppModeFromHash()) {
           handleAppHashRoute();
         } else {
           closeWorkspaceView();
         }
+        void Promise.allSettled([refreshHistory(), refreshBillingSummary()]);
         return;
       }
+
+      const targetMode = pendingPostAuthMode || parseAppModeFromHash() || activeMode || "create";
+      pendingPostAuthMode = targetMode;
       if (parseAppModeFromHash()) {
         handleAppHashRoute();
       } else {
-        navigateToAppMode(activeMode, { replace: true });
+        navigateToAppMode(targetMode, { replace: true });
       }
 
-      try {
-        await persistUserProfile(user);
-      } catch (error) {
+      closeAuthModal();
+      setAppRouteBootstrapPending(false);
+      void Promise.allSettled([refreshHistory(), refreshBillingSummary()]);
+      void persistUserProfile(user).catch((error) => {
         setAuthMessage(mapAuthError(error), "error");
-      }
+      });
     });
   } else {
     syncCabinetButton(null);
@@ -9364,6 +9369,7 @@
       handleAppHashRoute();
     } else {
       closeWorkspaceView();
+      setAppRouteBootstrapPending(false);
     }
   }
 
