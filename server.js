@@ -25,7 +25,7 @@ const CONTENT_TYPES = Object.freeze({
   ".webp": "image/webp",
 });
 
-const { runtime, kartochkaHandlers, enhanceCardHandler } = getRuntimeServices();
+const { runtime, kartochkaHandlers, enhanceCardHandler, productHandlers } = getRuntimeServices();
 
 const sendText = (response, statusCode, text) => {
   const body = String(text || "");
@@ -52,7 +52,7 @@ const isLocalRuntime = () => {
     || baseUrl.includes("127.0.0.1");
 };
 
-const APP_MODE_ROUTE_PATTERN = /^\/(?:app(?:\/(create|improve|history|animate))?|create|improve|history|animate)\/?$/i;
+const APP_MODE_ROUTE_PATTERN = /^\/(?:app(?:\/(create|improve|fourCards|history|animate))?|create|improve|fourCards|history|animate)\/?$/i;
 
 const shouldServeIndexHtml = (requestPath) => {
   const normalizedPath = String(requestPath || "/").trim() || "/";
@@ -112,6 +112,8 @@ const dispatchKartochkaApi = async (pathname, body, requestContext) => {
   switch (pathname) {
     case "/api/enhance-card":
       return enhanceCardHandler(body, requestContext);
+    case "/api/product/detect-type":
+      return productHandlers.detectType(body, requestContext);
     case "/api/kartochka/createAnalyze":
       return kartochkaHandlers.createAnalyze(body, requestContext);
     case "/api/kartochka/createGenerate":
@@ -120,6 +122,8 @@ const dispatchKartochkaApi = async (pathname, body, requestContext) => {
       return kartochkaHandlers.improveAnalyze(body, requestContext);
     case "/api/kartochka/improveGenerate":
       return kartochkaHandlers.improveGenerate(body, requestContext);
+    case "/api/kartochka/generateFourMarketplaceCards":
+      return kartochkaHandlers.generateFourMarketplaceCards(body, requestContext);
     case "/api/kartochka/templatePreview":
       return kartochkaHandlers.templatePreview(body, requestContext);
     case "/api/kartochka/historyList":
@@ -154,7 +158,7 @@ const server = http.createServer(async (request, response) => {
   try {
     if (pathname.startsWith("/api/")) {
       console.log("[req]", method, pathname);
-      if (pathname !== "/api/enhance-card" && !pathname.startsWith("/api/kartochka/")) {
+      if (pathname !== "/api/enhance-card" && pathname !== "/api/product/detect-type" && !pathname.startsWith("/api/kartochka/")) {
         throw new ApiRouteError({
           status: 404,
           code: "route_not_found",
@@ -167,6 +171,18 @@ const server = http.createServer(async (request, response) => {
         const asset = await kartochkaHandlers.historyAssetGet({ id });
         response.writeHead(200, {
           "Content-Type": asset.mimeType || "image/jpeg",
+          "Cache-Control": isLocalRuntime() ? "no-store" : "public, max-age=31536000, immutable",
+          "Content-Length": asset.buffer.length,
+        });
+        response.end(asset.buffer);
+        return;
+      }
+
+      if (method === "GET" && pathname.startsWith("/api/kartochka/generatedAsset/")) {
+        const id = decodeURIComponent(pathname.slice("/api/kartochka/generatedAsset/".length));
+        const asset = await kartochkaHandlers.generatedAssetGet({ id });
+        response.writeHead(200, {
+          "Content-Type": asset.mimeType || "image/png",
           "Cache-Control": isLocalRuntime() ? "no-store" : "public, max-age=31536000, immutable",
           "Content-Length": asset.buffer.length,
         });

@@ -245,6 +245,10 @@ const buildCreateGenerateUserTextV2 = (payload) => {
   const prompt = toText(payload?.prompt) || "(none)";
   const userText = toText(payload?.userText) || "(none)";
   const category = toText(payload?.productCategory || payload?.insight?.category) || "(none)";
+  const productType = toText(payload?.productType) || "(none)";
+  const productTypeId = toText(payload?.productTypeId) || "(none)";
+  const productAngle = toText(payload?.productAngle) || "(none)";
+  const productAnglePrompt = toText(payload?.productAnglePrompt) || "(none)";
   const style = toText(payload?.insight?.recommendedStyle) || "(none)";
   const accent = toText(payload?.insight?.conversionAccent) || "(none)";
   const format = toText(payload?.insight?.marketplaceFormat) || "(none)";
@@ -292,6 +296,10 @@ const buildCreateGenerateUserTextV2 = (payload) => {
     "- densityMode: " + densityMode,
     "- cardsCount: " + String(cardsCount),
     "- productCategory: " + category,
+    "- productType: " + productType,
+    "- productTypeId: " + productTypeId,
+    "- productAngle: " + productAngle,
+    "- productAnglePrompt: " + productAnglePrompt,
     "- userText: " + userText,
     "- description: " + description,
     "- highlights: " + highlights,
@@ -678,6 +686,7 @@ const resolvePreviewCandidates = (payload, mode) => {
 const createOpenRouterProvider = (config) => {
   const endpoint = String(config?.baseUrl || "").replace(/\/+$/, "") + "/chat/completions";
   const model = toText(config?.model) || "openrouter/auto";
+  const imageModel = toText(config?.imageModel) || model;
   const apiKey = toText(config?.apiKey);
   const referer = toText(config?.referer) || "http://localhost:2020";
   const title = toText(config?.title) || "KARTOCHKA";
@@ -770,7 +779,7 @@ const createOpenRouterProvider = (config) => {
           "X-Title": title,
         },
         body: {
-          model,
+          model: imageModel,
           modalities: ["image", "text"],
           image_config: {
             aspect_ratio: TARGET_IMAGE_ASPECT_RATIO,
@@ -905,7 +914,7 @@ const createGenerate = async (payload) => {
         __debug: payload?.debugMode
           ? {
             flow: "create_generate",
-            imageModel: model,
+            imageModel,
             promptMode: toText(payload?.promptMode),
             aiModelTier: toText(payload?.aiModelTier),
             promptHash: hashText(rawPrompt),
@@ -969,7 +978,8 @@ const createGenerate = async (payload) => {
         __debug: payload?.debugMode
           ? {
             flow: "create_generate_planner",
-            imageModel: model,
+            imageModel,
+            plannerModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: resolveCreatePreviewCandidatesV2(payload).filter(Boolean).length,
             ...buildRequestDebug([
@@ -1073,7 +1083,8 @@ const createGenerate = async (payload) => {
         __debug: payload?.debugMode
           ? {
             flow: "improve_generate",
-            imageModel: model,
+            imageModel,
+            plannerModel: model,
             promptHash: hashText(toText(payload?.prompt)),
             imageCount: Array.isArray(payload?.imageDataUrls) ? payload.imageDataUrls.filter(Boolean).length : 0,
             ...buildRequestDebug([
@@ -1118,7 +1129,7 @@ const createGenerate = async (payload) => {
       },
     ]);
 
-    return responseImages[0] || "";
+    return responseImages?.imageUrls?.[0] || "";
   };
 
   return {

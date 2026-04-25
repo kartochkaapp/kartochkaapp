@@ -874,6 +874,16 @@ main#publicView::after {
   background: #f4f8f5;
 }
 
+#workspace .create-preview-empty.hidden,
+#workspace .create-preview-stage.has-preview .create-preview-empty,
+#workspace .create-preview-card.has-preview .create-preview-empty {
+  display: none !important;
+}
+
+#workspace .create-results-section {
+  display: none !important;
+}
+
 #workspace .create-selected-template-card {
   background: #f4f8f5;
 }

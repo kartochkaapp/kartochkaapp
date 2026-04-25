@@ -113,9 +113,17 @@
   const createTemplateSearchInput = document.getElementById("createTemplateSearchInput");
   const createTemplateTabButtons = Array.from(document.querySelectorAll("[data-create-template-tab]"));
   const createTemplateGrid = document.getElementById("createTemplateGrid");
+  const createModeChoiceStrip = document.getElementById("createModeChoiceStrip");
+  const createModeChoiceModal = document.getElementById("createModeChoiceModal");
+  const createModeChoiceModalClose = document.getElementById("createModeChoiceModalClose");
+  const createModeChoiceModalList = document.getElementById("createModeChoiceModalList");
   const createReferenceLibraryBtn = document.getElementById("createReferenceLibraryBtn");
   const createReferenceModal = document.getElementById("createReferenceModal");
   const createReferenceModalClose = document.getElementById("createReferenceModalClose");
+  const createIsClothingToggle = document.getElementById("createIsClothingToggle");
+  const createProductModeState = document.getElementById("createProductModeState");
+  const createAngleSuggestionsLead = document.getElementById("createAngleSuggestionsLead");
+  const createAngleSuggestions = document.getElementById("createAngleSuggestions");
   const createSelectedTemplateCard = document.getElementById("createSelectedTemplateCard");
   const createSelectedTemplateThumbImage = document.getElementById("createSelectedTemplateThumbImage");
   const createSelectedTemplateThumbPlaceholder = document.getElementById("createSelectedTemplateThumbPlaceholder");
@@ -132,6 +140,13 @@
   const createInstructionAttachBtn = document.getElementById("createInstructionAttachBtn");
   const createInstructionInput = document.getElementById("createInstructionInput");
   const createInstructionState = document.getElementById("createInstructionState");
+  const createResultsProcessing = document.getElementById("createResultsProcessing");
+  const createProcessingKicker = document.getElementById("createProcessingKicker");
+  const createProcessingTitle = document.getElementById("createProcessingTitle");
+  const createProcessingText = document.getElementById("createProcessingText");
+  const createProcessingModePill = document.getElementById("createProcessingModePill");
+  const createProcessingAnglePill = document.getElementById("createProcessingAnglePill");
+  const createProcessingSteps = Array.from(document.querySelectorAll("[data-create-processing-step]"));
   const createProductCardTitle = document.getElementById("createProductCardTitle");
   const createProductTextFields = document.getElementById("createProductTextFields");
   const createTextReplacePanel = document.getElementById("createTextReplacePanel");
@@ -146,6 +161,7 @@
   const createCharacteristicsEmpty = document.getElementById("createCharacteristicsEmpty");
   const createAddCharacteristicBtn = document.getElementById("createAddCharacteristicBtn");
   const createPreviewCard = document.getElementById("createPreviewCard");
+  const createPreviewStage = document.querySelector(".create-preview-stage");
   const createPreviewImage = document.getElementById("createPreviewImage");
   const createPreviewEmpty = document.getElementById("createPreviewEmpty");
   const createPreviewEmptyTitle = document.getElementById("createPreviewEmptyTitle");
@@ -155,6 +171,7 @@
   const createPreviewMeta = document.getElementById("createPreviewMeta");
   const createImproveBtn = document.getElementById("createImproveBtn");
   const createExportBtn = document.getElementById("createExportBtn");
+  const createProductRoutingSummary = document.getElementById("createProductRoutingSummary");
   const createSettingAccentColor = document.getElementById("createSettingAccentColor");
   const createSettingReferenceStrength = document.getElementById("createSettingReferenceStrength");
   const createSettingVisualStyle = document.getElementById("createSettingVisualStyle");
@@ -203,6 +220,25 @@
   const improveDoneBadge = document.getElementById("improveDoneBadge");
   const enhanceCardPrompt = document.getElementById("enhanceCardPrompt");
 
+  const fourCardsImageInput = document.getElementById("fourCardsImageInput");
+  const fourCardsUploadZone = document.getElementById("fourCardsUploadZone");
+  const fourCardsSelectedPreview = document.getElementById("fourCardsSelectedPreview");
+  const fourCardsSelectedImage = document.getElementById("fourCardsSelectedImage");
+  const fourCardsUploadEmpty = document.getElementById("fourCardsUploadEmpty");
+  const fourCardsGenerateBtn = document.getElementById("fourCardsGenerateBtn");
+  const fourCardsRegenerateBtn = document.getElementById("fourCardsRegenerateBtn");
+  const fourCardsStatus = document.getElementById("fourCardsStatus");
+  const fourCardsMeta = document.getElementById("fourCardsMeta");
+  const fourCardsResultsSection = document.getElementById("fourCardsResultsSection");
+  const fourCardsResultsCaption = document.getElementById("fourCardsResultsCaption");
+  const fourCardsProcessing = document.getElementById("fourCardsProcessing");
+  const fourCardsCompositeSection = document.getElementById("fourCardsCompositeSection");
+  const fourCardsCompositeImage = document.getElementById("fourCardsCompositeImage");
+  const fourCardsCompositeDownload = document.getElementById("fourCardsCompositeDownload");
+  const fourCardsGridSection = document.getElementById("fourCardsGridSection");
+  const fourCardsGrid = document.getElementById("fourCardsGrid");
+  const fourCardsDownloadAllBtn = document.getElementById("fourCardsDownloadAllBtn");
+
   const historyList = document.getElementById("historyList");
   const historyEmpty = document.getElementById("historyEmpty");
   const historyClearBtn = document.getElementById("historyClearBtn");
@@ -247,14 +283,16 @@
   };
 
   mountWorkspaceOverlay(createReferenceModal);
+  mountWorkspaceOverlay(createModeChoiceModal);
   mountWorkspaceOverlay(createImageManagerModal);
   mountWorkspaceOverlay(billingModal);
   mountWorkspaceOverlay(historyPreviewModal);
 
   const APP_ROUTE_PREFIX = "#app/";
-  const APP_MODES = ["create", "improve", "tools", "animate", "history"];
+  const APP_MODES = ["create", "improve", "fourCards", "tools", "animate", "history"];
   const HISTORY_MAX_ITEMS = 30;
   const HISTORY_STORAGE_PREFIX = "kartochka:history:v1:";
+  const HISTORY_CLIENT_MIRROR_PREFIX = "kartochka:history:mirror:v1:";
   const HISTORY_IMAGE_WIDTH = 900;
   const HISTORY_IMAGE_HEIGHT = 1200;
   const HISTORY_IMAGE_JPEG_QUALITY = 0.82;
@@ -262,7 +300,7 @@
   const API_IMAGE_MAX_DIMENSION = 1280;
   const API_AI_IMAGE_MAX_DIMENSION = 1024;
   const API_IMAGE_JPEG_QUALITY = 0.84;
-  const API_AI_IMAGE_MIME_TYPE = "image/png";
+  const API_AI_IMAGE_MIME_TYPE = "image/jpeg";
   const CREATE_UPLOAD_MAX_FILES = 5;
   const CREATE_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
   const CREATE_ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -714,6 +752,218 @@
       reasoningEffort: "high",
     }),
   });
+  const CREATE_PRODUCT_TYPE_OPTIONS = Object.freeze([
+    Object.freeze({
+      id: "clothing_and_shoes",
+      label: "Одежда и обувь",
+      hint: "одежда, обувь, головные уборы",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "clothing_and_shoes-model",
+          title: "На модели",
+          description: "носимый контекст, акцент на посадке",
+          prompt: "Показать товар на модели или в носимом контексте, чтобы было понятно, как он сидит и выглядит в жизни.",
+          previewUrl: "./assets/examples/youto-card.png",
+        }),
+        Object.freeze({
+          id: "clothing_and_shoes-store",
+          title: "Как в магазине",
+          description: "на вешалке или подставке",
+          prompt: "Показать товар в аккуратной магазинной подаче на вешалке, стойке или подставке.",
+          previewUrl: "./assets/examples/example-home.png",
+        }),
+        Object.freeze({
+          id: "clothing_and_shoes-flatlay",
+          title: "Раскладка сверху",
+          description: "вид строго сверху",
+          prompt: "Сделать flat lay композицию: товар разложен сверху, чистый фон, понятная форма и детали.",
+          previewUrl: "./assets/examples/process-photo-card.png",
+        }),
+        Object.freeze({
+          id: "clothing_and_shoes-catalog",
+          title: "Каталог студийно",
+          description: "чистый объект на нейтральном фоне",
+          prompt: "Каталожная студийная съемка: товар отдельно, нейтральный фон, точная форма, без лишнего шума.",
+          previewUrl: "./assets/examples/soap-card.png",
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "accessories",
+      label: "Аксессуары",
+      hint: "сумки, часы, очки, украшения",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "accessories-lifestyle",
+          title: "В образе",
+          description: "на человеке или рядом с образом",
+          prompt: "Показать аксессуар в образе: на человеке, руке, сумке или рядом с одеждой, чтобы была понятна стилизация.",
+          previewUrl: "./assets/generated/accessories-card.png",
+        }),
+        Object.freeze({
+          id: "accessories-macro",
+          title: "Детали крупно",
+          description: "фактура, фурнитура, материалы",
+          prompt: "Крупный план деталей: фактура, фурнитура, застежки, блеск и качество материалов.",
+          previewUrl: "./assets/examples/candle-card.png",
+        }),
+        Object.freeze({
+          id: "accessories-gift",
+          title: "Подарочная подача",
+          description: "премиальная композиция",
+          prompt: "Премиальная подарочная композиция с аккуратным светом, упаковкой и ощущением ценности.",
+          previewUrl: "./assets/examples/bioderma-card.png",
+        }),
+        Object.freeze({
+          id: "accessories-catalog",
+          title: "Каталог",
+          description: "объект по центру",
+          prompt: "Чистая каталожная подача аксессуара по центру, нейтральный фон, читаемый силуэт.",
+          previewUrl: "./assets/examples/example-tech.png",
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "food_and_drinks",
+      label: "Еда и напитки",
+      hint: "продукты, блюда, напитки, упаковка",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "food_and_drinks-pack",
+          title: "Hero упаковка",
+          description: "товар крупно и аппетитно",
+          prompt: "Hero-подача упаковки или продукта крупно, аппетитный свет, чистый маркетплейс-фон.",
+          previewUrl: "./assets/examples/redbull-card.png",
+        }),
+        Object.freeze({
+          id: "food_and_drinks-ingredients",
+          title: "С ингредиентами",
+          description: "состав и вкус рядом",
+          prompt: "Показать продукт рядом с ингредиентами, вкусами или сырьем, чтобы сразу считывался состав.",
+          previewUrl: "./assets/examples/example-beauty.png",
+        }),
+        Object.freeze({
+          id: "food_and_drinks-serving",
+          title: "В сервировке",
+          description: "готовый сценарий употребления",
+          prompt: "Показать продукт в сценарии употребления: стол, сервировка, готовое блюдо или напиток.",
+          previewUrl: "./assets/examples/marshall-card.png",
+        }),
+        Object.freeze({
+          id: "food_and_drinks-macro",
+          title: "Макро",
+          description: "текстура и свежесть",
+          prompt: "Макро-кадр продукта: текстура, свежесть, сочность или хруст должны быть главным акцентом.",
+          previewUrl: "./assets/examples/process-ai-card.png",
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "beauty_and_care",
+      label: "Косметика и уход",
+      hint: "банки, флаконы, тюбики",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "beauty_and_care-hand",
+          title: "В руке",
+          description: "масштаб и доверие",
+          prompt: "Показать косметику в руке или рядом с рукой, чтобы был понятен масштаб и возникало доверие.",
+          previewUrl: "./assets/examples/bioderma-card.png",
+        }),
+        Object.freeze({
+          id: "beauty_and_care-packshot",
+          title: "Флакон крупно",
+          description: "чистый hero-кадр",
+          prompt: "Чистый hero-кадр флакона или тюбика крупно, премиальный свет, читаемая упаковка.",
+          previewUrl: "./assets/generated/beauty-sale.png",
+        }),
+        Object.freeze({
+          id: "beauty_and_care-ritual",
+          title: "Ритуал ухода",
+          description: "ванная, полка, текстуры",
+          prompt: "Показать товар в контексте ритуала ухода: полка, ванная, мягкий свет, текстуры крема или воды.",
+          previewUrl: "./assets/examples/example-beauty.png",
+        }),
+        Object.freeze({
+          id: "beauty_and_care-catalog",
+          title: "Каталог чисто",
+          description: "объект и выгоды",
+          prompt: "Каталожная подача косметики: объект по центру, чистый фон, место под выгоды и текст.",
+          previewUrl: "./assets/examples/soap-card.png",
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "gadgets_and_tech",
+      label: "Гаджеты и техника",
+      hint: "электроника, устройства, аксессуары",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "gadgets_and_tech-use",
+          title: "В использовании",
+          description: "реальный сценарий",
+          prompt: "Показать устройство в реальном сценарии использования: рука, стол, рабочее место или дом.",
+          previewUrl: "./assets/examples/example-tech.png",
+        }),
+        Object.freeze({
+          id: "gadgets_and_tech-detail",
+          title: "Детали",
+          description: "порты, кнопки, материалы",
+          prompt: "Крупный план деталей техники: порты, кнопки, материалы, качество сборки.",
+          previewUrl: "./assets/examples/marshall-card.png",
+        }),
+        Object.freeze({
+          id: "gadgets_and_tech-desk",
+          title: "На столе",
+          description: "аккуратный рабочий сетап",
+          prompt: "Показать гаджет на аккуратном столе или в рабочем сетапе, современный чистый фон.",
+          previewUrl: "./assets/examples/process-ai-card.png",
+        }),
+        Object.freeze({
+          id: "gadgets_and_tech-catalog",
+          title: "Каталог",
+          description: "форма и комплектация",
+          prompt: "Каталожная подача техники: устройство, комплектация и чистое пространство под характеристики.",
+          previewUrl: "./assets/examples/process-photo-card.png",
+        }),
+      ]),
+    }),
+    Object.freeze({
+      id: "home_and_interior",
+      label: "Дом и интерьер",
+      hint: "декор, мебель, товары для дома",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "home_and_interior-interior",
+          title: "В интерьере",
+          description: "товар в живом пространстве",
+          prompt: "Показать товар в интерьере: понятный масштаб, уютный контекст, гармония с окружением.",
+          previewUrl: "./assets/examples/example-home.png",
+        }),
+        Object.freeze({
+          id: "home_and_interior-texture",
+          title: "Фактура крупно",
+          description: "материал и качество",
+          prompt: "Крупный план фактуры и материала, чтобы подчеркнуть качество, поверхность и детали.",
+          previewUrl: "./assets/examples/candle-card.png",
+        }),
+        Object.freeze({
+          id: "home_and_interior-before",
+          title: "Сценарий до/после",
+          description: "польза в быту",
+          prompt: "Показать бытовой сценарий пользы товара: до/после, порядок, удобство или экономия места.",
+          previewUrl: "./assets/examples/youto-card.png",
+        }),
+        Object.freeze({
+          id: "home_and_interior-catalog",
+          title: "Каталог",
+          description: "предмет на чистом фоне",
+          prompt: "Чистая каталожная подача товара для дома, нейтральный фон, читаемый силуэт и место под текст.",
+          previewUrl: "./assets/examples/soap-card.png",
+        }),
+      ]),
+    }),
+  ]);
   const CREATE_ACCENT_COLOR_MAP = Object.freeze({
     emerald: "#10b981",
     mint: "#34d399",
@@ -728,6 +978,83 @@
     "Объём",
     "Комплектация",
   ]);
+  const CREATE_PRODUCT_ROUTING_OPTIONS = Object.freeze({
+    general_product: Object.freeze({
+      id: "general_product",
+      label: "Товар",
+      hint: "",
+      modeLabel: "Товар",
+      angleHeading: "Как показать товар?",
+      angleHint: "",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "general_product-close",
+          title: "Вблизи",
+          description: "",
+          prompt: "Показать товар крупно и близко к камере, чтобы сразу считывались форма, материал, детали и ценность продукта.",
+          previewUrl: "./assets/examples/example-tech.png",
+        }),
+        Object.freeze({
+          id: "general_product-far",
+          title: "Издалека",
+          description: "",
+          prompt: "Показать товар целиком, в более широком кадре с воздухом и аккуратным контекстом, чтобы был понятен масштаб и сценарий использования.",
+          previewUrl: "./assets/examples/example-home.png",
+        }),
+      ]),
+    }),
+    clothing_and_shoes: Object.freeze({
+      id: "clothing_and_shoes",
+      label: "Одежда и обувь",
+      hint: "",
+      modeLabel: "Одежда / обувь",
+      angleHeading: "Как показать одежду?",
+      angleHint: "",
+      angles: Object.freeze([
+        Object.freeze({
+          id: "clothing_and_shoes-model",
+          title: "На человеке",
+          description: "",
+          prompt: "Показать одежду или обувь на человеке, чтобы были понятны посадка, пропорции, силуэт и настроение образа.",
+          previewUrl: "./assets/examples/youto-card.png",
+        }),
+        Object.freeze({
+          id: "clothing_and_shoes-flat",
+          title: "Не на человеке",
+          description: "",
+          prompt: "Показать одежду или обувь без человека: аккуратно, предметно, с чистой формой, хорошим светом и понятными деталями товара.",
+          previewUrl: "./assets/examples/process-photo-card.png",
+        }),
+      ]),
+    }),
+  });
+  const CREATE_RESULTS_PROCESSING_STAGES = Object.freeze({
+    analyzing: Object.freeze({
+      kicker: "ANALYSIS",
+      title: "Считываем товар",
+      text: "Смотрим форму, фактуру и решаем, какая подача будет сильнее продавать в карточке.",
+    }),
+    planning: Object.freeze({
+      kicker: "LAYOUT",
+      title: "Собираем подачу",
+      text: "Уточняем ракурс, иерархию и место для текста без лишнего визуального шума.",
+    }),
+    generating: Object.freeze({
+      kicker: "RENDER",
+      title: "Генерируем карточку",
+      text: "Собираем вертикальную 3:4 карточку и аккуратно доводим её до коммерческого вида.",
+    }),
+    finalizing: Object.freeze({
+      kicker: "FINISH",
+      title: "Доводим детали",
+      text: "Проверяем читаемость, вертикальный формат и готовим финальный вариант к выдаче.",
+    }),
+    error: Object.freeze({
+      kicker: "TRY AGAIN",
+      title: "Генерация остановилась",
+      text: "Исходные данные сохранены. Можно сразу поменять настройки и запустить ещё раз.",
+    }),
+  });
   const CREATE_AI_AUTOFILL_COLOR_KEYWORDS = Object.freeze([
     "черный",
     "белый",
@@ -792,6 +1119,7 @@
   const modeLabelMap = {
     create: "Создание",
     improve: "Улучшение",
+    fourCards: "4 дополнительные карточки",
     animate: "Анимация",
     history: "История",
   };
@@ -836,6 +1164,7 @@
           prompt: CREATE_AI_PROMPT_MOCK_DELAY,
           insight: CREATE_INSIGHT_MOCK_DELAY,
           createGeneration: CREATE_GENERATION_MOCK_DELAY,
+          fourCardsGeneration: CREATE_GENERATION_MOCK_DELAY,
           improveAnalysis: IMPROVE_ANALYSIS_MOCK_DELAY,
           improveGeneration: IMPROVE_GENERATION_MOCK_DELAY,
         },
@@ -857,6 +1186,8 @@
         endpoints: {
           createAnalyze: "/api/kartochka/createAnalyze",
           createGenerate: "/api/kartochka/createGenerate",
+          generateFourMarketplaceCards: "/api/kartochka/generateFourMarketplaceCards",
+          productDetectType: "/api/product/detect-type",
           improveAnalyze: "/api/kartochka/improveAnalyze",
           improveGenerate: "/api/kartochka/improveGenerate",
           historyList: "/api/kartochka/historyList",
@@ -882,6 +1213,7 @@
   let createGenerationRequestId = 0;
   let createGeneratedResults = [];
   let createActivePreviewResultId = "";
+  let createLastHistoryEntryId = "";
   let createInstructionDocumentText = "";
   let createInstructionDocumentName = "";
   let createBestModelTier = "good";
@@ -892,6 +1224,13 @@
   let createActiveTemplateTab = "all";
   let createTemplateSearchQuery = "";
   let createSelectedTemplateId = CREATE_DEFAULT_TEMPLATE_ID;
+  let createProductTypeId = "clothing_and_shoes";
+  let createProductAngleId = "clothing_and_shoes-model";
+  let createProductTypeSource = "manual";
+  let createProductTypeDetectionPhase = "idle";
+  let createProductTypeDetectionRequestId = 0;
+  let createProductTypeDetectionFileKey = "";
+  let createModeChoiceModalOpen = false;
   let createReferenceLibraryOpen = false;
   let createImageManagerOpen = false;
   let createUploadDragDepth = 0;
@@ -908,11 +1247,18 @@
   let improveAnalysisData = null;
   let improveAnalysisRequestId = 0;
   let improveAnalysisFingerprint = "";
+  let improveAnalysisInFlight = null;
   let improveGenerationRequestId = 0;
   let improveGeneratedResults = [];
   let improveResultExpandedId = "";
   let improvePrimaryDragDepth = 0;
   let improveReferenceDragDepth = 0;
+  let fourCardsImageFile = null;
+  let fourCardsImagePreview = "";
+  let fourCardsIsGenerating = false;
+  let fourCardsRequestId = 0;
+  let fourCardsResult = null;
+  let fourCardsDragDepth = 0;
   const historyEntries = [];
   let selectedHistoryEntryId = "";
   let historyReuseInProgress = false;
@@ -1043,10 +1389,25 @@
     const isInstructionTemplate = isCreateInstructionTemplate(selectedTemplate);
 
     if (createBestModelSelect) {
-      createBestModelSelect.closest(".create-best-model-control")?.classList.toggle("hidden", !isInstructionTemplate);
+      const bestModelControl = createBestModelSelect.closest(".create-best-model-control");
+      const isLocked = !isInstructionTemplate || createIsGenerating || createAiPromptPhase === "loading" || createAutofillPhase === "loading";
+      bestModelControl?.classList.toggle("hidden", !isInstructionTemplate);
+      bestModelControl?.classList.toggle("is-pro", createBestModelTier === "best");
+      bestModelControl?.classList.toggle("is-disabled", isLocked);
+      bestModelControl?.setAttribute("aria-checked", String(createBestModelTier === "best"));
+      bestModelControl?.setAttribute("aria-disabled", String(isLocked));
+      bestModelControl?.setAttribute("tabindex", isLocked ? "-1" : "0");
       createBestModelSelect.value = createBestModelTier;
-      createBestModelSelect.toggleAttribute("disabled", !isInstructionTemplate || createIsGenerating || createAiPromptPhase === "loading" || createAutofillPhase === "loading");
+      createBestModelSelect.toggleAttribute("disabled", isLocked);
     }
+  };
+
+  const setCreateBestModelTier = (nextTier) => {
+    const normalizedTier = toText(nextTier);
+    if (!CREATE_BEST_MODEL_OPTIONS[normalizedTier] || normalizedTier === createBestModelTier) return;
+    createBestModelTier = normalizedTier;
+    syncCreateBestModelState();
+    syncCreateFormState();
   };
 
   const syncCreateGenerationNotesState = () => {
@@ -1577,6 +1938,10 @@
       contexts.push({ statusNode: improveStatus, metaNode: improveMeta, actionLabel: "улучшение карточки" });
     }
 
+    if (fourCardsIsGenerating) {
+      contexts.push({ statusNode: fourCardsStatus, metaNode: fourCardsMeta, actionLabel: "генерация 4 карточек" });
+    }
+
     return contexts;
   };
 
@@ -1648,8 +2013,14 @@
     });
   };
 
+  const resolveAppMode = (mode) => {
+    const source = String(mode || "").trim();
+    const match = APP_MODES.find((item) => item.toLowerCase() === source.toLowerCase());
+    return match || null;
+  };
+
   const normalizeAppMode = (mode) => {
-    return APP_MODES.includes(mode) ? mode : "create";
+    return resolveAppMode(mode) || "create";
   };
 
   const buildAppHash = (mode) => {
@@ -1675,8 +2046,7 @@
 
     const segments = normalizedPath.split("/");
     const candidate = segments[0] === "app" ? (segments[1] || "create") : segments[0];
-    const mode = toLowerText(candidate);
-    return APP_MODES.includes(mode) ? mode : null;
+    return resolveAppMode(candidate);
   };
 
   const parseAppModeFromHash = (hash) => {
@@ -1689,8 +2059,7 @@
 
     const sourceHash = typeof hash === "string" ? hash : window.location.hash || "";
     if (!sourceHash.startsWith(APP_ROUTE_PREFIX)) return null;
-    const mode = sourceHash.slice(APP_ROUTE_PREFIX.length).split(/[/?#]/)[0].trim().toLowerCase();
-    return APP_MODES.includes(mode) ? mode : null;
+    return resolveAppMode(sourceHash.slice(APP_ROUTE_PREFIX.length).split(/[/?#]/)[0].trim());
   };
 
   const replaceHash = (nextHash) => {
@@ -1854,7 +2223,6 @@
           setAuthMessage("Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РІРЅСѓС‚СЂРµРЅРЅРёР№ app", "");
           openAuthModal();
         }
-        setAppRouteBootstrapPending(false);
         return true;
       }
 
@@ -1877,12 +2245,10 @@
       closeWorkspaceView();
       setAuthMessage("Войдите, чтобы открыть внутренний app", "");
       openAuthModal();
-      setAppRouteBootstrapPending(false);
       return true;
     }
 
     openWorkspaceView(activeUser, routeMode);
-    setAppRouteBootstrapPending(false);
     return true;
   };
 
@@ -2113,12 +2479,17 @@
         0.1,
       ];
       if (options?.preferAsset) {
+        let bestInlineSnapshot = "";
         for (const quality of [0.9, 0.84, 0.78, 0.72, 0.66, 0.6, 0.54, 0.48, 0.42, 0.36]) {
           const snapshot = buildSnapshotAt(quality);
           if (!snapshot) continue;
+          if (!bestInlineSnapshot && estimateDataUrlBytes(snapshot) <= HISTORY_IMAGE_MAX_BYTES) {
+            bestInlineSnapshot = snapshot;
+          }
           const savedUrl = await saveHistoryImageAsset(snapshot, options.assetKind || "history-result-preview");
-          if (savedUrl) return savedUrl;
+          if (savedUrl && /^https?:\/\//i.test(savedUrl)) return savedUrl;
         }
+        if (bestInlineSnapshot) return bestInlineSnapshot;
       }
 
       let fallbackSnapshot = "";
@@ -2222,6 +2593,58 @@
   const getCreateSelectedTemplate = () => {
     const library = getCreateTemplateLibrary();
     return library.find((item) => item.id === createSelectedTemplateId) || library[0] || null;
+  };
+
+  const renderCreateModeChoices = () => {
+    const controlsLocked = isCreateControlsLocked();
+    const selectedTemplate = getCreateSelectedTemplate();
+
+    if (createModeChoiceStrip) {
+      createModeChoiceStrip.textContent = "";
+
+      const button = document.createElement("button");
+      button.className = "create-template-mode-trigger";
+      button.type = "button";
+      button.dataset.createTemplateModeTrigger = "true";
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-expanded", createModeChoiceModalOpen ? "true" : "false");
+      button.toggleAttribute("disabled", controlsLocked);
+
+      const label = document.createElement("span");
+      label.className = "create-template-mode-trigger-label";
+      label.textContent = "Режим";
+
+      const value = document.createElement("strong");
+      value.textContent = selectedTemplate?.title || "Выбрать";
+
+      button.append(label, value);
+      createModeChoiceStrip.append(button);
+    }
+
+    if (!createModeChoiceModalList) return;
+    createModeChoiceModalList.textContent = "";
+
+    getCreateTemplateLibrary().forEach((template) => {
+      const button = document.createElement("button");
+      button.className = "create-mode-choice-card";
+      button.type = "button";
+      button.dataset.createTemplateModeId = template.id;
+      button.classList.toggle("is-active", template.id === createSelectedTemplateId);
+      button.setAttribute("aria-pressed", template.id === createSelectedTemplateId ? "true" : "false");
+      button.toggleAttribute("disabled", controlsLocked);
+
+      const title = document.createElement("strong");
+      title.textContent = template.title;
+
+      const description = document.createElement("span");
+      description.textContent = template.description || "";
+
+      const status = document.createElement("small");
+      status.textContent = template.id === createSelectedTemplateId ? "Выбран сейчас" : "Выбрать режим";
+
+      button.append(title, description, status);
+      createModeChoiceModalList.append(button);
+    });
   };
 
   const isCreateDirectPromptTemplate = (template) => {
@@ -2919,10 +3342,120 @@
     return flags.length ? "Настройки: " + flags.join(", ") : "";
   };
 
+  const getCreateProductTypeOption = () => {
+    return CREATE_PRODUCT_ROUTING_OPTIONS[createProductTypeId]
+      || CREATE_PRODUCT_ROUTING_OPTIONS.general_product
+      || null;
+  };
+
+  const getCreateProductAngleOptions = () => {
+    const productType = getCreateProductTypeOption();
+    return Array.isArray(productType?.angles) ? productType.angles : [];
+  };
+
+  const ensureCreateProductAngleSelection = () => {
+    const angles = getCreateProductAngleOptions();
+    if (!angles.length) {
+      createProductAngleId = "";
+      return null;
+    }
+
+    const selectedAngle = angles.find((item) => item.id === createProductAngleId) || angles[0];
+    createProductAngleId = selectedAngle.id;
+    return selectedAngle;
+  };
+
+  const getCreateSelectedProductAngleOption = () => {
+    return ensureCreateProductAngleSelection();
+  };
+
+  const buildCreateProductContextPayload = () => {
+    const productType = getCreateProductTypeOption();
+    const angle = getCreateSelectedProductAngleOption();
+
+    return {
+      productTypeId: productType?.id || "",
+      productType: productType?.label || "",
+      productTypeHint: productType?.hint || "",
+      productAngleId: angle?.id || "",
+      productAngle: angle?.title || "",
+      productAngleDescription: angle?.description || "",
+      productAnglePrompt: angle?.prompt || "",
+    };
+  };
+
+  const buildCreateProductContextSummary = () => {
+    const context = buildCreateProductContextPayload();
+    return [
+      context.productType ? "Тип товара: " + context.productType : "",
+      context.productTypeHint ? "режим: " + context.productTypeHint : "",
+      context.productAngle ? "ракурс: " + context.productAngle : "",
+      context.productAnglePrompt,
+    ].filter(Boolean).join(". ");
+  };
+
+  const getCreateProductModeDisplayLabel = () => {
+    return createProductTypeId === "clothing_and_shoes"
+      ? "Одежда / обувь"
+      : "Не одежда / обувь";
+  };
+
+  const buildCreateProductRoutingSummary = () => {
+    const angle = getCreateSelectedProductAngleOption();
+    return [
+      getCreateProductModeDisplayLabel(),
+      angle?.title || "",
+      "3:4",
+    ].filter(Boolean).join(" • ");
+  };
+
+  const setCreateResultsProcessingStage = (stageKey) => {
+    const stage = CREATE_RESULTS_PROCESSING_STAGES[stageKey] || CREATE_RESULTS_PROCESSING_STAGES.analyzing;
+    const orderedStages = ["analyzing", "planning", "generating"];
+    const stageProgressMap = {
+      analyzing: 0,
+      planning: 1,
+      generating: 2,
+      finalizing: 2,
+    };
+    const activeIndex = stageProgressMap[stageKey] ?? 0;
+    const productContext = buildCreateProductContextPayload();
+
+    if (createProcessingKicker) {
+      createProcessingKicker.textContent = stage.kicker;
+    }
+    if (createProcessingTitle) {
+      createProcessingTitle.textContent = stage.title;
+    }
+    if (createProcessingText) {
+      createProcessingText.textContent = stage.text;
+    }
+    if (createProcessingModePill) {
+      createProcessingModePill.textContent = createProductTypeId === "clothing_and_shoes"
+        ? "Одежда / обувь"
+        : "Товар";
+    }
+    if (createProcessingAnglePill) {
+      createProcessingAnglePill.textContent = productContext.productAngle || "Ракурс";
+    }
+
+    createProcessingSteps.forEach((node, index) => {
+      const stepKey = String(node.dataset.createProcessingStep || "");
+      const stepIndex = orderedStages.indexOf(stepKey);
+      node.classList.toggle("is-active", stepIndex === activeIndex);
+      node.classList.toggle("is-complete", activeIndex >= 0 && stepIndex >= 0 && stepIndex < activeIndex);
+      node.classList.toggle("is-dimmed", activeIndex >= 0 && stepIndex > activeIndex);
+    });
+  };
+
   const buildCreateTemplateSummary = () => {
     const template = getCreateSelectedTemplate();
-    if (!template) return "";
-    return "Шаблон: " + template.title + ". " + template.description;
+    const productContext = buildCreateProductContextSummary();
+    if (!template && !productContext) return "";
+    return [
+      template ? "Шаблон: " + template.title + ". " + template.description : "",
+      productContext,
+    ].filter(Boolean).join(". ");
   };
 
   const syncCreateUsefulSettings = () => {
@@ -3156,6 +3689,7 @@
     if (createReferenceLibraryBtn) {
       createReferenceLibraryBtn.textContent = template ? "Сменить режим" : "Выбрать режим";
     }
+    renderCreateModeChoices();
 
     if (selectedTemplateThumb) {
       appendCreateTemplateThumb(
@@ -3182,6 +3716,7 @@
       createSelectedTemplateCard.classList.remove("is-text-only");
       createSelectedTemplateCard.classList.toggle("is-with-parameters", isInstructionTemplate || isTextReplace);
     }
+    renderCreateProductRouting();
     createInstructionTemplatePanel?.classList.toggle("hidden", !isInstructionTemplate);
     createTextReplacePanel?.classList.toggle("hidden", !isTextReplace);
     createProductTextFields?.classList.toggle("hidden", isTextReplace);
@@ -3210,7 +3745,28 @@
   };
 
   const syncCreateOverlayScrollLock = () => {
-    document.documentElement.style.overflow = createReferenceLibraryOpen || createImageManagerOpen ? "hidden" : "";
+    document.documentElement.style.overflow = createReferenceLibraryOpen || createImageManagerOpen || createModeChoiceModalOpen ? "hidden" : "";
+  };
+
+  const syncCreateModeChoiceModalState = () => {
+    createModeChoiceModal?.classList.toggle("hidden", !createModeChoiceModalOpen);
+    createModeChoiceModal?.classList.toggle("is-open", createModeChoiceModalOpen);
+    createModeChoiceModal?.setAttribute("aria-hidden", createModeChoiceModalOpen ? "false" : "true");
+    renderCreateModeChoices();
+    syncCreateOverlayScrollLock();
+  };
+
+  const openCreateModeChoiceModal = () => {
+    createModeChoiceModalOpen = true;
+    syncCreateModeChoiceModalState();
+    window.setTimeout(() => {
+      createModeChoiceModalList?.querySelector(".create-mode-choice-card.is-active")?.focus();
+    }, 0);
+  };
+
+  const closeCreateModeChoiceModal = () => {
+    createModeChoiceModalOpen = false;
+    syncCreateModeChoiceModalState();
   };
 
   const syncCreateReferenceLibraryState = () => {
@@ -3256,6 +3812,122 @@
     syncCreateImageManagerState();
   };
 
+  const setCreateProductType = (nextTypeId, options = {}) => {
+    const safeTypeId = String(nextTypeId || "").trim();
+    const nextType = CREATE_PRODUCT_ROUTING_OPTIONS[safeTypeId] || CREATE_PRODUCT_ROUTING_OPTIONS.general_product || null;
+    if (!nextType) return false;
+
+    const changed = createProductTypeId !== nextType.id;
+    createProductTypeId = nextType.id;
+    if (changed || options.resetAngle) {
+      createProductAngleId = "";
+      ensureCreateProductAngleSelection();
+    }
+    return changed;
+  };
+
+  const setCreateProductAngle = (nextAngleId) => {
+    const safeAngleId = String(nextAngleId || "").trim();
+    const nextAngle = getCreateProductAngleOptions().find((item) => item.id === safeAngleId) || null;
+    if (!nextAngle || nextAngle.id === createProductAngleId) return false;
+
+    createProductAngleId = nextAngle.id;
+    return true;
+  };
+
+  const renderCreateAngleOptionsInto = (container, options = {}) => {
+    if (!container) return;
+    const compact = Boolean(options.compact);
+    const controlsLocked = isCreateControlsLocked();
+    const angles = getCreateProductAngleOptions();
+    const selectedAngle = ensureCreateProductAngleSelection();
+
+    container.textContent = "";
+    angles.forEach((angle) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = compact ? "create-angle-option create-angle-option-compact" : "create-template-item create-angle-option";
+      button.dataset.productAngleId = angle.id;
+      button.classList.toggle("is-active", angle.id === selectedAngle?.id);
+      button.setAttribute("role", compact ? "radio" : "button");
+      button.setAttribute("aria-checked", compact ? String(angle.id === selectedAngle?.id) : "false");
+      button.toggleAttribute("disabled", controlsLocked);
+
+      const preview = document.createElement("span");
+      preview.className = compact ? "create-angle-option-thumb" : "create-template-thumb";
+      if (angle.previewUrl) {
+        const image = document.createElement("img");
+        image.src = angle.previewUrl;
+        image.alt = angle.title;
+        image.loading = "lazy";
+        preview.append(image);
+      }
+
+      const body = document.createElement("span");
+      body.className = compact ? "create-angle-option-body" : "create-template-item-body";
+
+      const title = document.createElement("strong");
+      title.textContent = angle.title;
+
+      if (compact) {
+        body.append(title);
+        if (angle.description) {
+          const description = document.createElement("span");
+          description.className = "create-angle-option-description";
+          description.textContent = angle.description;
+          body.append(description);
+        }
+        button.append(preview, body);
+      } else {
+        const description = document.createElement("span");
+        description.className = "create-template-item-description";
+        description.textContent = angle.description;
+        const action = document.createElement("span");
+        action.className = "create-template-item-action";
+        action.textContent = angle.id === selectedAngle?.id ? "Выбрано" : "Выбрать ракурс";
+        body.append(title);
+        if (angle.description) {
+          body.append(description);
+        }
+        body.append(action);
+        button.append(preview, body);
+      }
+
+      container.append(button);
+    });
+  };
+
+  const renderCreateProductRouting = () => {
+    const selectedType = getCreateProductTypeOption();
+    const controlsLocked = isCreateControlsLocked();
+    const isFashionRouting = createProductTypeId === "clothing_and_shoes";
+    ensureCreateProductAngleSelection();
+
+    if (createIsClothingToggle) {
+      createIsClothingToggle.checked = isFashionRouting;
+      createIsClothingToggle.toggleAttribute("disabled", controlsLocked);
+    }
+    if (workspace) {
+      workspace.dataset.createProductTheme = isFashionRouting ? "fashion" : "object";
+    }
+    if (createProductModeState) {
+      createProductModeState.textContent = getCreateProductModeDisplayLabel();
+    }
+    if (createAngleSuggestionsLead) {
+      createAngleSuggestionsLead.textContent = selectedType?.angleHeading || "Как показать товар?";
+    }
+    if (createProductRoutingSummary) {
+      createProductRoutingSummary.textContent = buildCreateProductRoutingSummary();
+    }
+    if (createAngleSuggestions) {
+      createAngleSuggestions.setAttribute("aria-label", selectedType?.angleHeading || "Ракурс товара");
+    }
+    createSelectedTemplateCard?.classList.toggle("is-fashion-routing", isFashionRouting);
+    createSelectedTemplateCard?.classList.toggle("is-object-routing", !isFashionRouting);
+    renderCreateAngleOptionsInto(createAngleSuggestions, { compact: true });
+    setCreateResultsProcessingStage("analyzing");
+  };
+
   const renderCreateTemplateLibrary = () => {
     renderCreateSelectedTemplateSummary();
     if (!createTemplateGrid) return;
@@ -3264,6 +3936,18 @@
     createTemplateTabButtons.forEach((button) => {
       button.classList.toggle("active", normalizeCreateTemplateTab(button.dataset.createTemplateTab) === createActiveTemplateTab);
     });
+
+    const angles = getCreateProductAngleOptions();
+    if (!angles.length) {
+      const empty = document.createElement("div");
+      empty.className = "create-template-empty";
+      empty.textContent = "Для этого типа товара пока нет ракурсов.";
+      createTemplateGrid.append(empty);
+      return;
+    }
+
+    renderCreateAngleOptionsInto(createTemplateGrid);
+    return;
 
     const templates = getFilteredCreateTemplates();
 
@@ -3329,7 +4013,17 @@
 
   const getActiveCreateResult = () => {
     if (!createGeneratedResults.length) return null;
-    return createGeneratedResults.find((item) => item.id === createActivePreviewResultId) || createGeneratedResults[0] || null;
+    const selected = createGeneratedResults.find((item) => item.id === createActivePreviewResultId) || null;
+    if (selected && selected.status !== "failed" && selected.previewUrl) return selected;
+    return createGeneratedResults.find((item) => item.status !== "failed" && item.previewUrl) || null;
+  };
+
+  const getFirstSelectableCreateResult = () => {
+    return createGeneratedResults.find((item) => item?.status !== "failed" && item?.previewUrl) || null;
+  };
+
+  const getCreateResultProviderLabel = (result) => {
+    return String(result?.providerLabel || result?.provider || "").trim();
   };
 
   const renderCreatePreviewPanel = () => {
@@ -3341,6 +4035,7 @@
     const hasPhoto = createSelectedFiles.length > 0;
     const uploadUrl = createSelectedFiles[0] ? getCreateFilePreviewUrl(createSelectedFiles[0]) : "";
     const previewUrl = activeResult?.previewUrl || selectedTemplate?.previewUrl || uploadUrl;
+    const hasPreview = Boolean(previewUrl);
     const accentColor = CREATE_ACCENT_COLOR_MAP[createUsefulSettings.accentColor] || CREATE_ACCENT_COLOR_MAP.emerald;
     const title = activeResult?.title || getCreateProductTitleValue() || selectedTemplate?.title || "Готовим структуру карточки";
     const meta = activeResult
@@ -3357,20 +4052,22 @@
 
     if (createPreviewCard) {
       createPreviewCard.style.setProperty("--create-accent-color", accentColor);
+      createPreviewCard.classList.toggle("has-preview", hasPreview);
     }
+    createPreviewStage?.classList.toggle("has-preview", hasPreview);
 
-    createPreviewImage?.classList.toggle("hidden", !previewUrl);
-    createPreviewEmpty?.classList.toggle("hidden", Boolean(previewUrl));
+    createPreviewImage?.classList.toggle("hidden", !hasPreview);
+    createPreviewEmpty?.classList.toggle("hidden", hasPreview);
 
     if (createPreviewImage) {
-      if (previewUrl) {
+      if (hasPreview) {
         createPreviewImage.src = previewUrl;
       } else {
         createPreviewImage.removeAttribute("src");
       }
     }
 
-    if (!previewUrl) {
+    if (!hasPreview) {
       if (createPreviewEmptyTitle) {
         createPreviewEmptyTitle.textContent = hasPhoto
           ? (selectedTemplate ? "Можно переходить к генерации" : "Выберите режим")
@@ -3480,6 +4177,7 @@
   const clearCreateResultsData = () => {
     createGeneratedResults = [];
     createActivePreviewResultId = "";
+    createLastHistoryEntryId = "";
     setCreateResultsProcessing(false);
     renderCreateResults();
     renderCreatePreviewPanel();
@@ -3713,6 +4411,8 @@
       (createMarketplace?.value || "").trim(),
       (createCardsCount?.value || "").trim(),
       createSelectedTemplateId,
+      createProductTypeId,
+      createProductAngleId,
       createSelectedFiles.map((file) => getCreateFileKey(file)).join("|"),
     ].join("::");
   };
@@ -3730,6 +4430,7 @@
     const imageDataUrls = await buildCreateImageDataUrls();
     const selectedTemplate = getCreateSelectedTemplate();
     const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
+    const productContext = buildCreateProductContextPayload();
     return {
       analysisIntent: "insight",
       title: getCreateProductTitleValue(),
@@ -3745,6 +4446,13 @@
       cardTextLevels: buildCreateCardTextLevelsPayload(),
       contentCardText: buildCreateContentCardText(),
       generationNotes: buildCreateGenerationNotesValue(),
+      productCategory: productContext.productType,
+      productType: productContext.productType,
+      productTypeId: productContext.productTypeId,
+      productAngle: productContext.productAngle,
+      productAngleId: productContext.productAngleId,
+      productAngleDescription: productContext.productAngleDescription,
+      productAnglePrompt: productContext.productAnglePrompt,
       instructionDocumentText: createInstructionDocumentText,
       instructionDocumentName: createInstructionDocumentName,
       userText: buildCreateUserText(),
@@ -3981,6 +4689,7 @@
     const imageDataUrls = await buildCreateImageDataUrls();
     const selectedTemplate = getCreateSelectedTemplate();
     const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
+    const productContext = buildCreateProductContextPayload();
     return {
       analysisIntent: "prompt",
       title: getCreateProductTitleValue(),
@@ -3996,6 +4705,13 @@
       cardTextLevels: buildCreateCardTextLevelsPayload(),
       contentCardText: buildCreateContentCardText(),
       generationNotes: buildCreateGenerationNotesValue(),
+      productCategory: productContext.productType,
+      productType: productContext.productType,
+      productTypeId: productContext.productTypeId,
+      productAngle: productContext.productAngle,
+      productAngleId: productContext.productAngleId,
+      productAngleDescription: productContext.productAngleDescription,
+      productAnglePrompt: productContext.productAnglePrompt,
       instructionDocumentText: createInstructionDocumentText,
       instructionDocumentName: createInstructionDocumentName,
       aiModelTier: getCreateBestModelOption().id,
@@ -4375,7 +5091,7 @@
     if (createGenerateBtn) {
       setButtonCostLabel(
         createGenerateBtn,
-        createGeneratedResults.length ? "Перегенерировать" : "Сгенерировать карточку",
+        createGeneratedResults.length ? "Сделать вариант 2" : "Сгенерировать карточку",
         createGenerateActionCode
       );
       createGenerateBtn.toggleAttribute("disabled", isDisabled);
@@ -4404,6 +5120,10 @@
     if (createProductShortDescription) createProductShortDescription.toggleAttribute("disabled", controlsLocked);
     if (createProductThirdLevelText) createProductThirdLevelText.toggleAttribute("disabled", controlsLocked);
     if (createGenerationNotes) createGenerationNotes.toggleAttribute("disabled", controlsLocked);
+    if (createIsClothingToggle) createIsClothingToggle.toggleAttribute("disabled", controlsLocked);
+    createAngleSuggestions?.querySelectorAll("[data-product-angle-id]").forEach((node) => {
+      node.toggleAttribute("disabled", controlsLocked);
+    });
     if (createMarketplace) createMarketplace.toggleAttribute("disabled", controlsLocked);
     if (createCardsCount) createCardsCount.toggleAttribute("disabled", controlsLocked);
     createTextReplaceList?.querySelectorAll("textarea, button[data-remove-replace-rule]").forEach((node) => {
@@ -4420,6 +5140,15 @@
     createInstructionAttachBtn?.toggleAttribute("disabled", controlsLocked);
     createInstructionInput?.toggleAttribute("disabled", controlsLocked);
     createTemplateTabButtons.forEach((button) => {
+      button.toggleAttribute("disabled", controlsLocked);
+    });
+    createModeChoiceStrip?.querySelectorAll("[data-create-template-mode-id]").forEach((button) => {
+      button.toggleAttribute("disabled", controlsLocked);
+    });
+    createModeChoiceStrip?.querySelectorAll("[data-create-template-mode-trigger]").forEach((button) => {
+      button.toggleAttribute("disabled", controlsLocked);
+    });
+    createModeChoiceModalList?.querySelectorAll("[data-create-template-mode-id]").forEach((button) => {
       button.toggleAttribute("disabled", controlsLocked);
     });
 
@@ -4500,7 +5229,7 @@
       } else if (validationError) {
         createCtaHint.textContent = validationError;
       } else if (createGeneratedResults.length) {
-        createCtaHint.textContent = "Готово. Можно экспортировать карточку или запустить новую генерацию.";
+        createCtaHint.textContent = "Готово. Можно экспортировать карточку, улучшить её или сделать вариант 2.";
       } else if (createPromptMode === "custom" && !isTextReplace) {
         createCtaHint.textContent = "Шаг 4: запускайте генерацию по своему промту.";
       } else if (
@@ -4565,6 +5294,42 @@
     return cancelled;
   };
 
+  const logProductTypeEvent = (eventName, details = {}) => {
+    console.info("[analytics]", eventName, {
+      source: createProductTypeSource,
+      productType: createProductTypeId,
+      ...details,
+    });
+  };
+
+  const syncCreateProductTypeDetectionStatus = () => {
+    createProductTypeDetectionPhase = "idle";
+  };
+
+  const requestCreateProductTypeDetection = async (payload) => {
+    if (serviceClient?.productDetectType) {
+      return serviceClient.productDetectType(payload);
+    }
+    return {
+      success: false,
+      detectedType: null,
+      confidence: 0,
+      source: "ai",
+      secondaryCandidates: [],
+      reason: "Product type detection endpoint is not configured",
+    };
+  };
+
+  const runCreateProductTypeDetectionForCurrentImage = async () => {
+    createProductTypeDetectionRequestId += 1;
+    createProductTypeDetectionFileKey = createSelectedFiles[0] ? getCreateFileKey(createSelectedFiles[0]) : "";
+    createProductTypeDetectionPhase = "idle";
+    createProductTypeSource = "manual";
+    syncCreateProductTypeDetectionStatus();
+    renderCreateProductRouting();
+    syncCreateFormState();
+  };
+
   const addCreateFiles = (fileList) => {
     if (isCreateControlsLocked()) {
       setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
@@ -4622,6 +5387,9 @@
     setDoneState(createDoneBadge, false);
     renderCreateFiles();
     syncCreateFormState();
+    if (added > 0) {
+      void runCreateProductTypeDetectionForCurrentImage();
+    }
   };
 
   const getHistoryScopeId = (user) => {
@@ -4721,7 +5489,7 @@
   };
 
   const normalizeHistoryMode = (mode) => {
-    return mode === "improve" ? "improve" : "create";
+    return mode === "improve" ? "improve" : mode === "fourCards" ? "fourCards" : "create";
   };
 
   const normalizeHistorySeverity = (severity) => {
@@ -4945,6 +5713,17 @@
         "result-" + String(Date.now()) + "-" + String(index + 1),
       title: String(result?.title || "Вариант " + String(index + 1)).trim(),
       previewUrl: sanitizeHistoryPreviewUrl(result?.previewUrl || fallbackPreview, mode),
+      provider: String(result?.provider || "").trim(),
+      providerLabel: String(result?.providerLabel || "").trim(),
+      status: String(result?.status || (result?.previewUrl ? "completed" : "failed")).trim(),
+      aggregateStatus: String(result?.aggregateStatus || "").trim(),
+      requestId: String(result?.requestId || "").trim(),
+      generationId: String(result?.generationId || "").trim(),
+      durationMs: Number.isFinite(Number(result?.durationMs)) ? Number(result.durationMs) : 0,
+      createdAt: String(result?.createdAt || "").trim(),
+      errorCode: String(result?.errorCode || "").trim(),
+      errorMessage: String(result?.errorMessage || "").trim(),
+      metadata: result?.metadata && typeof result.metadata === "object" && !Array.isArray(result.metadata) ? result.metadata : null,
       variantNumber: Number.isFinite(normalizedVariant) ? Math.max(1, Math.floor(normalizedVariant)) : index + 1,
       totalVariants: Number.isFinite(normalizedTotal) ? Math.max(1, Math.floor(normalizedTotal)) : 1,
       subtitle: String(result?.subtitle || result?.strategy || "").trim(),
@@ -5037,19 +5816,26 @@
               previewUrl
             )
           );
-    const resultPreviews = results.map((result) => result.previewUrl);
+    const selectedResultId = String(entry?.selectedResultId || entry?.meta?.selectedResultId || "").trim();
+    const resultPreviews = results.map((result) => result.previewUrl).filter(Boolean);
     const resultsCountSource = Number(entry?.resultsCount);
     const resultsCount = Number.isFinite(resultsCountSource)
       ? Math.max(0, Math.floor(resultsCountSource))
       : results.length;
     const prompt = String(entry?.prompt || entry?.input?.customPrompt || entry?.input?.improvePrompt || "").trim();
     const summary = String(entry?.summary || "").trim();
-    const previewUrl = sanitizeHistoryPreviewUrl(entry?.previewUrl || resultPreviews[0] || uploads[0]?.url, mode);
+    const selectedResult = selectedResultId
+      ? results.find((result) => result.id === selectedResultId) || null
+      : null;
+    const previewUrl = sanitizeHistoryPreviewUrl(entry?.previewUrl || selectedResult?.previewUrl || resultPreviews[0] || uploads[0]?.url, mode);
     const meta = {
       marketplace: String(entry?.meta?.marketplace || "").trim(),
       promptMode: String(entry?.meta?.promptMode || "").trim(),
       improveMode: String(entry?.meta?.improveMode || "").trim(),
       referenceStyle: Boolean(entry?.meta?.referenceStyle),
+      selectedResultId,
+      selectedProvider: String(entry?.meta?.selectedProvider || "").trim(),
+      aggregateStatus: String(entry?.meta?.aggregateStatus || "").trim(),
     };
     const source = entry?.source && typeof entry.source === "object"
       ? {
@@ -5142,6 +5928,7 @@
       summary: summary || "Описание не указано.",
       prompt,
       resultsCount,
+      selectedResultId,
       previewUrl,
       resultPreviews: resultPreviews.length ? resultPreviews : [previewUrl],
       input: {
@@ -5177,6 +5964,7 @@
       summary: entry.summary,
       prompt: entry.prompt,
       resultsCount: entry.resultsCount,
+      selectedResultId: entry.selectedResultId,
       previewUrl: entry.previewUrl,
       resultPreviews: entry.resultPreviews,
       input: entry.input,
@@ -5185,6 +5973,123 @@
       results: entry.results,
       meta: entry.meta,
     };
+  };
+
+  const getHistoryMirrorScopeId = (scopeId) => {
+    const explicitScopeId = String(scopeId || "").trim();
+    if (activeUser?.uid) return "user:" + String(activeUser.uid).trim();
+    return explicitScopeId || "guest";
+  };
+
+  const getHistoryMirrorStorageKey = (scopeId) => {
+    return HISTORY_CLIENT_MIRROR_PREFIX + getHistoryMirrorScopeId(scopeId);
+  };
+
+  const mergeHistoryEntrySources = (...sources) => {
+    const byId = new Map();
+    sources.flat().forEach((entry) => {
+      if (!entry) return;
+      const normalized = normalizeHistoryEntry(entry);
+      if (!normalized?.id) return;
+      const existing = byId.get(normalized.id);
+      if (!existing || new Date(normalized.updatedAt).getTime() >= new Date(existing.updatedAt).getTime()) {
+        byId.set(normalized.id, normalized);
+      }
+    });
+    return sortHistoryEntriesDesc(Array.from(byId.values())).slice(0, HISTORY_MAX_ITEMS);
+  };
+
+  const readLocalHistoryMirror = (scopeId) => {
+    try {
+      const raw = window.localStorage?.getItem(getHistoryMirrorStorageKey(scopeId));
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  };
+
+  const writeLocalHistoryMirror = (scopeId, entries) => {
+    try {
+      window.localStorage?.setItem(
+        getHistoryMirrorStorageKey(scopeId),
+        JSON.stringify((Array.isArray(entries) ? entries : []).slice(0, HISTORY_MAX_ITEMS))
+      );
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const getFirestoreHistoryMirrorCollection = () => {
+    if (!db || !activeUser?.uid) return null;
+    return db.collection("users").doc(activeUser.uid).collection("kartochkaHistory");
+  };
+
+  const loadHistoryMirror = async (scopeId, limit = HISTORY_MAX_ITEMS) => {
+    const localEntries = readLocalHistoryMirror(scopeId);
+    const collection = getFirestoreHistoryMirrorCollection();
+    if (!collection) {
+      return localEntries.slice(0, limit);
+    }
+
+    try {
+      const snapshot = await collection
+        .orderBy("createdAt", "desc")
+        .limit(Math.max(1, Math.min(HISTORY_MAX_ITEMS, Number(limit) || HISTORY_MAX_ITEMS)))
+        .get();
+      const firestoreEntries = snapshot.docs.map((document) => document.data()).filter(Boolean);
+      return mergeHistoryEntrySources(firestoreEntries, localEntries).slice(0, limit);
+    } catch (error) {
+      return localEntries.slice(0, limit);
+    }
+  };
+
+  const persistHistoryMirror = async (entries, options = {}) => {
+    const scopeId = getHistoryMirrorScopeId(options.scopeId);
+    const serializableEntries = (Array.isArray(entries) ? entries : [])
+      .map((entry) => normalizeHistoryEntry(entry))
+      .filter(Boolean)
+      .map((entry) => serializeHistoryEntry(entry))
+      .slice(0, HISTORY_MAX_ITEMS);
+
+    writeLocalHistoryMirror(scopeId, serializableEntries);
+
+    const collection = getFirestoreHistoryMirrorCollection();
+    if (!collection) return false;
+
+    try {
+      const mode = String(options.mode || "replace").trim().toLowerCase();
+      if (mode === "clear") {
+        const snapshot = await collection.limit(HISTORY_MAX_ITEMS).get();
+        const batch = db.batch();
+        snapshot.docs.forEach((document) => batch.delete(document.ref));
+        await batch.commit();
+        return true;
+      }
+
+      if (mode === "entry" && options.entry) {
+        const normalizedEntry = normalizeHistoryEntry(options.entry);
+        if (!normalizedEntry) return false;
+        const entry = serializeHistoryEntry(normalizedEntry);
+        await collection.doc(entry.id).set(entry, { merge: true });
+        return true;
+      }
+
+      const snapshot = await collection.limit(HISTORY_MAX_ITEMS).get();
+      const batch = db.batch();
+      const nextIds = new Set(serializableEntries.map((entry) => entry.id));
+      serializableEntries.forEach((entry) => {
+        batch.set(collection.doc(entry.id), entry, { merge: true });
+      });
+      snapshot.docs.forEach((document) => {
+        if (!nextIds.has(document.id)) batch.delete(document.ref);
+      });
+      await batch.commit();
+      return true;
+    } catch (error) {
+      return false;
+    }
   };
 
   const applyHistoryEntriesFromSource = (sourceEntries, options = {}) => {
@@ -5247,6 +6152,11 @@
         ? ""
         : (singleEntry?.id || options?.selectedEntryId || selectedHistoryEntryId),
     });
+    await persistHistoryMirror(normalizedEntries, {
+      mode: persistMode,
+      scopeId,
+      entry: singleEntry,
+    });
     const storage = response?.storage && typeof response.storage === "object" ? response.storage : null;
     const storageMode = String(storage?.mode || "").trim().toLowerCase();
     const fallbackUsed = Boolean(storage?.fallbackUsed);
@@ -5291,14 +6201,19 @@
         scopeId: expectedScopeId,
         limit: HISTORY_MAX_ITEMS,
       });
+      const mirrorEntries = await loadHistoryMirror(expectedScopeId, HISTORY_MAX_ITEMS);
 
       if ((requestId && requestId !== historyLoadRequestId) || expectedScopeId !== getHistoryScopeId(activeUser)) {
         return false;
       }
 
-      applyHistoryEntriesFromSource(sourceEntries, {
+      const mergedEntries = mergeHistoryEntrySources(sourceEntries, mirrorEntries);
+      applyHistoryEntriesFromSource(mergedEntries, {
         selectedEntryId: previousEntryId,
       });
+      if (mergedEntries.length) {
+        void persistHistoryMirror(mergedEntries, { mode: "replace", scopeId: expectedScopeId });
+      }
       resetHistorySyncStatus();
       return true;
     } catch (error) {
@@ -5306,7 +6221,12 @@
         return false;
       }
 
-      if (!hasExistingEntries) {
+      const mirrorEntries = await loadHistoryMirror(expectedScopeId, HISTORY_MAX_ITEMS);
+      if (mirrorEntries.length) {
+        applyHistoryEntriesFromSource(mirrorEntries, {
+          selectedEntryId: previousEntryId,
+        });
+      } else if (!hasExistingEntries) {
         historyEntries.length = 0;
         selectedHistoryEntryId = "";
         historyDetailsVisible = false;
@@ -5314,7 +6234,7 @@
       }
 
       buildHistoryPersistenceFeedback(error, "load", { hasEntries: hasExistingEntries });
-      return false;
+      return mirrorEntries.length > 0;
     }
   };
 
@@ -5375,7 +6295,12 @@
   const getHistoryPrimaryResult = (entry) => {
     if (!entry) return null;
     if (Array.isArray(entry.results) && entry.results.length) {
-      return entry.results[0] || null;
+      const selectedResultId = String(entry.selectedResultId || entry.meta?.selectedResultId || "").trim();
+      if (selectedResultId) {
+        const selected = entry.results.find((result) => result.id === selectedResultId && result.previewUrl) || null;
+        if (selected) return selected;
+      }
+      return entry.results.find((result) => result.previewUrl && result.status !== "failed") || entry.results[0] || null;
     }
     return null;
   };
@@ -5690,8 +6615,11 @@
       title.textContent = result.title || "Вариант";
 
       const meta = document.createElement("span");
-      meta.textContent =
-        "Вариант " + String(result.variantNumber || 1) + " из " + String(result.totalVariants || entry.resultsCount || 1);
+      meta.textContent = [
+        result.providerLabel || result.provider || "",
+        "Вариант " + String(result.variantNumber || 1) + " из " + String(result.totalVariants || entry.resultsCount || 1),
+        result.status === "failed" ? "failed" : "",
+      ].filter(Boolean).join(" • ");
 
       const summary = document.createElement("span");
       summary.textContent = truncateHistoryText(
@@ -6134,14 +7062,64 @@
         storage: response?.storage || null,
       };
     } catch (error) {
+      upsertHistoryEntry(normalizedEntry);
+      await persistHistoryMirror(historyEntries.map((item) => serializeHistoryEntry(item)), {
+        mode: "entry",
+        scopeId: getHistoryScopeId(activeUser),
+        entry: normalizedEntry,
+      });
       const feedback = buildHistoryPersistenceFeedback(error, "save");
       renderHistory();
       return {
-        ok: false,
-        entry: null,
+        ok: true,
+        entry: getHistoryEntryById(normalizedEntry.id) || normalizedEntry,
         error,
         feedback,
+        storage: {
+          mode: "client_mirror",
+          fallbackUsed: true,
+        },
       };
+    }
+  };
+
+  const persistCreateVariantSelection = async (result) => {
+    const resultId = String(result?.id || "").trim();
+    if (!resultId || !createLastHistoryEntryId) return;
+
+    const entry = getHistoryEntryById(createLastHistoryEntryId);
+    if (!entry || entry.mode !== "create") return;
+
+    const historyResult = entry.results.find((item) => item.id === resultId) || null;
+    if (!historyResult || !historyResult.previewUrl) return;
+
+    const updatedEntry = normalizeHistoryEntry({
+      ...entry,
+      selectedResultId: resultId,
+      previewUrl: historyResult.previewUrl,
+      meta: {
+        ...(entry.meta || {}),
+        selectedResultId: resultId,
+        selectedProvider: historyResult.provider || result.provider || "",
+        aggregateStatus: historyResult.aggregateStatus || result.aggregateStatus || "",
+      },
+    });
+
+    upsertHistoryEntry(updatedEntry);
+    renderHistory();
+
+    try {
+      await persistHistory({
+        mode: "entry",
+        entry: updatedEntry,
+        selectedEntryId: updatedEntry.id,
+      });
+    } catch (error) {
+      await persistHistoryMirror(historyEntries.map((item) => serializeHistoryEntry(item)), {
+        mode: "entry",
+        scopeId: getHistoryScopeId(activeUser),
+        entry: updatedEntry,
+      });
     }
   };
 
@@ -6234,14 +7212,19 @@
         );
       }));
 
+    const selectedHistoryResult = normalizedResults.find((item) => item.id === createActivePreviewResultId && item.previewUrl)
+      || normalizedResults.find((item) => item.previewUrl)
+      || null;
     const insight = payload?.insight ? { ...payload.insight } : (createInsightData ? { ...createInsightData } : null);
     const resolvedPrompt = String(payload?.prompt || resolveCreatePromptForGeneration() || "").trim();
     const summary = String(payload?.description || payload?.highlights || "Создание карточек товара").trim();
+    const productContext = buildCreateProductContextPayload();
 
     return {
       summary: summary.slice(0, 180),
       prompt: resolvedPrompt.slice(0, 8000),
-      previewUrl: normalizedResults.find((item) => item.previewUrl)?.previewUrl || "",
+      selectedResultId: selectedHistoryResult?.id || "",
+      previewUrl: selectedHistoryResult?.previewUrl || "",
       resultPreviews: normalizedResults.map((item) => item.previewUrl).filter(Boolean),
       input: {
         description: String(payload?.description || "").trim(),
@@ -6254,6 +7237,11 @@
         cardsCount: Number(payload?.cardsCount || normalizedResults.length || 1),
         promptMode: String(payload?.promptMode || createPromptMode || "ai"),
         selectedTemplateId: String(payload?.selectedTemplate?.id || createSelectedTemplateId || ""),
+        productTypeId: String(payload?.productTypeId || productContext.productTypeId || ""),
+        productType: String(payload?.productType || productContext.productType || ""),
+        productTypeSource: String(payload?.productTypeSource || createProductTypeSource || "default"),
+        productAngleId: String(payload?.productAngleId || productContext.productAngleId || ""),
+        productAngle: String(payload?.productAngle || productContext.productAngle || ""),
         customPrompt: String(createCustomPrompt?.value || "").trim(),
         improvePrompt: "",
         improveMode: "ai",
@@ -6268,6 +7256,11 @@
         analysis: null,
       },
       results: normalizedResults,
+      meta: {
+        selectedResultId: selectedHistoryResult?.id || "",
+        selectedProvider: selectedHistoryResult?.provider || "",
+        aggregateStatus: selectedHistoryResult?.aggregateStatus || "",
+      },
     };
   };
 
@@ -6545,6 +7538,7 @@
 
     createGeneratedResults = [];
     createActivePreviewResultId = "";
+    createLastHistoryEntryId = "";
     syncCreateLegacyFields();
     createCharacteristicsComponent?.setItems(createCharacteristics, { silent: true });
     renderCreateTemplateLibrary();
@@ -6779,7 +7773,9 @@
 
   const setCreateResultsProcessing = (isProcessing) => {
     if (!createResultsSection || !createResultsGrid) return;
-    createResultsSection.classList.toggle("hidden", Boolean(isProcessing));
+    createResultsSection.classList.toggle("hidden", !Boolean(isProcessing) && !createGeneratedResults.length);
+    createResultsProcessing?.classList.toggle("hidden", !Boolean(isProcessing));
+    createResultsProcessing?.setAttribute("aria-hidden", isProcessing ? "false" : "true");
     createResultsGrid.classList.toggle("hidden", Boolean(isProcessing));
   };
 
@@ -6830,6 +7826,7 @@
     const characteristics = getCreateCharacteristicRows();
     const settings = buildCreateSettingsPayload();
     const serializedTemplate = serializeCreateTemplate(selectedTemplate);
+    const productContext = buildCreateProductContextPayload();
 
     return {
       description: (createDescription?.value || "").trim(),
@@ -6845,7 +7842,14 @@
       cardGoal: "Конверсионная карточка товара для маркетплейса",
       generationMode: usesCreateDirectGenerationPrompt(selectedTemplate) ? "custom" : normalizeCreateTemplateTab(createActiveTemplateTab),
       densityMode: settings.infoDensity || CREATE_USEFUL_SETTINGS_DEFAULTS.infoDensity,
-      productCategory: hasInsight && !insightIsStale ? createInsightData?.category || "" : "",
+      productCategory: productContext.productType || (hasInsight && !insightIsStale ? createInsightData?.category || "" : ""),
+      productType: productContext.productType,
+      productTypeId: productContext.productTypeId,
+      productTypeSource: createProductTypeSource,
+      productAngle: productContext.productAngle,
+      productAngleId: productContext.productAngleId,
+      productAngleDescription: productContext.productAngleDescription,
+      productAnglePrompt: productContext.productAnglePrompt,
       userNotes: isCreateTextReplaceTemplate(selectedTemplate)
         ? buildCreateTextReplaceSummary()
         : (createPromptMode === "custom" ? (createCustomPrompt?.value || "").trim() : ""),
@@ -6861,6 +7865,8 @@
       referencePreviewUrl,
       promptMode: createPromptMode,
       prompt: resolveCreatePromptForGeneration(),
+      size: "1200x1600",
+      quality: "high",
       insight: hasInsight && !insightIsStale ? { ...createInsightData } : null,
       files: createSelectedFiles.map((file) => ({
         name: file.name,
@@ -6932,8 +7938,11 @@
       return;
     }
 
-    if (!createGeneratedResults.some((item) => item.id === createActivePreviewResultId)) {
-      createActivePreviewResultId = createGeneratedResults[0]?.id || "";
+    const activeResultStillSelectable = createGeneratedResults.some((item) =>
+      item.id === createActivePreviewResultId && item.status !== "failed" && item.previewUrl
+    );
+    if (!activeResultStillSelectable) {
+      createActivePreviewResultId = getFirstSelectableCreateResult()?.id || createGeneratedResults[0]?.id || "";
     }
 
     createResultsSection.classList.toggle("is-text-replace-results", isTextReplaceResults);
@@ -6947,32 +7956,62 @@
     createGeneratedResults.forEach((result) => {
       const card = document.createElement("article");
       card.className = "create-result-card create-result-card-compact";
+      const isFailedResult = result.status === "failed" || !result.previewUrl;
+      const providerLabel = getCreateResultProviderLabel(result);
       card.classList.toggle("is-text-replace-result", isTextReplaceResults);
       card.classList.toggle("is-active", result.id === createActivePreviewResultId);
+      card.classList.toggle("is-failed", isFailedResult);
       card.dataset.resultPreviewId = result.id;
       card.setAttribute("role", "button");
-      card.tabIndex = 0;
+      card.tabIndex = isFailedResult ? -1 : 0;
+      card.setAttribute("aria-disabled", isFailedResult ? "true" : "false");
       card.setAttribute("aria-label", "Открыть результат: " + (result.title || selectedTemplateTitle));
 
       const media = document.createElement("div");
       media.className = "create-result-media";
 
-      const image = document.createElement("img");
-      image.src = result.previewUrl;
-      image.alt = result.title;
-      image.loading = "lazy";
-      media.append(image);
+      if (result.previewUrl) {
+        const image = document.createElement("img");
+        image.src = result.previewUrl;
+        image.alt = result.title;
+        image.loading = "lazy";
+        media.append(image);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "create-result-placeholder";
+        placeholder.textContent = "Провайдер не вернул изображение";
+        media.append(placeholder);
+      }
+
+      if (providerLabel) {
+        const providerBadge = document.createElement("span");
+        providerBadge.className = "create-result-provider";
+        providerBadge.textContent = providerLabel;
+        media.append(providerBadge);
+      }
 
       const body = document.createElement("div");
       body.className = "create-result-body";
 
       const title = document.createElement("h4");
-      title.textContent = isTextReplaceResults ? (result.title || selectedTemplateTitle) : selectedTemplateTitle;
+      title.textContent = isTextReplaceResults
+        ? (result.title || selectedTemplateTitle)
+        : (providerLabel ? "Вариант " + providerLabel : selectedTemplateTitle);
 
       body.append(title);
-      if (isTextReplaceResults) {
+      if (isFailedResult) {
+        const subtitle = document.createElement("p");
+        subtitle.textContent = result.errorMessage || "Этот провайдер не вернул изображение. Можно выбрать другой вариант.";
+        body.append(subtitle);
+      } else if (isTextReplaceResults) {
         const subtitle = document.createElement("p");
         subtitle.textContent = result.focus || result.style || "Нажмите, чтобы открыть этот вариант в превью.";
+        body.append(subtitle);
+      } else {
+        const subtitle = document.createElement("p");
+        subtitle.textContent = result.id === createActivePreviewResultId
+          ? "Выбран как основной"
+          : "Нажмите, чтобы выбрать основным";
         body.append(subtitle);
       }
       card.append(media, body);
@@ -7506,6 +8545,9 @@
 
   const runImproveAnalysis = async (options) => {
     const source = (options && options.source) || "manual";
+    if (improveAnalysisPhase === "loading" && improveAnalysisInFlight) {
+      return improveAnalysisInFlight;
+    }
     const inputError = getImproveAnalysisInputError();
     const { referenceStyleActive } = getImproveReferenceUiState();
     if (inputError) {
@@ -7537,7 +8579,12 @@
     try {
       const payload = buildImproveAnalysisPayload();
       payload.requestId = buildClientRequestId("improve-analyze", requestId);
-      const analysis = await requestImproveAnalysis(payload);
+      const activeAnalysisRequest = requestImproveAnalysis(payload);
+      improveAnalysisInFlight = activeAnalysisRequest.then(
+        () => true,
+        () => false
+      );
+      const analysis = await activeAnalysisRequest;
       if (requestId !== improveAnalysisRequestId) return false;
 
       improveAnalysisData = analysis;
@@ -7577,6 +8624,9 @@
       setRequestMeta(improveMeta, "Статус запроса:", feedback.metaValue, feedback.type);
       return false;
     } finally {
+      if (requestId === improveAnalysisRequestId) {
+        improveAnalysisInFlight = null;
+      }
       if (requestId === improveAnalysisRequestId) {
         syncImproveFormState();
       }
@@ -7685,6 +8735,336 @@
       return serviceClient.cards.improveCards(payload);
     }
     return mockImproveGenerationRequest(payload);
+  };
+
+  const getFourCardsFileValidationError = (file) => {
+    if (!file) return "Файл не выбран.";
+    if (!isCreateFileAccepted(file)) return "Поддерживаются только PNG, JPG и WEBP.";
+    if (file.size > IMPROVE_MAX_FILE_SIZE_BYTES) return "Файл слишком большой. Максимум 10 МБ.";
+    return "";
+  };
+
+  const hasFourCardsSourceInput = () => Boolean(fourCardsImageFile || fourCardsImagePreview);
+
+  const isFourCardsControlsLocked = () => fourCardsIsGenerating;
+
+  const getFourCardsValidationError = () => {
+    if (!hasFourCardsSourceInput()) return "Загрузите исходную карточку или фото товара.";
+    return "";
+  };
+
+  const setFourCardsProcessing = (isProcessing) => {
+    fourCardsResultsSection?.classList.remove("hidden");
+    fourCardsProcessing?.classList.toggle("hidden", !isProcessing);
+    fourCardsCompositeSection?.classList.toggle("hidden", isProcessing || !fourCardsResult?.composite?.url);
+    fourCardsGridSection?.classList.toggle("hidden", isProcessing || !Array.isArray(fourCardsResult?.cards) || !fourCardsResult.cards.length);
+  };
+
+  const syncFourCardsFormState = () => {
+    const isBusy = isFourCardsControlsLocked();
+    const hasSource = hasFourCardsSourceInput();
+    const validationError = getFourCardsValidationError();
+    fourCardsGenerateBtn?.toggleAttribute("disabled", Boolean(validationError) || isBusy);
+    fourCardsRegenerateBtn?.classList.toggle("hidden", !fourCardsResult);
+    fourCardsRegenerateBtn?.toggleAttribute("disabled", Boolean(validationError) || isBusy);
+    fourCardsGenerateBtn?.classList.toggle("is-loading", isBusy);
+    fourCardsUploadZone?.classList.toggle("is-empty", !hasSource);
+    fourCardsUploadZone?.classList.toggle("is-filled", hasSource);
+    fourCardsUploadZone?.classList.toggle("is-disabled", isBusy);
+    fourCardsImageInput?.toggleAttribute("disabled", isBusy);
+    fourCardsUploadEmpty?.classList.toggle("hidden", hasSource);
+    fourCardsSelectedPreview?.classList.toggle("hidden", !hasSource);
+  };
+
+  const renderFourCardsResult = () => {
+    if (!fourCardsResultsSection || !fourCardsGrid || !fourCardsCompositeImage) return;
+    fourCardsGrid.textContent = "";
+
+    if (!fourCardsResult) {
+      fourCardsResultsSection.classList.add("hidden");
+      fourCardsCompositeSection?.classList.add("hidden");
+      fourCardsGridSection?.classList.add("hidden");
+      return;
+    }
+
+    const composite = fourCardsResult.composite || {};
+    if (composite.url) {
+      fourCardsCompositeImage.src = composite.url;
+      if (fourCardsCompositeDownload) {
+        fourCardsCompositeDownload.href = composite.url;
+        fourCardsCompositeDownload.download = composite.downloadName || "composite.png";
+      }
+    }
+
+    const cards = Array.isArray(fourCardsResult.cards) ? fourCardsResult.cards : [];
+    const typeLabels = {
+      benefits: "Преимущества",
+      features: "Характеристики",
+      lifestyle: "Сценарии",
+      details: "Детали",
+    };
+
+    cards.forEach((result, index) => {
+      const card = document.createElement("article");
+      card.className = "four-cards-card";
+
+      const media = document.createElement("div");
+      media.className = "four-cards-card-media";
+      const image = document.createElement("img");
+      image.src = result.url;
+      image.alt = result.title || typeLabels[result.type] || "Карточка " + String(index + 1);
+      image.loading = "lazy";
+      media.append(image);
+
+      const body = document.createElement("div");
+      body.className = "four-cards-card-body";
+      const title = document.createElement("strong");
+      title.textContent = result.title || typeLabels[result.type] || "Карточка " + String(index + 1);
+      const meta = document.createElement("span");
+      meta.textContent = String(result.width || 600) + " x " + String(result.height || 800) + " px";
+      const downloadLink = document.createElement("a");
+      downloadLink.className = "create-result-action";
+      downloadLink.href = result.url;
+      downloadLink.download = result.downloadName || "card_" + String(index + 1) + ".png";
+      downloadLink.textContent = "Скачать";
+      body.append(title, meta, downloadLink);
+
+      card.append(media, body);
+      fourCardsGrid.append(card);
+    });
+
+    if (fourCardsResultsCaption) {
+      fourCardsResultsCaption.textContent = "Готово: composite preview и 4 отдельные карточки.";
+    }
+    fourCardsResultsSection.classList.remove("hidden");
+    setFourCardsProcessing(false);
+  };
+
+  const clearFourCardsResult = () => {
+    fourCardsResult = null;
+    renderFourCardsResult();
+  };
+
+  const applyFourCardsSourceFile = async (file) => {
+    const validationError = getFourCardsFileValidationError(file);
+    if (validationError) throw new Error(validationError);
+
+    fourCardsImageFile = file;
+    fourCardsImagePreview = await buildOptimizedFileDataUrl(file, "Не удалось подготовить изображение.");
+    if (!fourCardsImagePreview) {
+      throw new Error("Не удалось подготовить изображение для генерации.");
+    }
+    if (fourCardsSelectedImage) {
+      fourCardsSelectedImage.src = fourCardsImagePreview;
+    }
+    clearFourCardsResult();
+    setStatusMessage(fourCardsStatus, "Изображение загружено. Можно запускать генерацию 4 карточек.", "success");
+    setRequestMeta(fourCardsMeta, "Статус запроса:", "Исходное изображение готово");
+    syncFourCardsFormState();
+  };
+
+  const buildFourCardsGenerationPayload = () => ({
+    mode: "generate-four-marketplace-cards",
+    sourcePreviewUrl: fourCardsImagePreview,
+    sourceCard: fourCardsImageFile
+      ? {
+          name: fourCardsImageFile.name,
+          type: fourCardsImageFile.type,
+          sizeBytes: fourCardsImageFile.size,
+        }
+      : {
+          name: "source-card.png",
+          type: "image/png",
+          sizeBytes: 0,
+        },
+  });
+
+  const requestFourCardsGeneration = async (payload) => {
+    if (serviceClient?.generateFourMarketplaceCards) {
+      return serviceClient.generateFourMarketplaceCards(payload);
+    }
+    if (serviceClient?.cards?.generateFourMarketplaceCards) {
+      return serviceClient.cards.generateFourMarketplaceCards(payload);
+    }
+    throw new Error("Сервис генерации 4 карточек не настроен.");
+  };
+
+  const downloadFourCardsFiles = () => {
+    const result = fourCardsResult;
+    const files = [
+      result?.composite?.url
+        ? {
+            url: result.composite.url,
+            downloadName: result.composite.downloadName || "composite.png",
+          }
+        : null,
+      ...(Array.isArray(result?.cards) ? result.cards.map((card, index) => ({
+        url: card.url,
+        downloadName: card.downloadName || "card_" + String(index + 1) + ".png",
+      })) : []),
+    ].filter((item) => item?.url);
+
+    files.forEach((file, index) => {
+      window.setTimeout(() => {
+        const link = document.createElement("a");
+        link.href = file.url;
+        link.download = file.downloadName;
+        document.body.append(link);
+        link.click();
+        link.remove();
+      }, index * 180);
+    });
+  };
+
+  const buildFourCardsHistoryPayload = async (payload, result) => {
+    const uploads = [];
+    if (fourCardsImagePreview) {
+      uploads.push({
+        id: "upload-" + String(Date.now()) + "-1",
+        role: "source",
+        name: fourCardsImageFile?.name || "source-card.png",
+        type: fourCardsImageFile?.type || "image/png",
+        url: await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(fourCardsImagePreview, "improve")),
+      });
+    }
+
+    const compositePreview = result?.composite?.url
+      ? await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(result.composite.url, "improve"), {
+          preferAsset: true,
+          assetKind: "four-cards-composite",
+        })
+      : "";
+
+    const normalizedResults = await Promise.all((Array.isArray(result?.cards) ? result.cards : []).map(async (card, index) => {
+      const previewUrl = await buildHistoryImageSnapshot(sanitizeHistoryPreviewUrl(card.url, "improve"), {
+        preferAsset: true,
+        assetKind: "four-cards-result",
+      });
+      return normalizeHistoryResult(
+        {
+          id: "four-card-" + String(index + 1) + "-" + String(Date.now()),
+          previewUrl,
+          title: card.title || "Карточка " + String(index + 1),
+          subtitle: card.type || "",
+          summary: "Дополнительная карточка товара",
+          downloadName: card.downloadName,
+        },
+        "fourCards",
+        index,
+        previewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve")
+      );
+    }));
+
+    return {
+      summary: "4 дополнительные карточки для описания товара",
+      prompt: "server/prompts/generate-four-marketplace-cards.md",
+      previewUrl: compositePreview || normalizedResults[0]?.previewUrl || uploads[0]?.url || getHistoryFallbackPreview("improve"),
+      resultPreviews: normalizedResults.map((item) => item.previewUrl).filter(Boolean),
+      input: {
+        description: "",
+        highlights: "",
+        marketplace: "",
+        cardsCount: 4,
+        promptMode: "ai",
+        customPrompt: "",
+        improvePrompt: "",
+        improveMode: "fourCards",
+        variantsCount: 4,
+        referenceStyle: false,
+        mode: payload.mode,
+      },
+      uploads,
+      ai: {
+        summary: "Сгенерирован один composite image и автоматически нарезан на 4 карточки.",
+        insight: null,
+        analysis: null,
+      },
+      results: normalizedResults,
+      meta: {
+        compositePreview,
+        promptPath: result?.metadata?.promptPath || "server/prompts/generate-four-marketplace-cards.md",
+        cardWidth: result?.metadata?.cardWidth || 600,
+        cardHeight: result?.metadata?.cardHeight || 800,
+      },
+    };
+  };
+
+  const runFourCardsGeneration = async () => {
+    const validationError = getFourCardsValidationError();
+    if (validationError) {
+      setStatusMessage(fourCardsStatus, validationError, "error");
+      syncFourCardsFormState();
+      return;
+    }
+
+    const requestId = ++fourCardsRequestId;
+    fourCardsIsGenerating = true;
+    fourCardsResult = null;
+    setFourCardsProcessing(true);
+    setStatusMessage(fourCardsStatus, "Генерируем 4 дополнительные карточки. Это может занять 3-5 минут.", "");
+    setRequestMeta(fourCardsMeta, "Статус запроса:", "Генерация composite image");
+    if (fourCardsResultsCaption) {
+      fourCardsResultsCaption.textContent = "Генерация идет через GPT Image 2, затем backend нарежет результат на 4 части.";
+    }
+    syncFourCardsFormState();
+
+    try {
+      const payload = buildFourCardsGenerationPayload();
+      payload.requestId = buildClientRequestId("four-cards", requestId);
+      const result = await requestFourCardsGeneration(payload);
+      if (requestId !== fourCardsRequestId) return;
+      fourCardsResult = result;
+      renderFourCardsResult();
+      setStatusMessage(fourCardsStatus, "Готово. Composite image нарезан на 4 карточки.", "success");
+      setRequestMeta(fourCardsMeta, "Статус запроса:", "Готово: 4 карточки");
+
+      try {
+        const historyPayload = await buildFourCardsHistoryPayload(payload, result);
+        await pushHistory({
+          mode: "fourCards",
+          title: "4 дополнительные карточки",
+          summary: historyPayload.summary,
+          prompt: historyPayload.prompt,
+          resultsCount: 4,
+          previewUrl: historyPayload.previewUrl,
+          resultPreviews: historyPayload.resultPreviews,
+          input: historyPayload.input,
+          uploads: historyPayload.uploads,
+          ai: historyPayload.ai,
+          results: historyPayload.results,
+          meta: historyPayload.meta,
+        });
+      } catch (historyError) {
+        console.warn("[history] four cards save failed", historyError);
+      }
+
+      fourCardsResultsSection?.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    } catch (error) {
+      if (requestId !== fourCardsRequestId) return;
+      fourCardsResult = null;
+      setFourCardsProcessing(false);
+      renderFourCardsResult();
+      const feedback = resolveRequestErrorFeedback(error, "Не удалось создать 4 дополнительные карточки. Повторите попытку.", {
+        interruptedMessage: "Связь прервалась после сворачивания приложения. Исходное изображение сохранено, генерацию можно повторить.",
+        interruptedMeta: "Генерация 4 карточек прервана после возврата",
+        timeoutMeta: "Таймаут генерации 4 карточек",
+        networkMeta: "Сбой генерации 4 карточек",
+        errorMeta: "Ошибка генерации 4 карточек",
+      });
+      setStatusMessage(fourCardsStatus, feedback.message, feedback.type);
+      setRequestMeta(fourCardsMeta, "Статус запроса:", feedback.metaValue, feedback.type);
+    } finally {
+      if (requestId === fourCardsRequestId) {
+        fourCardsIsGenerating = false;
+        if (activeUser) {
+          void refreshBillingSummary();
+        }
+        syncFourCardsFormState();
+      }
+    }
   };
 
   const renderImproveResults = () => {
@@ -7936,9 +9316,7 @@
   mobileMenuLinks.forEach((link) => link.addEventListener("click", closeMobileMenu));
 
   if (isDedicatedAppHost()) {
-    document.querySelector(".topbar")?.classList.add("hidden");
-    mobileMenu?.classList.add("hidden");
-    mobileMenu?.setAttribute("aria-hidden", "true");
+    setAppRouteBootstrapPending(true);
   }
 
   if (workspaceAppBrand) {
@@ -8053,8 +9431,15 @@
 
     const resultId = previewButton.dataset.resultPreviewId || "";
     if (!resultId) return;
+    const result = createGeneratedResults.find((item) => item.id === resultId) || null;
+    if (!result || result.status === "failed" || !result.previewUrl) return;
 
     createActivePreviewResultId = resultId;
+    console.info("[analytics] generation_variant_selected", {
+      provider: result.provider || "",
+      generationId: result.generationId || result.requestId || "",
+    });
+    void persistCreateVariantSelection(result);
     renderCreateResults();
   });
 
@@ -8068,8 +9453,15 @@
 
     const resultId = previewButton.dataset.resultPreviewId || "";
     if (!resultId) return;
+    const result = createGeneratedResults.find((item) => item.id === resultId) || null;
+    if (!result || result.status === "failed" || !result.previewUrl) return;
 
     createActivePreviewResultId = resultId;
+    console.info("[analytics] generation_variant_selected", {
+      provider: result.provider || "",
+      generationId: result.generationId || result.requestId || "",
+    });
+    void persistCreateVariantSelection(result);
     renderCreateResults();
   });
 
@@ -8102,6 +9494,7 @@
     setDoneState(createDoneBadge, false);
     renderCreateFiles();
     syncCreateFormState();
+    void runCreateProductTypeDetectionForCurrentImage();
   });
 
   const handleCreateInputMutation = () => {
@@ -8153,8 +9546,78 @@
     openCreateReferenceLibrary();
   });
 
-  createSelectedTemplateCard?.addEventListener("click", () => {
-    openCreateReferenceLibrary();
+  createModeChoiceStrip?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-create-template-mode-trigger]");
+    if (!(button instanceof HTMLElement)) return;
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+
+    openCreateModeChoiceModal();
+  });
+
+  createModeChoiceModalList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-create-template-mode-id]");
+    if (!(button instanceof HTMLElement)) return;
+    if (isCreateControlsLocked()) {
+      setStatusMessage(createStatus, "Дождитесь завершения текущего AI-запроса.", "");
+      return;
+    }
+
+    const templateId = String(button.dataset.createTemplateModeId || "").trim();
+    if (!templateId) return;
+    const changed = templateId !== createSelectedTemplateId;
+    if (changed) {
+      applyCreateTemplateSelection(templateId);
+    }
+    renderCreateModeChoices();
+    closeCreateModeChoiceModal();
+    if (changed) handleCreateInputMutation();
+
+    if (createSelectedTemplateId === CREATE_DIRECT_PROMPT_TEMPLATE.id) {
+      window.setTimeout(() => {
+        createCustomPrompt?.focus();
+      }, 0);
+    }
+  });
+
+  createModeChoiceModalClose?.addEventListener("click", () => {
+    closeCreateModeChoiceModal();
+  });
+
+  createModeChoiceModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.matches("[data-create-mode-choice-close]")) {
+      closeCreateModeChoiceModal();
+    }
+  });
+
+  createIsClothingToggle?.addEventListener("change", () => {
+    const nextTypeId = createIsClothingToggle.checked ? "clothing_and_shoes" : "general_product";
+    const changed = setCreateProductType(nextTypeId, { resetAngle: true });
+    createProductTypeSource = "manual";
+    logProductTypeEvent("product_type_manual_override", { productType: createProductTypeId });
+    syncCreateProductTypeDetectionStatus();
+    renderCreateProductRouting();
+    if (changed) handleCreateInputMutation();
+  });
+
+  createAngleSuggestions?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const angleButton = target.closest("[data-product-angle-id]");
+    if (!(angleButton instanceof HTMLElement)) return;
+
+    if (setCreateProductAngle(angleButton.dataset.productAngleId)) {
+      renderCreateProductRouting();
+      handleCreateInputMutation();
+    }
   });
 
   createReferenceModalClose?.addEventListener("click", () => {
@@ -8253,6 +9716,16 @@
   createTemplateGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const angleButton = target.closest("[data-product-angle-id]");
+    if (angleButton instanceof HTMLElement) {
+      if (setCreateProductAngle(angleButton.dataset.productAngleId)) {
+        renderCreateTemplateLibrary();
+        handleCreateInputMutation();
+      }
+      closeCreateReferenceLibrary();
+      return;
+    }
+
     const templateButton = target.closest("[data-template-id]");
     if (!(templateButton instanceof HTMLElement)) return;
 
@@ -8337,11 +9810,24 @@
   });
 
   createBestModelSelect?.addEventListener("change", () => {
-    const nextTier = toText(createBestModelSelect.value);
-    if (!CREATE_BEST_MODEL_OPTIONS[nextTier] || nextTier === createBestModelTier) return;
-    createBestModelTier = nextTier;
-    syncCreateBestModelState();
-    syncCreateFormState();
+    setCreateBestModelTier(createBestModelSelect.value);
+  });
+
+  const createBestModelControl = createBestModelSelect?.closest(".create-best-model-control");
+  const toggleCreateBestModelTier = () => {
+    if (!createBestModelSelect || createBestModelSelect.disabled) return;
+    setCreateBestModelTier(createBestModelTier === "best" ? "good" : "best");
+  };
+
+  createBestModelControl?.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleCreateBestModelTier();
+  });
+
+  createBestModelControl?.addEventListener("keydown", (event) => {
+    if (event.key !== " " && event.key !== "Enter") return;
+    event.preventDefault();
+    toggleCreateBestModelTier();
   });
 
   createGenerationNotesToggle?.addEventListener("click", () => {
@@ -8399,7 +9885,9 @@
     createIsGenerating = true;
     createGeneratedResults = [];
     createActivePreviewResultId = "";
+    createLastHistoryEntryId = "";
     setCreateResultsProcessing(true);
+    setCreateResultsProcessingStage("analyzing");
     setDoneState(createDoneBadge, false);
     setStatusMessage(createStatus, "Анализируем ваш товар...", "");
     setRequestMeta(createMeta, "Статус запроса:", "Анализируем ваш товар");
@@ -8415,6 +9903,7 @@
 
       if (usesInstructionPromptFlow) {
         createAiPromptPhase = "loading";
+        setCreateResultsProcessingStage("planning");
         setStatusMessage(createStatus, "Анализируем ваш товар...", "");
         setRequestMeta(createMeta, "Статус запроса:", "Анализируем ваш товар");
         syncCreateFormState();
@@ -8445,6 +9934,7 @@
             throw new Error("Не удалось получить AI-анализ для генерации карточек.");
           }
         }
+        setCreateResultsProcessingStage("planning");
       } else {
         setStatusMessage(createStatus, "Создаем карточку...", "");
         setRequestMeta(createMeta, "Статус запроса:", "Создаем карточку");
@@ -8462,6 +9952,10 @@
       }
       const payload = await buildCreateGenerationPayload();
       payload.requestId = buildClientRequestId("create-generate", requestId);
+      setCreateResultsProcessingStage("generating");
+      setStatusMessage(createStatus, "Генерация изображения займет 3-5 минут. Не закрывайте страницу.", "");
+      setRequestMeta(createMeta, "Статус запроса:", "Генерация изображения: 3-5 минут");
+      syncCreateFormState();
       const results = await requestCreateGeneration(payload);
       if (requestId !== createGenerationRequestId) return;
 
@@ -8470,7 +9964,13 @@
         throw new Error("Генерация вернула пустой результат.");
       }
 
+      const selectableResults = createGeneratedResults.filter((result) => result?.status !== "failed" && result?.previewUrl);
+      if (!selectableResults.length) {
+        throw new Error("Generation providers did not return a selectable image.");
+      }
+
       const isTextReplaceResultSet = isCreateTextReplaceTemplate(getCreateSelectedTemplate());
+      setCreateResultsProcessingStage("finalizing");
       setStatusMessage(createStatus, "Готовим результат", "");
       setRequestMeta(createMeta, "Статус запроса:", "Готовим результат");
       await waitForCreateResultImages(createGeneratedResults, {
@@ -8479,46 +9979,61 @@
       if (requestId !== createGenerationRequestId) return;
 
       const preferredTextReplaceResult = isCreateTextReplaceTemplate(getCreateSelectedTemplate())
-        ? createGeneratedResults.find((result) => String(result?.id || "").includes("final")) || null
+        ? selectableResults.find((result) => String(result?.id || "").includes("final")) || null
         : null;
-      createActivePreviewResultId = preferredTextReplaceResult?.id || createGeneratedResults[0]?.id || "";
+      createActivePreviewResultId = preferredTextReplaceResult?.id || selectableResults[0]?.id || "";
       setCreateResultsProcessing(false);
       renderCreateResults();
 
       const total = createGeneratedResults.length;
+      const completedTotal = selectableResults.length;
+      const failedTotal = Math.max(0, total - completedTotal);
       setDoneState(createDoneBadge, true);
-      setStatusMessage(createStatus, "Готово. Сгенерировано " + String(total) + " " + formatCardsWord(total) + ".", "success");
-      setRequestMeta(createMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
+      setStatusMessage(createStatus, "Готово. Сгенерировано " + String(completedTotal) + " " + formatCardsWord(completedTotal) + (failedTotal ? ", " + String(failedTotal) + " провайдер без результата." : "."), "success");
+      setRequestMeta(createMeta, "Статус запроса:", "Готово: " + String(completedTotal) + " " + formatCardsWord(completedTotal));
       createIsGenerating = false;
       syncCreateFormState();
 
       const marketplace = createMarketplace?.value || "Маркетплейс";
-      const historyPayload = await buildCreateHistoryPayload(payload, createGeneratedResults);
-      const historySave = await pushHistory({
-        mode: "create",
-        title: String(total) + " " + formatCardsWord(total) + " • " + marketplace,
-        summary: historyPayload.summary,
-        prompt: historyPayload.prompt,
-        resultsCount: total,
-        previewUrl: historyPayload.previewUrl,
-        resultPreviews: historyPayload.resultPreviews,
-        input: historyPayload.input,
-        uploads: historyPayload.uploads,
-        ai: historyPayload.ai,
-        results: historyPayload.results,
-        meta: {
-          marketplace,
-          promptMode: createPromptMode,
-        },
-      });
-      if (!historySave?.ok) {
-        setStatusMessage(createStatus, "Генерация готова, но история не сохранилась в backend.", "error");
-        setRequestMeta(createMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+      try {
+        const historyPayload = await buildCreateHistoryPayload(payload, createGeneratedResults);
+        const historySave = await pushHistory({
+          mode: "create",
+          title: String(total) + " " + formatCardsWord(total) + " • " + marketplace,
+          summary: historyPayload.summary,
+          prompt: historyPayload.prompt,
+          resultsCount: total,
+          selectedResultId: historyPayload.selectedResultId,
+          previewUrl: historyPayload.previewUrl,
+          resultPreviews: historyPayload.resultPreviews,
+          input: historyPayload.input,
+          uploads: historyPayload.uploads,
+          ai: historyPayload.ai,
+          results: historyPayload.results,
+          meta: {
+            marketplace,
+            promptMode: createPromptMode,
+            ...(historyPayload.meta || {}),
+          },
+        });
+        if (historySave?.entry?.id) {
+          createLastHistoryEntryId = historySave.entry.id;
+        }
+        if (!historySave?.ok) {
+          setStatusMessage(createStatus, "Генерация готова, но история не сохранилась в backend.", "error");
+          setRequestMeta(createMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+        }
+      } catch (historyError) {
+        console.warn("[history] create save failed", historyError);
+        setStatusMessage(createStatus, "Генерация готова, но историю сохранить не удалось.", "error");
+        setRequestMeta(createMeta, "Статус запроса:", "История не сохранена", "error");
       }
     } catch (error) {
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];
       createActivePreviewResultId = "";
+      createLastHistoryEntryId = "";
+      setCreateResultsProcessingStage("error");
       if (createAiPromptPhase === "loading") {
         createAiPromptPhase = isInterruptedRequestError(error) ? "interrupted" : "error";
       }
@@ -8602,8 +10117,83 @@
     }
   };
 
+  const handleFourCardsSourceSelection = async (fileList) => {
+    if (isFourCardsControlsLocked()) {
+      setStatusMessage(fourCardsStatus, "Дождитесь завершения текущей генерации.", "");
+      syncFourCardsFormState();
+      return;
+    }
+
+    const file = fileList?.[0];
+    if (!file) return;
+
+    try {
+      await applyFourCardsSourceFile(file);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось загрузить изображение.";
+      setStatusMessage(fourCardsStatus, message, "error");
+      syncFourCardsFormState();
+    } finally {
+      if (fourCardsImageInput) {
+        fourCardsImageInput.value = "";
+      }
+    }
+  };
+
   improveImageInput?.addEventListener("change", () => {
     handleImproveSourceSelection(improveImageInput.files);
+  });
+
+  fourCardsImageInput?.addEventListener("change", () => {
+    handleFourCardsSourceSelection(fourCardsImageInput.files);
+  });
+
+  fourCardsUploadZone?.addEventListener("click", () => {
+    if (isFourCardsControlsLocked()) return;
+    fourCardsImageInput?.click();
+  });
+
+  fourCardsUploadZone?.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+    if (isFourCardsControlsLocked()) return;
+    fourCardsDragDepth += 1;
+    fourCardsUploadZone.classList.add("is-dragover");
+  });
+
+  fourCardsUploadZone?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    if (isFourCardsControlsLocked()) return;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  });
+
+  fourCardsUploadZone?.addEventListener("dragleave", () => {
+    if (isFourCardsControlsLocked()) return;
+    fourCardsDragDepth = Math.max(0, fourCardsDragDepth - 1);
+    if (fourCardsDragDepth === 0) {
+      fourCardsUploadZone.classList.remove("is-dragover");
+    }
+  });
+
+  fourCardsUploadZone?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    fourCardsDragDepth = 0;
+    fourCardsUploadZone.classList.remove("is-dragover");
+    if (isFourCardsControlsLocked()) return;
+    handleFourCardsSourceSelection(event.dataTransfer?.files);
+  });
+
+  fourCardsGenerateBtn?.addEventListener("click", () => {
+    void runFourCardsGeneration();
+  });
+
+  fourCardsRegenerateBtn?.addEventListener("click", () => {
+    void runFourCardsGeneration();
+  });
+
+  fourCardsDownloadAllBtn?.addEventListener("click", () => {
+    downloadFourCardsFiles();
   });
 
   improveReferenceInput?.addEventListener("change", () => {
@@ -8676,18 +10266,22 @@
     createUploadDragDepth = 0;
     improvePrimaryDragDepth = 0;
     improveReferenceDragDepth = 0;
+    fourCardsDragDepth = 0;
     createUploadZone?.classList.remove("is-dragover");
     improvePrimaryUploadZone?.classList.remove("is-dragover");
     improveReferenceUploadZone?.classList.remove("is-dragover");
+    fourCardsUploadZone?.classList.remove("is-dragover");
   });
 
   window.addEventListener("drop", () => {
     createUploadDragDepth = 0;
     improvePrimaryDragDepth = 0;
     improveReferenceDragDepth = 0;
+    fourCardsDragDepth = 0;
     createUploadZone?.classList.remove("is-dragover");
     improvePrimaryUploadZone?.classList.remove("is-dragover");
     improveReferenceUploadZone?.classList.remove("is-dragover");
+    fourCardsUploadZone?.classList.remove("is-dragover");
   });
 
   window.addEventListener("kartochka:improve:prefill", (event) => {
@@ -8756,8 +10350,8 @@
     setStatusMessage(
       improveStatus,
       referenceStyleActive
-        ? "AI улучшает карточку в стиле референса и готовит варианты..."
-        : "AI улучшает карточку и готовит варианты...",
+        ? "AI улучшает карточку в стиле референса. Генерация обычно занимает 3-5 минут, не закрывайте страницу."
+        : "AI улучшает карточку. Генерация обычно занимает 3-5 минут, не закрывайте страницу.",
       ""
     );
     setRequestMeta(
@@ -8766,9 +10360,7 @@
       referenceStyleActive ? "Улучшение карточки: reference style" : "Улучшение карточки: подготовка"
     );
     if (improveResultsCaption) {
-      improveResultsCaption.textContent = referenceStyleActive
-        ? "AI улучшает карточку по стилю референса и подготавливает варианты..."
-        : "AI улучшает карточку и подготавливает варианты...";
+      improveResultsCaption.textContent = "Генерация идет через GPT Image 2 и может занять 3-5 минут. Страница сама покажет результат.";
     }
     if (improveResultsGrid) {
       improveResultsGrid.textContent = "";
@@ -8805,27 +10397,33 @@
       setStatusMessage(improveStatus, "Готово. Подготовлено " + String(total) + " " + formatCardsWord(total) + ".", "success");
       setRequestMeta(improveMeta, "Статус запроса:", "Готово: " + String(total) + " " + formatCardsWord(total));
 
-      const historyPayload = await buildImproveHistoryPayload(payload, improveGeneratedResults);
-      const historySave = await pushHistory({
-        mode: "improve",
-        title: String(total) + " " + formatCardsWord(total) + " • Улучшение",
-        summary: historyPayload.summary,
-        prompt: historyPayload.prompt,
-        resultsCount: total,
-        previewUrl: historyPayload.previewUrl,
-        resultPreviews: historyPayload.resultPreviews,
-        input: historyPayload.input,
-        uploads: historyPayload.uploads,
-        ai: historyPayload.ai,
-        results: historyPayload.results,
-        meta: {
-          improveMode,
-          referenceStyle: referenceStyleActive,
-        },
-      });
-      if (!historySave?.ok) {
-        setStatusMessage(improveStatus, "Улучшение готово, но история не сохранилась в backend.", "error");
-        setRequestMeta(improveMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+      try {
+        const historyPayload = await buildImproveHistoryPayload(payload, improveGeneratedResults);
+        const historySave = await pushHistory({
+          mode: "improve",
+          title: String(total) + " " + formatCardsWord(total) + " • Улучшение",
+          summary: historyPayload.summary,
+          prompt: historyPayload.prompt,
+          resultsCount: total,
+          previewUrl: historyPayload.previewUrl,
+          resultPreviews: historyPayload.resultPreviews,
+          input: historyPayload.input,
+          uploads: historyPayload.uploads,
+          ai: historyPayload.ai,
+          results: historyPayload.results,
+          meta: {
+            improveMode,
+            referenceStyle: referenceStyleActive,
+          },
+        });
+        if (!historySave?.ok) {
+          setStatusMessage(improveStatus, "Улучшение готово, но история не сохранилась в backend.", "error");
+          setRequestMeta(improveMeta, "Статус запроса:", historySave?.feedback?.metaValue || "История не сохранена", "error");
+        }
+      } catch (historyError) {
+        console.warn("[history] improve save failed", historyError);
+        setStatusMessage(improveStatus, "Улучшение готово, но историю сохранить не удалось.", "error");
+        setRequestMeta(improveMeta, "Статус запроса:", "История не сохранена", "error");
       }
 
       improveResultsSection?.scrollIntoView({
@@ -8983,6 +10581,10 @@
   setRequestMeta(improveMeta, "Статус запроса:", "Ожидание исходной карточки");
   syncImproveFormState();
 
+  renderFourCardsResult();
+  setRequestMeta(fourCardsMeta, "Статус запроса:", "Ждём исходное изображение");
+  syncFourCardsFormState();
+
   void refreshHistory();
   void refreshBillingSummary();
   window.addEventListener("hashchange", handleAppHashRoute);
@@ -9030,6 +10632,7 @@
 
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      closeCreateModeChoiceModal();
       closeCreateReferenceLibrary();
       closeCreateImageManagerModal();
       closeBillingModal();
@@ -9182,10 +10785,6 @@
 
   if (!hasFirebaseSdk) {
     setAuthMessage("Firebase SDK не загружен", "error");
-  }
-
-  if (isDedicatedAppHost()) {
-    setAppRouteBootstrapPending(true);
   }
 
   googleAuthBtn?.addEventListener("click", async () => {
@@ -9356,9 +10955,12 @@
       closeAuthModal();
       setAppRouteBootstrapPending(false);
       void Promise.allSettled([refreshHistory(), refreshBillingSummary()]);
-      void persistUserProfile(user).catch((error) => {
+
+      try {
+        await persistUserProfile(user);
+      } catch (error) {
         setAuthMessage(mapAuthError(error), "error");
-      });
+      }
     });
   } else {
     syncCabinetButton(null);

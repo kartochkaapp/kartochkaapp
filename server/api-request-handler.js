@@ -46,6 +46,10 @@ const handleKartochkaAction = async (request, response, actionName) => {
   return handleApiActionRequest(request, response, ({ kartochkaHandlers }) => kartochkaHandlers?.[actionName]);
 };
 
+const handleProductAction = async (request, response, actionName) => {
+  return handleApiActionRequest(request, response, ({ productHandlers }) => productHandlers?.[actionName]);
+};
+
 const handleEnhanceCardRequest = async (request, response) => {
   return handleApiActionRequest(request, response, ({ enhanceCardHandler }) => enhanceCardHandler);
 };
@@ -53,4 +57,5 @@ const handleEnhanceCardRequest = async (request, response) => {
 module.exports = {
   handleEnhanceCardRequest,
   handleKartochkaAction,
+  handleProductAction,
 };

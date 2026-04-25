@@ -6,7 +6,7 @@ const http = require("node:http");
 const vm = require("node:vm");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
-const APP_MODES = ["create", "improve", "tools", "animate", "history"];
+const APP_MODES = ["create", "improve", "fourCards", "tools", "animate", "history"];
 const SYNTAX_ONLY = process.argv[2] === "syntax";
 
 const log = (message) => {
@@ -112,6 +112,10 @@ const runStaticChecks = () => {
     }),
     "Missing public-host root rewrite to public.html"
   );
+  assert(
+    hasRewrite(rewrites, "/api/product/detect-type", "/api/kartochka.js?action=productDetectType"),
+    "Missing product type detection API rewrite"
+  );
 
   const indexHtml = readText("index.html");
   assert(indexHtml.includes('data-app-mode-panel="improve"'), "Improve panel missing from index.html");
@@ -121,6 +125,9 @@ const runStaticChecks = () => {
   assert(indexHtml.includes('id="toolsAppRoot"'), "Tools mount missing from index.html");
   assert(indexHtml.includes('data-app-mode-panel="history"'), "History panel missing from index.html");
   assert(indexHtml.includes('id="historyModeList"'), "History workspace list missing from index.html");
+  assert(indexHtml.includes('id="createIsClothingToggle"'), "Product type toggle missing from index.html");
+  assert(indexHtml.includes('id="createAngleSuggestions"'), "Product angle suggestions missing from index.html");
+  assert(indexHtml.includes('id="createProductRoutingSummary"'), "Product routing summary missing from index.html");
   assert(indexHtml.includes("./ui-loading-theme.js"), "Loading UX script is not loaded by index.html");
   assert(indexHtml.includes("./improve-card-flow.js"), "Improve workbench script is not loaded by index.html");
   assert(indexHtml.includes("./tools-module.js"), "Tools module script is not loaded by index.html");
@@ -141,6 +148,7 @@ const runStaticChecks = () => {
   assert(improveScript.includes("kartochka:improve:prefill"), "Visible improve flow does not accept prefill events");
 
   const servicesScript = readText(path.join("services", "kartochka-services.js"));
+  assert(servicesScript.includes("productDetectType"), "Product type detection client endpoint is missing");
   assert(servicesScript.includes("createRequestLifecycleTracker"), "Mobile request lifecycle tracker is missing");
   assert(servicesScript.includes("waitUntilInteractive"), "Mobile recovery wait hook is missing");
   assert(servicesScript.includes("backgroundEpoch"), "Background interruption tracking is missing");

@@ -6,6 +6,8 @@ const createOpenRouterGenerationAdapter = (config) => {
   const provider = createOpenRouterProvider(config);
 
   return {
+    id: "nano_banana",
+    label: "Nano Banana",
     executeCreateGeneration(payload) {
       return provider.createGenerate(payload);
     },

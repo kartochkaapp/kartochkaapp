@@ -3,9 +3,11 @@
 const { toText } = require("./utils");
 const { ApiRouteError } = require("./api-route-error");
 const { OpenAIProviderError } = require("./providers/openai");
+const { OpenAIImageProviderError } = require("./providers/openai-image");
 const { OpenRouterProviderError } = require("./providers/openrouter");
 const { OpenAIBrainServiceError } = require("./services/openai-brain-service");
 const { GenerationServiceError } = require("./services/generation-service");
+const { FourMarketplaceCardsServiceError } = require("./services/four-marketplace-cards-service");
 const { HistoryServiceError } = require("./services/history-service");
 const { HistoryAssetServiceError } = require("./services/history-asset-service");
 const { AiLogServiceError } = require("./services/ai-log-service");
@@ -139,9 +141,11 @@ const toApiErrorPayload = (error) => {
 
   if (
     error instanceof OpenAIProviderError
+    || error instanceof OpenAIImageProviderError
     || error instanceof OpenRouterProviderError
     || error instanceof OpenAIBrainServiceError
     || error instanceof GenerationServiceError
+    || error instanceof FourMarketplaceCardsServiceError
     || error instanceof HistoryServiceError
     || error instanceof HistoryAssetServiceError
     || error instanceof AiLogServiceError

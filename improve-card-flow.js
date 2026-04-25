@@ -2,30 +2,47 @@
   const stage = document.getElementById("enhanceCardStage");
   const toast = document.getElementById("enhanceCardToast");
   const promptInput = document.getElementById("enhanceCardPrompt");
+  const preserveTextToggle = document.getElementById("enhanceCardPreserveTextToggle");
 
   if (!stage || !toast) return;
 
-  const ENHANCE_ENDPOINT = "/api/enhance-card";
-  const BILLING_ACTION_CODE = "enhance_card";
-  const REQUEST_TIMEOUT_MS = 65000;
-  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-  const MAX_IMAGE_DIMENSION = 1024;
-  const JPEG_QUALITY = 0.84;
-  const AI_IMAGE_MIME_TYPE = "image/png";
-  const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const CLIENT_REQUEST_SESSION_ID = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  const serviceModule = window.KARTOCHKA_ENHANCE_CARD_SERVICE;
+  const stateModule = window.KARTOCHKA_ENHANCE_CARD_STATE;
 
-  const state = {
-    phase: "upload",
-    sourceFile: null,
-    sourceName: "",
-    sourcePreviewUrl: "",
-    uploadDataUrl: "",
-    resultUrl: "",
-    toastTimerId: 0,
-    requestId: 0,
-  };
+  if (!serviceModule || !stateModule) {
+    console.error("[kartochka][enhance-card] Required enhance-card modules are not loaded");
+    return;
+  }
+
+  const {
+    REQUEST_TIMEOUT_MS,
+    createEnhanceCardApi,
+    createFileSource,
+    createLogger,
+    createRemoteSource,
+    createRequestId,
+    isAbortError,
+    validateImageFile,
+  } = serviceModule;
+  const { useEnhanceCardState } = stateModule;
+
+  const BILLING_ACTION_CODE = "enhance_card";
+  const logger = createLogger({ scope: "enhance-card-ui" });
+  const store = useEnhanceCardState({ logger });
+  const api = createEnhanceCardApi({
+    endpoint: "/api/enhance-card",
+    logger,
+    getAuthHeaders: async () => {
+      return window.KARTOCHKA_AUTH_SESSION?.getHeaders
+        ? window.KARTOCHKA_AUTH_SESSION.getHeaders()
+        : {};
+    },
+  });
+
+  let toastTimerId = 0;
+  let imageManagerOpen = false;
+
+  const toText = (value) => String(value || "").trim();
 
   const createElement = (tagName, className, text) => {
     const element = document.createElement(tagName);
@@ -34,7 +51,24 @@
     return element;
   };
 
-  const toText = (value) => String(value || "").trim();
+  const clearToast = () => {
+    if (toastTimerId) {
+      window.clearTimeout(toastTimerId);
+      toastTimerId = 0;
+    }
+    toast.classList.remove("is-visible");
+  };
+
+  const showToast = (message) => {
+    clearToast();
+    toast.textContent = toText(message);
+    if (!toast.textContent) return;
+    toast.classList.add("is-visible");
+    toastTimerId = window.setTimeout(() => {
+      toast.classList.remove("is-visible");
+      toastTimerId = 0;
+    }, 3200);
+  };
 
   const formatTokenWord = (count) => {
     const value = Math.abs(Number(count) || 0);
@@ -65,552 +99,712 @@
     return balance >= cost;
   };
 
-  const createEnhanceButtonCopy = (text) => {
-    const wrapper = createElement("span", "enhance-card-button-copy");
-    wrapper.append(createElement("span", "enhance-card-button-label", text));
-
-    const cost = getActionCost();
-    if (cost) {
-      wrapper.append(createElement("span", "enhance-card-button-cost", formatTokenCount(cost)));
-    }
-
-    return wrapper;
-  };
-
-  const getErrorMessage = (error) => {
-    const name = String(error?.name || "").trim();
-    const message = String(error?.message || "").trim();
-
-    if (name === "AbortError") {
-      return "Улучшение заняло слишком много времени. Попробуйте еще раз.";
-    }
-
-    return message || "Упс, что-то пошло не так. Попробуйте еще раз";
-  };
-
-  const clearToastTimer = () => {
-    if (state.toastTimerId) {
-      window.clearTimeout(state.toastTimerId);
-      state.toastTimerId = 0;
-    }
-  };
-
-  const showToast = (message) => {
-    clearToastTimer();
-    toast.textContent = message;
-    toast.classList.add("is-visible");
-    state.toastTimerId = window.setTimeout(() => {
-      toast.classList.remove("is-visible");
-      state.toastTimerId = 0;
-    }, 3400);
-  };
-
-  const readFileAsDataUrl = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Не удалось прочитать изображение."));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const blobToDataUrl = (blob) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Не удалось подготовить изображение."));
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  const loadImageElement = (sourceUrl) => {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("Не удалось подготовить изображение."));
-      image.src = sourceUrl;
-    });
-  };
-
-  const optimizeImageFile = async (file) => {
-    const sourceUrl = URL.createObjectURL(file);
-
-    try {
-      const image = await loadImageElement(sourceUrl);
-      const width = Number(image.naturalWidth || image.width || 0);
-      const height = Number(image.naturalHeight || image.height || 0);
-      if (!width || !height) {
-        return readFileAsDataUrl(file);
-      }
-
-      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(width, height));
-      const targetWidth = Math.max(1, Math.round(width * scale));
-      const targetHeight = Math.max(1, Math.round(height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-
-      const context = canvas.getContext("2d");
-      if (!context) {
-        return readFileAsDataUrl(file);
-      }
-
-      context.drawImage(image, 0, 0, targetWidth, targetHeight);
-      if (AI_IMAGE_MIME_TYPE === "image/png") {
-        return canvas.toDataURL("image/png");
-      }
-      return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-    } finally {
-      URL.revokeObjectURL(sourceUrl);
-    }
-  };
-
-  const buildDownloadName = (fileName) => {
-    const safeName = String(fileName || "product-card")
+  const buildDownloadName = (fileName, resultUrl) => {
+    const safeBaseName = String(fileName || "product-card")
       .trim()
       .replace(/\.[a-z0-9]+$/i, "")
       .replace(/[^\w\u0400-\u04FF-]+/g, "-")
       .replace(/-{2,}/g, "-")
       .replace(/^-+|-+$/g, "");
 
-    return (safeName || "product-card") + "-enhanced.jpg";
+    const mimeMatch = String(resultUrl || "").match(/^data:image\/([a-z0-9+.-]+);/i);
+    const extension = mimeMatch?.[1]?.replace("jpeg", "jpg") || "jpg";
+    return (safeBaseName || "product-card") + "-enhanced." + extension;
   };
 
-  const validateFile = (file) => {
-    if (!file) {
-      return "Сначала загрузите изображение карточки.";
+  const resolveHumanError = (error, timedOut) => {
+    if (timedOut) {
+      return "Запрос занял слишком много времени. Исходник и настройки сохранены: повторите с теми же параметрами или загрузите другую карточку.";
     }
 
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return "Поддерживаются только PNG, JPG и WEBP.";
+    if (isAbortError(error)) {
+      return "Запрос был остановлен. Можно сразу повторить попытку.";
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return "Файл слишком большой. Используйте изображение до 10 МБ.";
-    }
-
-    return "";
+    const message = toText(error?.message);
+    return message || "Не удалось улучшить карточку. Попробуйте ещё раз.";
   };
 
-  const getUserImprovePrompt = () => toText(promptInput?.value || "");
-
-  const resolveSourceUrlToDataUrl = async (sourceUrl) => {
-    const safeSourceUrl = toText(sourceUrl);
-    if (!safeSourceUrl) {
-      throw new Error("Не удалось подготовить карточку для улучшения.");
-    }
-
-    if (/^data:image\//i.test(safeSourceUrl)) {
-      return safeSourceUrl;
-    }
-
-    const response = await fetch(safeSourceUrl);
-    if (!response.ok) {
-      throw new Error("Не удалось подготовить карточку для улучшения.");
-    }
-
-    const blob = await response.blob();
-    return blobToDataUrl(blob);
+  const getTextMode = () => {
+    return Boolean(preserveTextToggle?.checked) ? "preserve" : "rewrite";
   };
 
-  const resetState = () => {
-    state.phase = "upload";
-    state.sourceFile = null;
-    state.sourceName = "";
-    state.sourcePreviewUrl = "";
-    state.uploadDataUrl = "";
-    state.resultUrl = "";
-    render();
+  const setTextMode = (mode) => {
+    if (!preserveTextToggle) return;
+    const nextMode = mode === "rewrite" ? "rewrite" : "preserve";
+    preserveTextToggle.checked = nextMode === "preserve";
+    logger.info("text_mode_changed", { mode: nextMode });
+    render(store.getState());
   };
 
-  const createPreviewWindow = (options) => {
-    const windowElement = createElement("div", "enhance-card-preview-window");
-    if (options?.isResult) {
-      windowElement.classList.add("is-result");
+  const getStatusDescriptor = (state) => {
+    switch (state.status) {
+      case "file_selected":
+        if (!hasEnoughTokens() && getBillingState()?.summary) {
+          return {
+            tone: "warning",
+            title: "Недостаточно токенов",
+            text: "Пополните баланс или выберите другой сценарий. Сайт остаётся доступным, загрузка не потеряна.",
+          };
+        }
+        return {
+          tone: "ready",
+          title: "",
+          text: "",
+        };
+      case "submitting":
+        return {
+          tone: "processing",
+          title: "Подготавливаем изображение",
+          text: "Бережно готовим исходник к отправке, не перегружая интерфейс тяжёлыми операциями.",
+        };
+      case "processing":
+        return {
+          tone: "processing",
+          title: "AI обрабатывает карточку",
+          text: "AI пересобирает композицию, акценты и подачу в более сильную 3:4 карточку. Интерфейс остаётся свободным.",
+        };
+      case "success":
+        return {
+          tone: "success",
+          title: "Улучшение готово",
+          text: "Результат готов. Можно скачать файл, сделать вариант 2 или загрузить другую карточку.",
+        };
+      case "error":
+        return {
+          tone: "error",
+          title: "Ошибка улучшения",
+          text: state.errorMessage || "Сервис не вернул итог. Исходник и настройки сохранены: повторите с теми же параметрами или смените карточку.",
+        };
+      case "timeout":
+        return {
+          tone: "timeout",
+          title: "Сработал timeout",
+          text: state.errorMessage || "Ответ сервера пришёл слишком поздно. Можно повторить запрос с теми же настройками или загрузить другую карточку.",
+        };
+      case "idle":
+      default:
+        return {
+          tone: "neutral",
+          title: "",
+          text: "",
+        };
     }
-
-    if (options?.sourceUrl) {
-      const sourceImage = createElement("img");
-      sourceImage.src = options.sourceUrl;
-      sourceImage.alt = options?.sourceAlt || "Загруженная карточка товара";
-      sourceImage.dataset.role = "source";
-      windowElement.append(sourceImage);
-    }
-
-    if (options?.resultUrl) {
-      const resultImage = createElement("img");
-      resultImage.src = options.resultUrl;
-      resultImage.alt = options?.resultAlt || "Улучшенная карточка товара";
-      resultImage.dataset.role = "result";
-      windowElement.append(resultImage);
-    }
-
-    return windowElement;
   };
 
-  const buildUploadView = () => {
-    const view = createElement("div", "enhance-card-view");
-    const frame = createElement("div", "enhance-card-frame");
-    const label = createElement("label", "enhance-card-dropzone");
-    label.setAttribute("for", "enhanceCardInput");
-
-    const input = createElement("input", "enhance-card-file-input");
-    input.id = "enhanceCardInput";
-    input.type = "file";
-    input.accept = "image/png,image/jpeg,image/webp";
-
-    label.append(input);
-
-    if (state.sourcePreviewUrl) {
-      const previewWrap = createElement("div", "enhance-card-preview-wrap");
-      previewWrap.append(
-        createPreviewWindow({
-          sourceUrl: state.sourcePreviewUrl,
-          sourceAlt: "Загруженная карточка товара",
-        })
-      );
-
-      const previewMeta = createElement("div", "enhance-card-preview-meta");
-      previewMeta.append(
-        createElement("strong", "", "Карточка загружена"),
-        createElement("span", "", state.sourceName || "Файл готов к улучшению")
-      );
-      previewWrap.append(previewMeta);
-      label.append(previewWrap);
-    } else {
-      const placeholder = createElement("div", "enhance-card-placeholder");
-      const icon = createElement("div", "enhance-card-placeholder-icon");
-      icon.setAttribute("aria-hidden", "true");
-
-      const copy = createElement("div", "enhance-card-placeholder-copy");
-      copy.append(
-        createElement("strong", "", "Перетащите карточку сюда"),
-        createElement("p", "", "или нажмите, чтобы выбрать изображение товара"),
-        createElement("span", "", "PNG, JPG, WEBP • до 10 МБ")
-      );
-
-      placeholder.append(icon, copy);
-      label.append(placeholder);
-    }
-
-    frame.append(label);
-
-    const noteText = state.sourcePreviewUrl
-      ? !hasEnoughTokens() && getBillingState()?.summary
-        ? "Недостаточно токенов для улучшения. Откройте баланс и пополните его."
-        : ""
-      : "";
-
-    const actions = createElement("div", "enhance-card-actions");
-    if (state.sourcePreviewUrl) {
-      const submitButton = createElement("button", "btn btn-primary enhance-card-primary", "Улучшить");
-      submitButton.type = "button";
-      submitButton.id = "enhanceCardSubmitBtn";
-      submitButton.textContent = "";
-      submitButton.append(createEnhanceButtonCopy("Улучшить"));
-      submitButton.toggleAttribute("disabled", !hasEnoughTokens() || !state.uploadDataUrl);
-
-      const replaceButton = createElement("button", "enhance-card-secondary", "Загрузить другую");
-      replaceButton.type = "button";
-      replaceButton.id = "enhanceCardReplaceBtn";
-
-      actions.append(submitButton, replaceButton);
-    }
-
-    view.append(frame);
-    if (noteText) {
-      const note = createElement("p", "enhance-card-status-note", noteText);
-      view.append(note);
-    }
-    if (actions.childElementCount) {
-      view.append(actions);
-    }
-
-    return view;
+  const openFilePicker = () => {
+    const input = stage.querySelector("#enhanceCardInput");
+    input?.click();
   };
 
-  const buildLoadingView = () => {
-    const view = createElement("div", "enhance-card-view");
-    const frame = createElement("div", "enhance-card-frame");
-    const previewWrap = createElement("div", "enhance-card-preview-wrap");
-    previewWrap.append(
-      createPreviewWindow({
-        sourceUrl: state.sourcePreviewUrl,
-        sourceAlt: "Карточка в обработке",
-      })
-    );
-    frame.append(previewWrap);
-
-    const overlay = createElement("div", "enhance-card-loading-overlay");
-    const scanline = createElement("div", "enhance-card-scanline");
-    scanline.setAttribute("aria-hidden", "true");
-
-    const copy = createElement("div", "enhance-card-loading-copy");
-    const spinner = createElement("div", "enhance-card-spinner");
-    spinner.setAttribute("aria-hidden", "true");
-    copy.append(
-      spinner,
-      createElement("strong", "", "KARTOCHKA колдует над вашей карточкой..."),
-      createElement("span", "", "Подкручиваем свет, фон и подачу, сохраняя сам товар.")
-    );
-
-    overlay.append(scanline, copy);
-    frame.append(overlay);
-
-    const actions = createElement("div", "enhance-card-actions");
-    const busyButton = createElement("button", "btn btn-primary enhance-card-primary", "Улучшаем...");
-    busyButton.type = "button";
-    busyButton.disabled = true;
-    busyButton.textContent = "";
-    busyButton.append(createEnhanceButtonCopy("Улучшаем..."));
-    actions.append(busyButton);
-
-    view.append(frame, actions);
-    return view;
-  };
-
-  const buildResultView = () => {
-    const view = createElement("div", "enhance-card-view");
-    const frame = createElement("div", "enhance-card-frame");
-    const previewWrap = createElement("div", "enhance-card-preview-wrap");
-    const previewWindow = createPreviewWindow({
-      sourceUrl: state.sourcePreviewUrl,
-      resultUrl: state.resultUrl,
-      sourceAlt: "Исходная карточка товара",
-      resultAlt: "Улучшенная карточка товара",
-      isResult: true,
-    });
-
-    previewWrap.append(previewWindow);
-
-    const previewMeta = createElement("div", "enhance-card-preview-meta");
-    previewMeta.append(
-      createElement("strong", "", "Готово"),
-      createElement("span", "", "Улучшенная карточка готова к скачиванию")
-    );
-    previewWrap.append(previewMeta);
-    frame.append(previewWrap);
-
-    const actions = createElement("div", "enhance-card-actions");
-    const downloadButton = createElement("button", "btn btn-primary enhance-card-primary", "Скачать");
-    downloadButton.type = "button";
-    downloadButton.id = "enhanceCardDownloadBtn";
-
-    const resetButton = createElement("button", "enhance-card-secondary", "Улучшить другую");
-    resetButton.type = "button";
-    resetButton.id = "enhanceCardResetBtn";
-
-    actions.append(downloadButton, resetButton);
-    view.append(frame, actions);
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        previewWindow.classList.add("is-revealed");
-      });
-    });
-
-    return view;
-  };
-
-  const bindFileControls = () => {
-    const fileInput = stage.querySelector("#enhanceCardInput");
-    const dropzone = stage.querySelector(".enhance-card-dropzone");
-    const submitButton = stage.querySelector("#enhanceCardSubmitBtn");
-    const replaceButton = stage.querySelector("#enhanceCardReplaceBtn");
-
-    fileInput?.addEventListener("change", async () => {
-      await handleSelectedFile(fileInput.files?.[0] || null);
-      fileInput.value = "";
-    });
-
-    replaceButton?.addEventListener("click", () => {
-      fileInput?.click();
-    });
-
-    submitButton?.addEventListener("click", () => {
-      void runEnhancement();
-    });
-
-    if (!dropzone) return;
-
-    ["dragenter", "dragover"].forEach((eventName) => {
-      dropzone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        dropzone.classList.add("is-dragover");
-      });
-    });
-
-    ["dragleave", "dragend"].forEach((eventName) => {
-      dropzone.addEventListener(eventName, () => {
-        dropzone.classList.remove("is-dragover");
-      });
-    });
-
-    dropzone.addEventListener("drop", async (event) => {
-      event.preventDefault();
-      dropzone.classList.remove("is-dragover");
-      const file = event.dataTransfer?.files?.[0] || null;
-      await handleSelectedFile(file);
-    });
-  };
-
-  const bindResultControls = () => {
-    const downloadButton = stage.querySelector("#enhanceCardDownloadBtn");
-    const resetButton = stage.querySelector("#enhanceCardResetBtn");
-
-    downloadButton?.addEventListener("click", () => {
-      const url = state.resultUrl || state.sourcePreviewUrl;
-      if (!url) return;
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = buildDownloadName(state.sourceName);
-      document.body.append(link);
-      link.click();
-      link.remove();
-    });
-
-    resetButton?.addEventListener("click", () => {
-      resetState();
-    });
-  };
-
-  const render = () => {
-    stage.textContent = "";
-
-    if (state.phase === "loading") {
-      stage.append(buildLoadingView());
-      return;
-    }
-
-    if (state.phase === "result") {
-      stage.append(buildResultView());
-      bindResultControls();
-      return;
-    }
-
-    stage.append(buildUploadView());
-    bindFileControls();
-  };
-
-  const handleSelectedFile = async (file) => {
-    const validationError = validateFile(file);
+  const handleFileSelection = (file) => {
+    const validationError = validateImageFile(file);
     if (validationError) {
       showToast(validationError);
       return;
     }
 
-    try {
-      const optimizedDataUrl = await optimizeImageFile(file);
-      state.sourceFile = file;
-      state.sourceName = String(file.name || "card-image");
-      state.sourcePreviewUrl = optimizedDataUrl;
-      state.uploadDataUrl = optimizedDataUrl;
-      state.resultUrl = "";
-      state.phase = "upload";
-      render();
-    } catch (error) {
-      showToast(getErrorMessage());
-    }
+    const source = createFileSource(file);
+    store.setSource(source, { event: "file_selected" });
   };
 
-  const runEnhancement = async () => {
-    if (!state.uploadDataUrl || state.phase === "loading") {
-      return;
-    }
+  const submitCurrentSource = async (options) => {
+    const currentState = store.getState();
+    if (!currentState.source || currentState.isBusy) return;
+
     if (!hasEnoughTokens() && getBillingState()?.summary) {
-      showToast("Недостаточно токенов для улучшения.");
+      showToast("Недостаточно токенов для улучшения карточки.");
       return;
     }
 
-    const requestId = ++state.requestId;
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const request = store.beginSubmission({ event: options?.retry ? "retry_started" : "submit_started" });
+    if (!request) return;
 
-    state.phase = "loading";
-    render();
+    const requestId = createRequestId();
+    const textMode = getTextMode();
+    const userPrompt = toText(promptInput?.value);
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      logger.warn("request_timeout", {
+        requestId,
+        requestToken: request.requestToken,
+        timeoutMs: REQUEST_TIMEOUT_MS,
+      });
+      request.controller.abort();
+    }, REQUEST_TIMEOUT_MS);
 
     try {
-      const authHeaders = window.KARTOCHKA_AUTH_SESSION?.getHeaders
-        ? await window.KARTOCHKA_AUTH_SESSION.getHeaders()
-        : {};
-      const response = await fetch(ENHANCE_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeaders && typeof authHeaders === "object" ? authHeaders : {}),
-        },
-        body: JSON.stringify({
-          imageDataUrl: state.uploadDataUrl,
-          userPrompt: getUserImprovePrompt(),
-          requestId: "enhance-card-" + CLIENT_REQUEST_SESSION_ID + "-" + String(requestId),
-        }),
-        signal: controller.signal,
+      logger.info("request_started", {
+        requestId,
+        requestToken: request.requestToken,
+        textMode,
+        hasUserPrompt: Boolean(userPrompt),
+        isRetry: Boolean(options?.retry),
       });
 
-      const raw = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(raw?.error?.userMessage || raw?.error?.message || getErrorMessage());
+      const result = await api.submitEnhancement({
+        requestId,
+        source: request.source,
+        userPrompt,
+        preserveSourceTextExactly: textMode === "preserve",
+        signal: request.controller.signal,
+        onProcessing() {
+          store.markProcessing(request.requestToken, { event: "request_sent" });
+        },
+      });
+
+      if (!store.isCurrentRequest(request.requestToken)) return;
+
+      logger.info("request_success", {
+        requestId,
+        requestToken: request.requestToken,
+        textMode,
+        hasResult: Boolean(result.imageDataUrl),
+      });
+
+      store.resolveSuccess(request.requestToken, {
+        resultUrl: result.imageDataUrl,
+      }, { event: "request_success" });
+
+      try {
+        await window.KARTOCHKA_HISTORY?.recordDetachedImproveResult?.({
+          title: "1 карточка - Улучшение",
+          sourcePreviewUrl: request.source?.previewUrl,
+          sourceName: request.source?.name || "source-card.png",
+          resultPreviewUrl: result.imageDataUrl,
+          prompt: userPrompt,
+          userPrompt,
+          mode: "ai",
+          resultSummary: textMode === "preserve"
+            ? "Улучшение с сохранением исходного текста 1 в 1"
+            : "Улучшение с возможностью переработать текст карточки",
+        });
+      } catch (historyError) {
+        logger.warn("history_record_failed", {
+          requestId,
+          requestToken: request.requestToken,
+          errorName: toText(historyError?.name),
+          errorMessage: toText(historyError?.message) || "history_record_failed",
+        });
       }
 
-      if (requestId !== state.requestId) return;
-
-      const resultUrl = String(raw?.imageDataUrl || raw?.resultImageDataUrl || raw?.imageUrl || "").trim();
-      if (!resultUrl) {
-        throw new Error(getErrorMessage());
-      }
-
-      state.resultUrl = resultUrl;
-      state.phase = "result";
-      render();
       window.dispatchEvent(new CustomEvent("kartochka:billing:refresh"));
     } catch (error) {
-      if (requestId !== state.requestId) return;
-      state.phase = "upload";
-      render();
-      showToast(getErrorMessage(error));
+      if (!store.isCurrentRequest(request.requestToken)) return;
+
+      const message = resolveHumanError(error, timedOut);
+      logger.warn("request_failed", {
+        requestId,
+        requestToken: request.requestToken,
+        textMode,
+        timedOut,
+        errorName: toText(error?.name),
+        errorMessage: message,
+      });
+      store.resolveFailure(request.requestToken, message, {
+        event: timedOut ? "request_timeout" : "request_error",
+        timedOut,
+      });
+
       window.dispatchEvent(new CustomEvent("kartochka:billing:refresh"));
     } finally {
       window.clearTimeout(timeoutId);
     }
   };
 
-  if (prefersReducedMotion) {
-    toast.style.transitionDuration = "0.01ms";
-  }
+  const downloadResult = () => {
+    const state = store.getState();
+    const resultUrl = toText(state.resultUrl);
+    if (!resultUrl) return;
 
-  window.addEventListener("kartochka:billing:update", () => {
-    if (state.phase === "upload") {
-      render();
+    const link = document.createElement("a");
+    link.href = resultUrl;
+    link.download = buildDownloadName(state.source?.name, resultUrl);
+    document.body.append(link);
+    link.click();
+    link.remove();
+  };
+
+  const buildPreviewImage = (sourceUrl, altText) => {
+    const image = createElement("img", "enhance-card-v2-image");
+    image.src = sourceUrl;
+    image.alt = altText;
+    return image;
+  };
+
+  const buildAnalysisVisual = (state) => {
+    const panel = createElement("div", "enhance-card-v2-analysis");
+    const stageVisual = createElement("div", "enhance-card-v2-analysis-stage");
+    const frame = createElement("div", "enhance-card-v2-analysis-frame");
+    const product = createElement("div", "enhance-card-v2-analysis-product");
+    const productGlow = createElement("div", "enhance-card-v2-analysis-glow");
+    const beam = createElement("div", "enhance-card-v2-analysis-beam");
+    const grid = createElement("div", "enhance-card-v2-analysis-grid");
+    const chips = createElement("div", "enhance-card-v2-analysis-chips");
+
+    ["Фокус", "Текст", "Композиция"].forEach((labelText, index) => {
+      const chip = createElement("span", "enhance-card-v2-analysis-chip", labelText);
+      if (state.status === "processing" && index === 1) {
+        chip.classList.add("is-active");
+      }
+      chips.append(chip);
+    });
+
+    const metrics = createElement("div", "enhance-card-v2-analysis-metrics");
+    ["Товар", "Иерархия", "Оффер"].forEach((labelText, index) => {
+      const row = createElement("div", "enhance-card-v2-analysis-metric");
+      const label = createElement("span", "", labelText);
+      const track = createElement("div", "enhance-card-v2-analysis-track");
+      const bar = createElement("span", "enhance-card-v2-analysis-bar");
+      bar.style.setProperty("--analysis-bar-scale", String(0.58 + index * 0.14));
+      track.append(bar);
+      row.append(label, track);
+      metrics.append(row);
+    });
+
+    frame.append(productGlow, product, beam, grid, chips);
+    stageVisual.append(frame, metrics);
+
+    const steps = createElement("div", "enhance-card-v2-analysis-steps");
+    [
+      {
+        title: "Подготовка",
+        text: "Нормализуем исходник и держим интерфейс свободным.",
+        active: state.status === "submitting",
+        done: state.status === "processing",
+      },
+      {
+        title: "Анализ",
+        text: "Оцениваем композицию, читаемость и коммерческий потенциал.",
+        active: state.status === "processing",
+        done: false,
+      },
+      {
+        title: "Сборка 3:4",
+        text: "Финальный кадр идёт в вертикальном формате карточки.",
+        active: state.status === "processing",
+        done: false,
+      },
+    ].forEach((stepDefinition) => {
+      const step = createElement("div", "enhance-card-v2-analysis-step");
+      if (stepDefinition.active) step.classList.add("is-active");
+      if (stepDefinition.done) step.classList.add("is-done");
+      step.append(
+        createElement("strong", "", stepDefinition.title),
+        createElement("p", "", stepDefinition.text)
+      );
+      steps.append(step);
+    });
+
+    panel.append(stageVisual, steps);
+    return panel;
+  };
+
+  const buildSourceCard = (state) => {
+    const sourceUrl = toText(state.source?.previewUrl);
+    const panel = createElement("section", "create-form-card create-source-card enhance-card-v2-source-card");
+    const header = createElement("div", "create-card-head");
+    header.append(
+      createElement("h3", "", "Исходная карточка"),
+      createElement("span", "", sourceUrl ? "1 / 1 фото" : "0 / 1 фото")
+    );
+
+    const uploadButton = createElement(
+      "button",
+      "create-upload-dropzone create-upload-dropzone-hero enhance-card-v2-source-dropzone",
+      ""
+    );
+    uploadButton.type = "button";
+    uploadButton.dataset.action = "open-manager";
+    uploadButton.setAttribute("aria-haspopup", "dialog");
+    if (sourceUrl) uploadButton.classList.add("is-filled");
+    if (state.isBusy) uploadButton.disabled = true;
+
+    const stageNode = createElement("span", "create-upload-stage");
+    const frame = createElement("span", "create-upload-preview-frame");
+    const icon = createElement("span", "create-upload-dropzone-icon");
+    icon.setAttribute("aria-hidden", "true");
+    const image = buildPreviewImage(sourceUrl || "", "Превью исходной карточки");
+
+    image.classList.toggle("hidden", !sourceUrl);
+
+    if (sourceUrl) {
+      frame.classList.add("is-filled");
+    }
+
+    frame.append(icon, image);
+
+    const copy = createElement("span", "create-upload-copy");
+    copy.append(
+      createElement("strong", "", sourceUrl ? "Заменить карточку" : "Добавить карточку"),
+      createElement("small", "", "PNG, JPG, WEBP")
+    );
+    stageNode.append(frame, copy);
+    uploadButton.append(stageNode);
+
+    panel.append(header, uploadButton);
+
+    return panel;
+  };
+
+  const buildSourceManagerModal = (state) => {
+    const sourceUrl = toText(state.source?.previewUrl);
+    const modal = createElement(
+      "div",
+      "create-reference-modal create-image-manager-modal enhance-card-v2-image-manager-modal"
+        + (imageManagerOpen ? " is-open" : " hidden")
+    );
+    modal.setAttribute("aria-hidden", imageManagerOpen ? "false" : "true");
+
+    const backdrop = createElement("div", "create-reference-modal-backdrop");
+    backdrop.dataset.action = "close-manager";
+
+    const dialog = createElement(
+      "div",
+      "create-reference-modal-dialog create-image-manager-dialog enhance-card-v2-image-manager-dialog"
+    );
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "enhanceCardImageManagerTitle");
+
+    const head = createElement("div", "create-reference-modal-head");
+    const headCopy = createElement("div", "");
+    const title = createElement("h3", "", "Карточка для улучшения");
+    title.id = "enhanceCardImageManagerTitle";
+    headCopy.append(title);
+    const counter = createElement("span", "", sourceUrl ? "1 / 1 фото • карточка готова к улучшению" : "0 / 1 фото • загрузите исходную карточку");
+    headCopy.append(counter);
+
+    const closeBtn = createElement("button", "create-reference-modal-close", "×");
+    closeBtn.type = "button";
+    closeBtn.dataset.action = "close-manager";
+    closeBtn.setAttribute("aria-label", "Закрыть менеджер изображения");
+    head.append(headCopy, closeBtn);
+
+    const body = createElement("div", "create-reference-modal-body");
+    const toolbar = createElement("div", "create-image-manager-toolbar");
+    const addBtn = createElement("button", "btn btn-primary", "Добавить изображение");
+    addBtn.type = "button";
+    addBtn.dataset.action = "pick-file";
+    addBtn.disabled = Boolean(state.isBusy);
+    const note = createElement("p", "", "PNG, JPG и WEBP. Используется одна карточка 3:4.");
+    toolbar.append(addBtn, note);
+
+    const empty = createElement("p", "create-upload-empty", "Добавьте 1 карточку товара для улучшения.");
+    empty.classList.toggle("hidden", Boolean(sourceUrl));
+
+    const list = createElement("div", "create-upload-list create-image-manager-list");
+    if (sourceUrl) {
+      const item = createElement("article", "create-upload-item");
+      const thumb = buildPreviewImage(sourceUrl, state.source?.name || "Исходная карточка");
+      thumb.classList.add("create-upload-thumb");
+
+      const meta = createElement("div", "create-upload-meta");
+      meta.append(
+        createElement("strong", "", state.source?.name || "Исходная карточка"),
+        createElement(
+          "span",
+          "",
+          state.source?.file?.size
+            ? (state.source.file.size / (1024 * 1024)).toFixed(2) + " MB"
+            : "PNG, JPG, WEBP"
+        )
+      );
+
+      const removeBtn = createElement("button", "create-upload-remove", "Удалить");
+      removeBtn.type = "button";
+      removeBtn.dataset.action = "reset";
+      removeBtn.disabled = Boolean(state.isBusy);
+      removeBtn.setAttribute("aria-label", "Удалить исходную карточку");
+
+      item.append(thumb, meta, removeBtn);
+      list.append(item);
+    }
+
+    body.append(toolbar, empty, list);
+    dialog.append(head, body);
+    modal.append(backdrop, dialog);
+    return modal;
+  };
+
+  const buildResultCard = (state) => {
+    const panel = createElement("section", "enhance-card-v2-preview-card");
+    const header = createElement("div", "enhance-card-v2-preview-head");
+    header.append(
+      createElement("strong", "", "Результат"),
+      ...(state.status === "success" ? [createElement("span", "", "Готово к скачиванию")] : [])
+    );
+    panel.append(header);
+
+    if (state.status === "success" && state.resultUrl) {
+      const frame = createElement("div", "enhance-card-v2-image-frame");
+      frame.append(buildPreviewImage(state.resultUrl, "Улучшенная карточка товара"));
+      panel.append(frame);
+      return panel;
+    }
+
+    const placeholderCopy = (() => {
+      if (state.status === "error" || state.status === "timeout") {
+        return {
+          title: "Можно повторить с теми же настройками",
+          text: "Исходник сохранён. Повторите запрос или загрузите другую карточку, не перезагружая страницу.",
+        };
+      }
+
+      if (state.status === "submitting" || state.status === "processing") {
+        return { title: "Готовим результат", text: "" };
+      }
+
+      if (state.status === "file_selected") {
+        return { title: "Здесь появится результат", text: "" };
+      }
+
+      return { title: "Здесь появится результат", text: "" };
+    })();
+
+    const placeholder = createElement("div", "enhance-card-v2-result-placeholder");
+    placeholder.append(
+      createElement("strong", "", placeholderCopy.title),
+      createElement("p", "", placeholderCopy.text)
+    );
+    panel.append(placeholder);
+    return panel;
+  };
+
+  const buildStatusPanel = (state) => {
+    if (
+      state.status === "idle"
+      || state.status === "file_selected"
+      || state.status === "submitting"
+      || state.status === "processing"
+      || state.status === "success"
+    ) {
+      return null;
+    }
+
+    const descriptor = getStatusDescriptor(state);
+    const panel = createElement("section", "enhance-card-v2-status enhance-card-v2-status-" + descriptor.tone);
+    const badge = createElement("span", "enhance-card-v2-status-badge", state.status);
+    const body = createElement("div", "enhance-card-v2-status-body");
+    body.append(
+      createElement("strong", "", descriptor.title),
+      createElement("p", "", descriptor.text)
+    );
+    panel.append(badge, body);
+    return panel;
+  };
+
+  const buildActionButton = (options) => {
+    const button = createElement("button", options.className || "btn", options.text || "");
+    button.type = "button";
+    if (options.action) button.dataset.action = options.action;
+    if (options.disabled) button.disabled = true;
+    return button;
+  };
+
+  const buildTextModeControl = (state) => {
+    const mode = getTextMode();
+    const disabled = Boolean(state?.isBusy);
+    const panel = createElement("section", "enhance-card-v2-text-mode");
+    const label = createElement("strong", "enhance-card-v2-text-mode-label", "Как работать с текстом");
+    const controls = createElement("div", "enhance-card-v2-text-mode-controls");
+
+    [
+      { mode: "preserve", text: "Сохранить текст 1 в 1" },
+      { mode: "rewrite", text: "Разрешить улучшить текст" },
+    ].forEach((option) => {
+      const button = createElement("button", "enhance-card-v2-text-mode-btn", option.text);
+      button.type = "button";
+      button.dataset.action = "set-text-mode";
+      button.dataset.textMode = option.mode;
+      button.setAttribute("aria-pressed", option.mode === mode ? "true" : "false");
+      if (option.mode === mode) button.classList.add("is-active");
+      if (disabled) button.disabled = true;
+      controls.append(button);
+    });
+
+    const caption = createElement(
+      "p",
+      "enhance-card-v2-text-mode-caption",
+      "В режиме «1 в 1» сохраняются формулировки, а меняются только компоновка и подача."
+    );
+    panel.append(label, controls, caption);
+    return panel;
+  };
+
+  const buildActions = (state) => {
+    const actions = createElement("div", "enhance-card-v2-actions");
+    const cost = getActionCost();
+    const improveLabel = cost ? "Улучшить карточку • " + formatTokenCount(cost) : "Улучшить карточку";
+
+    if (state.status === "success") {
+      actions.append(
+        buildActionButton({ action: "retry", className: "btn btn-primary", text: "Сделать вариант 2" }),
+        buildActionButton({ action: "download", className: "enhance-card-v2-secondary", text: "Скачать результат" })
+      );
+      return actions;
+    }
+
+    if (state.status === "error" || state.status === "timeout") {
+      actions.append(buildActionButton({
+        action: "retry",
+        className: "btn btn-primary",
+        text: "Повторить с теми же настройками",
+      }));
+      return actions;
+    }
+
+    if (state.status === "submitting" || state.status === "processing") {
+      actions.append(buildActionButton({
+        className: "btn btn-primary",
+        text: state.status === "submitting" ? "Подготавливаем..." : "Обрабатываем...",
+        disabled: true,
+      }));
+      return actions;
+    }
+
+    actions.append(buildActionButton({
+      action: "submit",
+      className: "btn btn-primary",
+      text: improveLabel,
+      disabled: !hasEnoughTokens() || !state.source,
+    }));
+    return actions;
+  };
+
+  const render = (state) => {
+    stage.textContent = "";
+
+    const root = createElement("div", "enhance-card-v2-root");
+    const fileInput = createElement("input", "enhance-card-v2-input");
+    fileInput.id = "enhanceCardInput";
+    fileInput.type = "file";
+    fileInput.accept = "image/png,image/jpeg,image/webp";
+
+    fileInput.addEventListener("change", () => {
+      handleFileSelection(fileInput.files?.[0] || null);
+      fileInput.value = "";
+    });
+
+    const layout = createElement("div", "enhance-card-v2-layout");
+
+    const leftCol = createElement("div", "enhance-card-v2-col-left");
+    leftCol.append(buildSourceCard(state));
+
+    const centerCol = createElement("div", "enhance-card-v2-col-center");
+    centerCol.append(buildTextModeControl(state));
+    const promptSection = createElement("section", "create-form-card enhance-card-v2-prompt-section");
+    const promptLabel = createElement("label", "field-label", "Что улучшить (опционально)");
+    promptLabel.setAttribute("for", "enhanceCardPrompt");
+    if (promptInput) promptInput.classList.remove("hidden");
+    promptSection.append(promptLabel, ...(promptInput ? [promptInput] : []));
+    centerCol.append(promptSection);
+
+    const rightCol = createElement("div", "enhance-card-v2-col-right");
+    rightCol.append(buildResultCard(state), buildActions(state));
+
+    layout.append(leftCol, centerCol, rightCol);
+
+    const managerModal = buildSourceManagerModal(state);
+    const statusPanel = buildStatusPanel(state);
+    root.append(fileInput);
+    if (statusPanel) root.append(statusPanel);
+    root.append(layout, managerModal);
+    stage.append(root);
+
+    const dropzone = stage.querySelector(".enhance-card-v2-source-dropzone");
+    if (dropzone instanceof HTMLElement) {
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.add("is-dragover");
+        });
+      });
+
+      ["dragleave", "dragend"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, () => {
+          dropzone.classList.remove("is-dragover");
+        });
+      });
+
+      dropzone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropzone.classList.remove("is-dragover");
+        handleFileSelection(event.dataTransfer?.files?.[0] || null);
+      });
+    }
+  };
+
+  stage.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const actionElement = target.closest("[data-action]");
+    if (!(actionElement instanceof HTMLElement)) return;
+
+    const action = actionElement.dataset.action;
+    if (!action) return;
+
+    switch (action) {
+      case "open-manager":
+        imageManagerOpen = true;
+        render(store.getState());
+        break;
+      case "close-manager":
+        imageManagerOpen = false;
+        render(store.getState());
+        break;
+      case "set-text-mode":
+        setTextMode(actionElement.dataset.textMode);
+        break;
+      case "pick-file":
+        openFilePicker();
+        break;
+      case "submit":
+        void submitCurrentSource({ retry: false });
+        break;
+      case "retry":
+        void submitCurrentSource({ retry: true });
+        break;
+      case "reset":
+        store.reset({ event: "manual_reset" });
+        imageManagerOpen = false;
+        clearToast();
+        break;
+      case "download":
+        downloadResult();
+        break;
+      default:
+        break;
     }
   });
 
-  window.addEventListener("kartochka:improve:prefill", async (event) => {
+  window.addEventListener("kartochka:billing:update", () => {
+    render(store.getState());
+  });
+
+  window.addEventListener("kartochka:improve:prefill", (event) => {
     const previewUrl = toText(event?.detail?.previewUrl);
     const fileName = toText(event?.detail?.fileName) || "generated-card.png";
     if (!previewUrl) return;
 
-    try {
-      state.sourceFile = null;
-      state.sourceName = fileName;
-      state.sourcePreviewUrl = previewUrl;
-      state.uploadDataUrl = "";
-      state.resultUrl = "";
-      state.phase = "upload";
-      render();
+    logger.info("prefill_received", {
+      fileName,
+      hasPreviewUrl: true,
+    });
 
-      const dataUrl = await resolveSourceUrlToDataUrl(previewUrl);
-      state.sourcePreviewUrl = dataUrl || previewUrl;
-      state.uploadDataUrl = dataUrl;
-      state.resultUrl = "";
-      state.phase = "upload";
-      render();
-    } catch (error) {
-      resetState();
-      showToast(getErrorMessage(error));
-    }
+    const source = createRemoteSource({
+      previewUrl,
+      name: fileName,
+    });
+    store.setSource(source, { event: "prefill_loaded" });
   });
 
-  render();
+  window.addEventListener("beforeunload", () => {
+    store.destroy();
+  });
+
+  store.subscribe((nextState) => {
+    render(nextState);
+  });
 })();

@@ -5,3 +5,5 @@ const { handleKartochkaAction } = require("../../server/api-request-handler");
 module.exports = async (request, response) => {
   return handleKartochkaAction(request, response, "createGenerate");
 };
+
+module.exports.config = { maxDuration: 240 };

@@ -5,6 +5,14 @@
   "scripts": {
     "check": "node scripts/release-verify.js",
     "check:syntax": "node scripts/release-verify.js syntax",
+    "test:enhance-card": "node scripts/enhance-card-flow.test.js",
+    "test:multi-provider": "node scripts/multi-provider-generation.test.js",
+    "test:openai-analysis": "node scripts/openai-analysis-provider.test.js",
+    "test:product-type": "node scripts/product-type-detection.test.js",
+    "test:adaptive-improve": "node scripts/adaptive-card-improvement.test.js",
+    "test:four-cards-slice": "node scripts/four-marketplace-cards-slice.test.js",
+    "test:four-cards-service": "node scripts/four-marketplace-cards-service.test.js",
+    "test:image-pipeline": "node scripts/image-enhancement-pipeline.test.js",
     "start": "node server.js",
     "verify:release": "node scripts/release-verify.js",
     "deploy:prod": "zsh ./scripts/deploy-local-sync.sh"

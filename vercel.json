@@ -3,7 +3,16 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.js",
+      "src": "api/kartochka.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "server/prompts/*.md"
+        ]
+      }
+    },
+    {
+      "src": "api/enhance-card.js",
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
@@ -22,23 +31,35 @@
       "destination": "/api/enhance-card.js"
     },
     {
+      "source": "/api/product/detect-type",
+      "destination": "/api/kartochka.js?action=productDetectType"
+    },
+    {
       "source": "/api/kartochka/historyAsset/:id",
-      "destination": "/api/kartochka/historySave.js?assetId=:id"
+      "destination": "/api/kartochka.js?action=historyAssetGet&assetId=:id"
+    },
+    {
+      "source": "/api/kartochka/generatedAsset/:id",
+      "destination": "/api/kartochka.js?action=generatedAssetGet&assetId=:id"
     },
     {
       "source": "/api/kartochka/historyAssetSave",
-      "destination": "/api/kartochka/historySave.js?action=historyAssetSave"
+      "destination": "/api/kartochka.js?action=historyAssetSave"
     },
     {
       "source": "/api/kartochka/:action",
-      "destination": "/api/kartochka/:action.js"
+      "destination": "/api/kartochka.js?action=:action"
     },
     {
       "source": "/app",
       "destination": "/index.html"
     },
     {
-      "source": "/app/:mode(create|improve|tools|animate|history)",
+      "source": "/app/:mode(create|improve|fourCards|tools|animate|history)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/:path*",
       "destination": "/index.html"
     },
     {
@@ -52,7 +73,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/:mode(create|improve|tools|animate|history)",
+      "source": "/:mode(create|improve|fourCards|tools|animate|history)",
       "has": [
         {
           "type": "host",

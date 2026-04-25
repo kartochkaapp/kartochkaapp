@@ -138,6 +138,17 @@ const normalizeEntry = (entry, actor, options) => {
       id: scopeToken(result?.id || "result-" + String(index + 1), 120) || "result-" + String(index + 1),
       title: text(result?.title || "Result " + String(index + 1), 180),
       previewUrl: safeUrl(result?.previewUrl || fallbackPreviews[index]),
+      provider: text(result?.provider, 80),
+      providerLabel: text(result?.providerLabel, 120),
+      status: text(result?.status || (result?.previewUrl ? "completed" : "failed"), 40).toLowerCase() || "completed",
+      aggregateStatus: text(result?.aggregateStatus, 40).toLowerCase(),
+      requestId: text(result?.requestId, 120),
+      generationId: text(result?.generationId, 120),
+      durationMs: clamp(result?.durationMs, 0, 3600000, 0),
+      createdAt: text(result?.createdAt, 80),
+      errorCode: text(result?.errorCode, 120),
+      errorMessage: text(result?.errorMessage, 320, { keepWhitespace: true }),
+      metadata: isObject(result?.metadata) ? result.metadata : null,
       variantNumber: clamp(result?.variantNumber, 1, 50, index + 1),
       totalVariants: clamp(result?.totalVariants || result?.total, 1, 50, (entry.results || []).length || fallbackPreviews.length || 1),
       subtitle: text(result?.subtitle || result?.strategy, 240),
@@ -155,6 +166,7 @@ const normalizeEntry = (entry, actor, options) => {
     : fallbackPreviews.map((previewUrl, index) => buildFallbackResult(previewUrl, index, fallbackPreviews.length || 1));
 
   const resultsCount = clamp(entry.resultsCount, 1, 50, realizedResults.length || 1);
+  const selectedResultId = scopeToken(entry.selectedResultId || entry.meta?.selectedResultId, 120);
   const input = ensureObject(entry.input);
   const insight = ensureObject(entry.ai?.insight || entry.insight);
   const analysis = ensureObject(entry.ai?.analysis || entry.analysis);
@@ -223,7 +235,8 @@ const normalizeEntry = (entry, actor, options) => {
     summary,
     prompt: text(entry.prompt, 8000, { keepWhitespace: true, redactDataUrls: true }),
     resultsCount,
-    previewUrl: safeUrl(entry.previewUrl || realizedResults[0]?.previewUrl),
+    selectedResultId,
+    previewUrl: safeUrl(entry.previewUrl || realizedResults.find((item) => item.id === selectedResultId)?.previewUrl || realizedResults[0]?.previewUrl),
     resultPreviews: realizedResults.map((item) => safeUrl(item.previewUrl)).filter(Boolean).slice(0, MAX_RESULTS),
     input: {
       description: text(input.description || entry.description, 2000, { keepWhitespace: true }),
@@ -264,6 +277,9 @@ const normalizeEntry = (entry, actor, options) => {
       improveMode: text(entry.meta?.improveMode || input.improveMode, 40).toLowerCase(),
       referenceStyle: Boolean(entry.meta?.referenceStyle || input.referenceStyle),
       selectedTemplateId: text(entry.meta?.selectedTemplateId || input.selectedTemplateId, 120),
+      selectedResultId,
+      selectedProvider: text(entry.meta?.selectedProvider, 80),
+      aggregateStatus: text(entry.meta?.aggregateStatus, 40).toLowerCase(),
     },
     status: {
       state: ["completed", "partial", "failed", "draft"].includes(text(entry.status?.state || entry.status || "completed", 20).toLowerCase())

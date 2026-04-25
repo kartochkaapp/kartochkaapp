@@ -7,6 +7,16 @@ const path = require("node:path");
 const { HttpClientError, requestJson } = require("../http-client");
 const { getBundledPromptText } = require("../prompts/prompt-registry");
 const { toText, extractJsonObject, clamp } = require("../utils");
+const {
+  buildAdaptiveCardAnalysisPrompt,
+  buildAdaptiveCardGenerationPrompt,
+  normalizeAdaptiveCardAnalysis,
+} = require("../services/card-improvement-prompts");
+
+const ANALYZE_RESPONSES_IMAGE_LIMIT = 3;
+const PROMPT_RESPONSES_IMAGE_LIMIT = 2;
+const ANALYZE_RESPONSES_IMAGE_DETAIL = "low";
+const PROMPT_RESPONSES_IMAGE_DETAIL = "low";
 
 const hashText = (value) => {
   const source = String(value || "");
@@ -126,6 +136,71 @@ const extractMessageText = (response) => {
   }
 
   return "";
+};
+
+const extractResponseOutputText = (response) => {
+  const directOutputText = toText(response?.output_text);
+  if (directOutputText) return directOutputText;
+
+  const outputItems = Array.isArray(response?.output) ? response.output : [];
+  const textParts = [];
+
+  outputItems.forEach((item) => {
+    const contentItems = Array.isArray(item?.content) ? item.content : [];
+    contentItems.forEach((contentItem) => {
+      const value = toText(
+        contentItem?.text
+        || contentItem?.output_text
+        || contentItem?.content
+      );
+      if (value) {
+        textParts.push(value);
+      }
+    });
+  });
+
+  return textParts.join("\n").trim();
+};
+
+const buildResponsesInputFromMessages = (messages) => {
+  return (Array.isArray(messages) ? messages : [])
+    .map((message) => {
+      const role = toText(message?.role) || "user";
+      const content = Array.isArray(message?.content)
+        ? message.content
+        : [{ type: "text", text: toText(message?.content) }];
+      const normalizedContent = content
+        .map((item) => {
+          if (!item) return null;
+          if (typeof item === "string") {
+            const text = toText(item);
+            return text ? { type: "input_text", text } : null;
+          }
+
+          const itemType = toText(item?.type).toLowerCase();
+          if (itemType === "text" || itemType === "input_text") {
+            const text = toText(item?.text);
+            return text ? { type: "input_text", text } : null;
+          }
+
+          if (itemType === "image_url" || itemType === "input_image") {
+            const imageUrl = toText(item?.image_url?.url || item?.image_url);
+            if (!imageUrl) return null;
+            return {
+              type: "input_image",
+              image_url: imageUrl,
+              detail: toText(item?.image_url?.detail || item?.detail || "auto") || "auto",
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!normalizedContent.length) return null;
+      return { role, content: normalizedContent };
+    })
+    .filter(Boolean);
 };
 
 const normalizeCreateAnalyzeCharacteristicsV2 = (value) => {
@@ -359,6 +434,11 @@ const isImprovePromptRequest = (payload) => {
 };
 
 const buildImprovePromptUserText = (payload) => {
+  return buildAdaptiveCardAnalysisPrompt({
+    ...(payload || {}),
+    instructionText: formatImproveInstructionText(payload),
+  });
+
   const instructionText = formatImproveInstructionText(payload) || "(пусто)";
   const userPrompt = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt) || "(пусто)";
 
@@ -412,6 +492,10 @@ const buildCreateAnalyzeUserTextV2 = (payload) => {
   const shortDescription = toText(payload?.shortDescription || payload?.subtitle) || "(пусто)";
   const userText = toText(payload?.userText) || "(пусто)";
   const categoryHint = toText(payload?.productCategory || payload?.insight?.category) || "(нет)";
+  const productType = toText(payload?.productType) || "(нет)";
+  const productTypeId = toText(payload?.productTypeId) || "(нет)";
+  const productAngle = toText(payload?.productAngle) || "(нет)";
+  const productAnglePrompt = toText(payload?.productAnglePrompt) || "(нет)";
   const referenceAttached = Boolean(toText(payload?.referencePreviewUrl));
   const templateInstructionText = formatCreateTemplateInstructionTextV2(payload);
 
@@ -458,6 +542,10 @@ const buildCreateAnalyzeUserTextV2 = (payload) => {
     "- customPrompt: " + (customPrompt || "(нет)"),
     "- userText: " + userText,
     "- productCategoryHint: " + categoryHint,
+    "- productType: " + productType,
+    "- productTypeId: " + productTypeId,
+    "- productAngle: " + productAngle,
+    "- productAnglePrompt: " + productAnglePrompt,
     "",
     "Характеристики:",
     formatCreateAnalyzeCharacteristicsV2(payload),
@@ -582,6 +670,11 @@ const buildCreateAnalyzeUserText = (payload) => {
 };
 
 const buildImproveAnalyzeUserText = (payload) => {
+  return buildAdaptiveCardAnalysisPrompt({
+    ...(payload || {}),
+    instructionText: formatImproveInstructionText(payload),
+  });
+
   const mode = toText(payload?.mode) || "ai";
   const prompt = toText(payload?.prompt) || "(пусто)";
   const userPrompt = toText(payload?.userPrompt || payload?.prompt || payload?.customPrompt || payload?.userText) || "(пусто)";
@@ -676,10 +769,24 @@ const normalizeCreateAnalyzeResult = (parsed, payload) => {
 const normalizeImproveAnalyzeResult = (parsed, payload) => {
   const normalizedIntent = toText(payload?.analysisIntent).toLowerCase();
   if (normalizedIntent === "prompt") {
+    const adaptiveAnalysis = normalizeAdaptiveCardAnalysis(parsed, payload);
+    const generationPrompt = buildAdaptiveCardGenerationPrompt({
+      analysis: adaptiveAnalysis,
+      payload,
+      basePrompt: toText(parsed?.generation_prompt || parsed?.generationPrompt || parsed?.prompt),
+    });
     return {
-      prompt: toText(parsed?.prompt),
+      prompt: generationPrompt,
+      generationPrompt,
+      improvementMode: adaptiveAnalysis.mode,
+      transformationStrength: adaptiveAnalysis.mode === "REBUILD_FROM_SCRATCH" ? "rebuild" : "focused",
+      rebuildMode: adaptiveAnalysis.recommendedStyle,
+      marketplaceFormat: "1200x1600 vertical marketplace card",
+      adaptiveImprovement: adaptiveAnalysis,
     };
   }
+
+  const adaptiveAnalysis = normalizeAdaptiveCardAnalysis(parsed, payload);
 
   const fallbackIssues = [
     { key: "design", title: "Слабые стороны дизайна", severity: "high", note: "Визуальная иерархия выглядит несобранно." },
@@ -718,6 +825,8 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
     return "";
   };
   const inferredStrength = (() => {
+    if (adaptiveAnalysis.mode === "REBUILD_FROM_SCRATCH") return "rebuild";
+    if (adaptiveAnalysis.mode === "ENHANCE_EXISTING") return "focused";
     if (score <= 55 || highSeverityCount >= 3) return "rebuild";
     if (score <= 74 || highSeverityCount >= 2) return "strong";
     return "focused";
@@ -766,6 +875,7 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
       ];
   const improvementMode =
     toText(parsed?.improvementMode)
+    || adaptiveAnalysis.mode
     || (referenceActive
       ? "Адаптация под стиль референса с более сильной иерархией"
       : transformationStrength === "rebuild"
@@ -775,6 +885,7 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
           : "Сфокусированное усиление иерархии");
   const rebuildMode =
     toText(parsed?.rebuildMode)
+    || adaptiveAnalysis.recommendedStyle
     || (referenceActive
       ? "Reference-adapted editorial"
       : transformationStrength === "rebuild"
@@ -784,7 +895,10 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
           : "Focused hero cleanup");
   const marketplaceFormat =
     toText(parsed?.marketplaceFormat) || "Готовый формат для маркетплейса с чистой иерархией и CTA.";
-  const generationPrompt = toText(parsed?.generationPrompt || parsed?.prompt) || [
+  const generationPrompt = buildAdaptiveCardGenerationPrompt({
+    analysis: adaptiveAnalysis,
+    payload,
+    basePrompt: toText(parsed?.generation_prompt || parsed?.generationPrompt || parsed?.prompt) || [
     "Создай заметно улучшенную карточку товара для маркетплейса на основе исходного изображения.",
     "Сохрани тот же товар без подмены модели, бренда, формы, цвета и комплектации.",
     "Что обязательно сохранить: " + resolvedMustPreserve.join("; ") + ".",
@@ -807,7 +921,8 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
     "Разница до и после должна быть заметна уже в миниатюре.",
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(" "),
+  });
 
   return {
     score,
@@ -831,6 +946,7 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
     changePlan: resolvedChangePlan,
     marketplaceFormat,
     generationPrompt,
+    adaptiveImprovement: adaptiveAnalysis,
     reference: {
       uploaded: hasReference,
       active: referenceActive,
@@ -846,11 +962,15 @@ const normalizeImproveAnalyzeResult = (parsed, payload) => {
 };
 
 const createOpenAIProvider = (config) => {
-  const endpoint = String(config?.baseUrl || "").replace(/\/+$/, "") + "/chat/completions";
-  const defaultModel = toText(config?.model) || "gpt-5.4-mini";
+  const baseUrl = String(config?.baseUrl || "").replace(/\/+$/, "");
+  const endpoint = baseUrl + "/chat/completions";
+  const responsesEndpoint = baseUrl + "/responses";
+  const defaultModel = toText(config?.model) || "gpt-5.4";
   const defaultReasoningEffort = toText(config?.reasoningEffort) || "medium";
   const apiKey = toText(config?.apiKey);
   const timeoutMs = clamp(config?.timeoutMs, 1000, 300000, 300000);
+  const maxRetries = clamp(config?.maxRetries, 0, 2, 1);
+  const transport = typeof config?.requestJson === "function" ? config.requestJson : requestJson;
 
   const resolveModelProfile = (payload) => {
     if (toText(payload?.aiModelTier).toLowerCase() === "best") {
@@ -886,7 +1006,18 @@ const createOpenAIProvider = (config) => {
     } else if (openaiCode && openaiMsg) {
       friendlyMessage = "OpenAI error [" + openaiCode + "]: " + openaiMsg.slice(0, 200);
     }
-    console.error("[openai]", friendlyMessage, "| status:", error.status, "| openai_code:", openaiCode || "(none)");
+    console.error(
+      "[openai]",
+      friendlyMessage,
+      "| status:",
+      error.status,
+      "| transport_code:",
+      error.code || "(none)",
+      "| openai_code:",
+      openaiCode || "(none)",
+      "| cause:",
+      toText(error?.cause?.message) || "(none)"
+    );
     throw new OpenAIProviderError({
       status: error.status || 502,
       code: openaiCode || error.code || "openai_upstream_error",
@@ -900,6 +1031,89 @@ const createOpenAIProvider = (config) => {
     });
   };
 
+  const shouldUseResponsesFallback = (error) => {
+    if (!(error instanceof HttpClientError)) return false;
+    const status = Number(error.status) || 0;
+    return status === 0 || status === 404 || status === 405 || error.code === "network_error" || error.code === "timeout";
+  };
+
+  const requestWithRetry = async (params) => {
+    let attempt = 0;
+    let lastError = null;
+
+    while (attempt <= maxRetries) {
+      try {
+        return await transport(params);
+      } catch (error) {
+        lastError = error;
+        const isRetryable = error instanceof HttpClientError
+          ? Boolean(error.retryable || error.status >= 500 || error.status === 0 || error.code === "timeout" || error.code === "network_error")
+          : false;
+        if (attempt >= maxRetries || !isRetryable) {
+          break;
+        }
+        console.warn("[openai] retry", {
+          attempt: attempt + 1,
+          endpoint: toText(params?.url).replace(baseUrl, ""),
+          status: Number(error.status) || 0,
+          code: toText(error.code) || "http_error",
+        });
+      }
+      attempt += 1;
+    }
+
+    throw lastError;
+  };
+
+  const callResponsesApi = async (messages, profile, formatType) => {
+    const response = await requestWithRetry({
+      url: responsesEndpoint,
+      method: "POST",
+      timeoutMs,
+      headers: {
+        Authorization: "Bearer " + apiKey,
+      },
+      body: {
+        model: toText(profile?.model) || defaultModel,
+        input: buildResponsesInputFromMessages(messages),
+        ...(formatType === "json" ? { text: { format: { type: "json_object" } } } : {}),
+      },
+    });
+
+    const assistantText = extractResponseOutputText(response);
+    if (!assistantText) {
+      throw new OpenAIProviderError({
+        status: 502,
+        code: "openai_empty_text",
+        message: "OpenAI response did not contain text",
+      });
+    }
+
+    if (formatType === "json") {
+      const parsed = extractJsonObject(assistantText);
+      if (!parsed) {
+        throw new OpenAIProviderError({
+          status: 502,
+          code: "openai_invalid_json",
+          message: "OpenAI response did not contain valid JSON",
+          details: {
+            outputSample: assistantText.slice(0, 500),
+          },
+        });
+      }
+
+      return {
+        parsed,
+        debug: buildResponseDebug(assistantText),
+      };
+    }
+
+    return {
+      text: assistantText,
+      debug: buildResponseDebug(assistantText),
+    };
+  };
+
   const callChatJson = async (messages, profile) => {
     if (!apiKey) {
       throw new OpenAIProviderError({
@@ -911,7 +1125,7 @@ const createOpenAIProvider = (config) => {
 
     let response;
     try {
-      response = await requestJson({
+      response = await requestWithRetry({
         url: endpoint,
         method: "POST",
         timeoutMs,
@@ -926,6 +1140,14 @@ const createOpenAIProvider = (config) => {
         },
       });
     } catch (error) {
+      if (shouldUseResponsesFallback(error)) {
+        console.warn("[openai] falling back to /responses for JSON output", {
+          model: toText(profile?.model) || defaultModel,
+          reason: toText(error.code) || "network_error",
+          status: Number(error.status) || 0,
+        });
+        return callResponsesApi(messages, profile, "json");
+      }
       throwOpenAIHttpError(error);
     }
 
@@ -958,7 +1180,7 @@ const createOpenAIProvider = (config) => {
 
     let response;
     try {
-      response = await requestJson({
+      response = await requestWithRetry({
         url: endpoint,
         method: "POST",
         timeoutMs,
@@ -972,6 +1194,14 @@ const createOpenAIProvider = (config) => {
         },
       });
     } catch (error) {
+      if (shouldUseResponsesFallback(error)) {
+        console.warn("[openai] falling back to /responses for text output", {
+          model: toText(profile?.model) || defaultModel,
+          reason: toText(error.code) || "network_error",
+          status: Number(error.status) || 0,
+        });
+        return callResponsesApi(messages, profile, "text");
+      }
       throwOpenAIHttpError(error);
     }
 
@@ -1011,12 +1241,12 @@ const createOpenAIProvider = (config) => {
       const imageDataUrls = Array.isArray(payload?.imageDataUrls)
         ? payload.imageDataUrls.filter((value) => toText(value))
         : [];
-      for (const imageUrl of imageDataUrls.slice(0, 5)) {
+      for (const imageUrl of imageDataUrls.slice(0, PROMPT_RESPONSES_IMAGE_LIMIT)) {
         userContent.push({
           type: "image_url",
           image_url: {
             url: imageUrl,
-            detail: "high",
+            detail: PROMPT_RESPONSES_IMAGE_DETAIL,
           },
         });
       }
@@ -1065,12 +1295,12 @@ const createOpenAIProvider = (config) => {
       const imageDataUrls = Array.isArray(payload?.imageDataUrls)
         ? payload.imageDataUrls.filter((value) => toText(value))
         : [];
-      for (const imageUrl of imageDataUrls.slice(0, 5)) {
+      for (const imageUrl of imageDataUrls.slice(0, PROMPT_RESPONSES_IMAGE_LIMIT)) {
         userContent.push({
           type: "image_url",
           image_url: {
             url: imageUrl,
-            detail: "high",
+            detail: PROMPT_RESPONSES_IMAGE_DETAIL,
           },
         });
       }
@@ -1113,12 +1343,12 @@ const createOpenAIProvider = (config) => {
       const imageDataUrls = Array.isArray(payload?.imageDataUrls)
         ? payload.imageDataUrls.filter((value) => toText(value))
         : [];
-      for (const imageUrl of imageDataUrls.slice(0, 3)) {
+      for (const imageUrl of imageDataUrls.slice(0, ANALYZE_RESPONSES_IMAGE_LIMIT)) {
         userContent.push({
           type: "image_url",
           image_url: {
             url: imageUrl,
-            detail: "low",
+            detail: ANALYZE_RESPONSES_IMAGE_DETAIL,
           },
         });
       }
@@ -1168,15 +1398,15 @@ const createOpenAIProvider = (config) => {
     const imageDataUrls = Array.isArray(payload?.imageDataUrls)
       ? payload.imageDataUrls.filter((value) => toText(value))
       : [];
-    for (const imageUrl of imageDataUrls.slice(0, 3)) {
-      userContent.push({
-        type: "image_url",
-        image_url: {
-          url: imageUrl,
-          detail: "low",
-        },
-      });
-    }
+      for (const imageUrl of imageDataUrls.slice(0, ANALYZE_RESPONSES_IMAGE_LIMIT)) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: imageUrl,
+            detail: ANALYZE_RESPONSES_IMAGE_DETAIL,
+          },
+        });
+      }
 
     messages.push({
       role: "user",

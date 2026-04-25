@@ -2,8 +2,12 @@
 
 const { toText } = require("../utils");
 const { ApiRouteError } = require("../api-route-error");
+const {
+  DEFAULT_IMPROVE_INSTRUCTION_PATH,
+} = require("../services/enhance-card-prompt-service");
 
-const IMPROVE_INSTRUCTION_PATH = "server/prompts/improve-card-instruction.md";
+const IMPROVE_INSTRUCTION_PATH = DEFAULT_IMPROVE_INSTRUCTION_PATH;
+const ENHANCE_CARD_TIMEOUT_MS = 240000;
 
 const ensureRouteObject = (value, message) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -14,6 +18,12 @@ const ensureRouteObject = (value, message) => {
     });
   }
   return value;
+};
+
+const toBoolean = (value) => {
+  if (value === true || value === false) return value;
+  const normalized = toText(value).toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
 };
 
 const isSupportedImageDataUrl = (value) => {
@@ -31,15 +41,15 @@ const recordAiLog = async (aiLogService, entry) => {
 
 const createEnhanceCardHandler = (deps) => {
   const nanoBananaService = deps?.nanoBananaService;
-  const openaiBrainService = deps?.openaiBrainService;
+  const enhanceCardPromptService = deps?.enhanceCardPromptService;
   const billingService = deps?.billingService;
   const aiLogService = deps?.aiLogService;
 
   if (!nanoBananaService || typeof nanoBananaService.enhanceCard !== "function") {
-    throw new Error("Nano Banana service is not configured correctly");
+    throw new Error("Enhance image service is not configured correctly");
   }
-  if (!openaiBrainService || typeof openaiBrainService.improveAnalyze !== "function") {
-    throw new Error("OpenAI brain service is not configured correctly");
+  if (!enhanceCardPromptService || typeof enhanceCardPromptService.buildPrompt !== "function") {
+    throw new Error("Enhance card prompt service is not configured correctly");
   }
   if (!billingService || typeof billingService.runBillableAction !== "function") {
     throw new Error("Billing service is not configured correctly");
@@ -70,15 +80,7 @@ const createEnhanceCardHandler = (deps) => {
     }
 
     const userPrompt = toText(requestBody.userPrompt || requestBody.prompt).trim();
-    const improvePayload = {
-      analysisIntent: "prompt",
-      improveInstructionPromptPath: IMPROVE_INSTRUCTION_PATH,
-      imageDataUrl,
-      sourcePreviewUrl: imageDataUrl,
-      userPrompt,
-      prompt: userPrompt,
-      debugMode: true,
-    };
+    const preserveSourceTextExactly = toBoolean(requestBody.preserveSourceTextExactly);
 
     try {
       return await billingService.runBillableAction({
@@ -86,47 +88,55 @@ const createEnhanceCardHandler = (deps) => {
         requestContext,
         requestId: requestBody.requestId,
         meta: {
-          flow: "improve_prompt_then_generate",
+          flow: "improve_direct_image_generation",
         },
         operation: async () => {
-          const promptResult = await openaiBrainService.improveAnalyze(improvePayload);
+          const promptResult = enhanceCardPromptService.buildPrompt({
+            instructionPath: IMPROVE_INSTRUCTION_PATH,
+            userPrompt,
+            preserveSourceTextExactly,
+          });
 
           await recordAiLog(aiLogService, {
             action: "enhanceCardPrompt",
-            phase: "prompt_generation",
-            provider: "openai",
+            phase: "prompt_build",
+            provider: "internal",
             status: "success",
             requestId: toText(requestBody.requestId),
-            model: toText(promptResult?.__debug?.model),
-            reasoningEffort: toText(promptResult?.__debug?.reasoningEffort),
-            instructionSource: toText(promptResult?.__debug?.instructionSource),
-            instructionPath: toText(promptResult?.__debug?.instructionPath || IMPROVE_INSTRUCTION_PATH),
-            instructionHash: toText(promptResult?.__debug?.instructionHash),
-            requestText: toText(promptResult?.__debug?.requestText),
-            responseText: toText(promptResult?.__debug?.responseText),
+            instructionSource: toText(promptResult?.debug?.instructionSource),
+            instructionPath: toText(promptResult?.debug?.instructionPath || IMPROVE_INSTRUCTION_PATH),
+            instructionHash: toText(promptResult?.debug?.instructionHash),
+            requestText: userPrompt,
+            responseText: toText(promptResult?.prompt),
+            details: {
+              preserveSourceTextExactly,
+            },
             imageCount: 1,
             userIdHint: toText(requestContext?.userIdHint),
             userEmailHint: toText(requestContext?.userEmailHint),
           });
 
-          const prompt = toText(promptResult?.generationPrompt || promptResult?.prompt).trim();
+          const prompt = toText(promptResult?.prompt).trim();
           if (!prompt) {
             throw new ApiRouteError({
               status: 502,
               code: "missing_improve_prompt",
-              message: "OpenAI did not return an improve prompt",
+              message: "Improve prompt could not be built",
             });
           }
 
           const result = await nanoBananaService.enhanceCard({
             imageDataUrl,
             prompt,
+            requestTimeoutMs: ENHANCE_CARD_TIMEOUT_MS,
+            inputDetail: "low",
+            maxRetries: 0,
           });
 
           await recordAiLog(aiLogService, {
             action: "enhanceCardGenerate",
             phase: "image_generation",
-            provider: "openrouter",
+            provider: toText(result?.provider) || "openai_gpt_image_2",
             status: "success",
             requestId: toText(requestBody.requestId),
             requestText: toText(result?.result?.__debug?.requestText),
@@ -147,6 +157,9 @@ const createEnhanceCardHandler = (deps) => {
         status: "error",
         requestId: toText(requestBody.requestId),
         requestText: userPrompt,
+        details: {
+          preserveSourceTextExactly,
+        },
         imageCount: 1,
         errorCode: toText(error?.code),
         errorMessage: toText(error?.message),

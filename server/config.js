@@ -53,11 +53,31 @@ const toNumber = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+const toBoolean = (value, fallback) => {
+  const text = toText(value).toLowerCase();
+  if (!text) return Boolean(fallback);
+  if (["1", "true", "yes", "on"].includes(text)) return true;
+  if (["0", "false", "no", "off"].includes(text)) return false;
+  return Boolean(fallback);
+};
+
+const MIN_IMAGE_GENERATION_TIMEOUT_MS = 180000;
+const MIN_IMAGE_IMPROVE_TIMEOUT_MS = 180000;
 
 const getRuntimeConfig = () => {
   loadEnvFiles();
 
-  const resolvedOpenRouterModel = toText(process.env.OPENROUTER_MODEL) || "google/gemini-3-pro-image-preview";
+  const resolvedOpenRouterModel = toText(process.env.OPENROUTER_MODEL) || "google/gemini-2.5-flash";
+  const resolvedOpenRouterImageModel = toText(process.env.OPENROUTER_IMAGE_MODEL) || "google/gemini-3-pro-image-preview";
+  const resolvedRequestTimeoutMs = toNumber(process.env.REQUEST_TIMEOUT_MS, 300000);
+  const resolvedImageTimeoutMs = Math.max(
+    MIN_IMAGE_GENERATION_TIMEOUT_MS,
+    toNumber(process.env.OPENAI_IMAGE_TIMEOUT_MS || process.env.REQUEST_TIMEOUT_MS, 300000)
+  );
+  const resolvedImproveImageTimeoutMs = Math.max(
+    MIN_IMAGE_IMPROVE_TIMEOUT_MS,
+    toNumber(process.env.OPENAI_IMAGE_IMPROVE_TIMEOUT_MS || process.env.OPENAI_IMAGE_TIMEOUT_MS || process.env.REQUEST_TIMEOUT_MS, 300000)
+  );
 
   return {
     app: {
@@ -66,20 +86,43 @@ const getRuntimeConfig = () => {
       rootDir: ROOT_DIR,
       publicBaseUrl: toText(process.env.PUBLIC_BASE_URL) || "http://localhost:2020",
       requestBodyLimitBytes: toNumber(process.env.REQUEST_BODY_LIMIT_BYTES, 25 * 1024 * 1024),
-      requestTimeoutMs: toNumber(process.env.REQUEST_TIMEOUT_MS, 300000),
+      requestTimeoutMs: resolvedRequestTimeoutMs,
     },
     openai: {
       apiKey: toText(process.env.OPENAI_API_KEY),
       baseUrl: toText(process.env.OPENAI_BASE_URL) || "https://api.openai.com/v1",
-      model: toText(process.env.OPENAI_MODEL) || "gpt-5.4-mini",
+      model: toText(process.env.OPENAI_MODEL) || "gpt-5.5",
       reasoningEffort: toText(process.env.OPENAI_REASONING_EFFORT) || "medium",
+    },
+    openaiImage: {
+      enabled: toBoolean(process.env.OPENAI_IMAGE_GENERATION_ENABLED, true),
+      apiKey: toText(process.env.OPENAI_API_KEY),
+      baseUrl: toText(process.env.OPENAI_BASE_URL) || "https://api.openai.com/v1",
+      model: toText(process.env.OPENAI_IMAGE_MODEL) || "gpt-image-2",
+      responseModel: toText(process.env.OPENAI_IMAGE_RESPONSE_MODEL) || "gpt-5.4",
+      responseReasoningEffort: toText(process.env.OPENAI_IMAGE_RESPONSE_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT) || "medium",
+      quality: toText(process.env.OPENAI_IMAGE_QUALITY) || "high",
+      size: toText(process.env.OPENAI_IMAGE_SIZE) || "1200x1600",
+      timeoutMs: resolvedImageTimeoutMs,
+      improveTimeoutMs: resolvedImproveImageTimeoutMs,
+      inputDetail: toText(process.env.OPENAI_IMAGE_INPUT_DETAIL) || "low",
+      improveInputDetail: toText(process.env.OPENAI_IMAGE_IMPROVE_INPUT_DETAIL || process.env.OPENAI_IMAGE_INPUT_DETAIL) || "low",
+      maxRetries: toNumber(process.env.OPENAI_IMAGE_MAX_RETRIES, 1),
+    },
+    categoryDetection: {
+      enabled: toBoolean(process.env.AI_CATEGORY_DETECTION_ENABLED, true),
+      model: toText(process.env.AI_CATEGORY_OPENAI_MODEL || process.env.OPENAI_MODEL) || "gpt-5.4",
+      confidenceThreshold: toNumber(process.env.AI_CATEGORY_CONFIDENCE_THRESHOLD, 0.65),
+      timeoutMs: toNumber(process.env.AI_CATEGORY_TIMEOUT_MS, 20000),
+      maxRetries: toNumber(process.env.AI_CATEGORY_MAX_RETRIES, 1),
     },
     openrouter: {
       apiKey: toText(process.env.OPENROUTER_API_KEY),
       baseUrl: toText(process.env.OPENROUTER_BASE_URL) || "https://openrouter.ai/api/v1",
       model: resolvedOpenRouterModel,
+      imageModel: resolvedOpenRouterImageModel,
       textReplaceLocatorModel: toText(process.env.OPENROUTER_TEXT_REPLACE_LOCATOR_MODEL) || "google/gemini-2.5-flash",
-      textReplaceEditorModel: toText(process.env.OPENROUTER_TEXT_REPLACE_EDITOR_MODEL) || resolvedOpenRouterModel,
+      textReplaceEditorModel: toText(process.env.OPENROUTER_TEXT_REPLACE_EDITOR_MODEL) || resolvedOpenRouterImageModel,
       referer: toText(process.env.OPENROUTER_REFERER) || "http://localhost:2020",
       title: toText(process.env.OPENROUTER_TITLE) || "KARTOCHKA",
     },
@@ -91,6 +134,16 @@ const getRuntimeConfig = () => {
     history: {
       storeMode: toText(process.env.HISTORY_STORE_MODE) || "auto",
       maxItems: toNumber(process.env.HISTORY_MAX_ITEMS, 30),
+    },
+    imageEnhancement: {
+      provider: toText(process.env.IMAGE_ENHANCEMENT_PROVIDER) || "auto",
+      mode: toText(process.env.IMAGE_ENHANCEMENT_MODE) || "auto",
+      targetWidth: toNumber(process.env.IMAGE_TARGET_WIDTH, 1200),
+      targetHeight: toNumber(process.env.IMAGE_TARGET_HEIGHT, 1600),
+      cacheEnabled: toBoolean(process.env.ENABLE_IMAGE_CACHE, true),
+      realesrganBinaryPath: toText(process.env.REALESRGAN_BINARY_PATH),
+      realesrganModel: toText(process.env.REALESRGAN_MODEL),
+      exportFormat: toText(process.env.EXPORT_FORMAT) || "png",
     },
     firebaseAdmin: {
       projectId: toText(process.env.FIREBASE_ADMIN_PROJECT_ID),

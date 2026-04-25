@@ -63,6 +63,12 @@ const BILLING_ACTIONS = Object.freeze({
     tokens: 3,
     visible: false,
   }),
+  generate_four_marketplace_cards: Object.freeze({
+    code: "generate_four_marketplace_cards",
+    label: "Создать 4 дополнительные карточки",
+    tokens: 4,
+    visible: true,
+  }),
   enhance_card: Object.freeze({
     code: "enhance_card",
     label: "Улучшить",

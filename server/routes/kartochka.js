@@ -52,6 +52,16 @@ const buildCreateAnalyzeLogEntry = ({ payload, context, requestContext, result, 
 const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }) => {
   const firstResult = Array.isArray(results) ? results[0] : null;
   const debug = firstResult?.__debug && typeof firstResult.__debug === "object" ? firstResult.__debug : {};
+  const providerStats = Array.isArray(results)
+    ? results.map((item) => ({
+      provider: toText(item?.provider),
+      label: toText(item?.providerLabel),
+      status: toText(item?.status || "completed"),
+      durationMs: Number(item?.durationMs) || 0,
+      imageModel: toText(item?.metadata?.model || item?.__debug?.imageModel),
+      errorCode: toText(item?.errorCode),
+    }))
+    : [];
   const errorDetailsText = error?.details
     ? (() => {
       try {
@@ -65,7 +75,7 @@ const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }
   return {
     action: "createGenerate",
     phase: "image_generation",
-    provider: "openrouter",
+    provider: providerStats.length > 1 ? "multi_provider" : toText(firstResult?.provider) || "openrouter",
     status: error ? "error" : "success",
     requestId: toText(payload?.requestId),
     aiModelTier: toText(payload?.aiModelTier || debug.aiModelTier),
@@ -85,6 +95,8 @@ const buildCreateGenerateLogEntry = ({ payload, requestContext, results, error }
       : {
         templateId: toText(payload?.selectedTemplate?.id || payload?.reference?.id),
         resultsCount: Array.isArray(results) ? results.length : 0,
+        providerStats,
+        aggregateStatus: toText(firstResult?.aggregateStatus),
       },
     ...buildActorMeta(requestContext),
   };
@@ -122,7 +134,7 @@ const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error 
   return {
     action: "improveGenerate",
     phase: "image_generation",
-    provider: "openrouter",
+    provider: toText(firstResult?.provider) || "openai_gpt_image_2",
     status: error ? "error" : "success",
     requestId: toText(payload?.requestId),
     imageModel: toText(debug.imageModel),
@@ -134,6 +146,38 @@ const buildImproveGenerateLogEntry = ({ payload, requestContext, results, error 
     errorCode: toText(error?.code),
     errorMessage: toText(error?.message),
     details: error ? null : { resultsCount: Array.isArray(results) ? results.length : 0 },
+    ...buildActorMeta(requestContext),
+  };
+};
+
+const buildFourMarketplaceCardsLogEntry = ({ payload, requestContext, result, error }) => {
+  const debug = result?.__debug && typeof result.__debug === "object" ? result.__debug : {};
+  const metadata = result?.metadata && typeof result.metadata === "object" ? result.metadata : {};
+
+  return {
+    action: "generateFourMarketplaceCards",
+    phase: "image_generation_and_slicing",
+    provider: toText(metadata.provider) || "openai_gpt_image_2",
+    status: error ? "error" : "success",
+    requestId: toText(payload?.requestId || metadata.requestId),
+    imageModel: toText(debug.imageModel),
+    requestText: toText(debug.requestText),
+    responseText: error ? "" : toText(debug.responseText),
+    imageCount: 1,
+    errorCode: toText(error?.code),
+    errorMessage: toText(error?.message),
+    details: error
+      ? null
+      : {
+        mode: "generate-four-marketplace-cards",
+        compositeWidth: Number(result?.composite?.width) || Number(metadata.generatedWidth) || 0,
+        compositeHeight: Number(result?.composite?.height) || Number(metadata.generatedHeight) || 0,
+        cardWidth: Number(metadata.cardWidth) || 0,
+        cardHeight: Number(metadata.cardHeight) || 0,
+        resultsCount: Array.isArray(result?.cards) ? result.cards.length : 0,
+        promptPath: toText(metadata.promptPath),
+        promptHash: toText(metadata.promptHash),
+      },
     ...buildActorMeta(requestContext),
   };
 };
@@ -271,9 +315,20 @@ const validateImprovePayload = (payload, actionName) => {
   }
 };
 
+const validateFourMarketplaceCardsPayload = (payload) => {
+  ensureRequestImageUrl(payload?.sourcePreviewUrl, "generateFourMarketplaceCards.sourcePreviewUrl");
+  ensureRequestSignal(
+    Boolean(payload?.sourceCard) || Boolean(toText(payload?.sourcePreviewUrl)),
+    "generateFourMarketplaceCards requires a source product image",
+    "missing_source_image"
+  );
+};
+
 const createKartochkaHandlers = (deps) => {
   const openaiBrainService = deps?.openaiBrainService;
   const generationService = deps?.generationService;
+  const fourMarketplaceCardsService = deps?.fourMarketplaceCardsService;
+  const generatedAssetService = deps?.generatedAssetService;
   const historyService = deps?.historyService;
   const historyAssetService = deps?.historyAssetService;
   const billingService = deps?.billingService;
@@ -290,8 +345,21 @@ const createKartochkaHandlers = (deps) => {
     !generationService
     || typeof generationService.createGenerate !== "function"
     || typeof generationService.improveGenerate !== "function"
+    || typeof generationService.generateFourMarketplaceCards !== "function"
   ) {
     throw new Error("Generation service is not configured correctly");
+  }
+  if (
+    !fourMarketplaceCardsService
+    || typeof fourMarketplaceCardsService.generate !== "function"
+  ) {
+    throw new Error("Four marketplace cards service is not configured correctly");
+  }
+  if (
+    !generatedAssetService
+    || typeof generatedAssetService.get !== "function"
+  ) {
+    throw new Error("Generated asset service is not configured correctly");
   }
   if (
     !historyService
@@ -475,6 +543,42 @@ const createKartochkaHandlers = (deps) => {
       }
     },
 
+    async generateFourMarketplaceCards(body, requestContext) {
+      const requestBody = ensureRouteObject(body, "Invalid generateFourMarketplaceCards request body");
+      const payload = ensureRouteObject(requestBody.payload || {}, "generateFourMarketplaceCards payload must be an object");
+      validateFourMarketplaceCardsPayload(payload);
+      const payloadForProvider = {
+        ...payload,
+        mode: "generate-four-marketplace-cards",
+        debugMode: true,
+      };
+      try {
+        const result = await billingService.runBillableAction({
+          actionCode: "generate_four_marketplace_cards",
+          requestContext,
+          requestId: requestBody.requestId || payloadForProvider.requestId,
+          meta: {
+            mode: "generate-four-marketplace-cards",
+            sourceName: toText(payloadForProvider?.sourceCard?.name),
+          },
+          operation: async () => fourMarketplaceCardsService.generate(payloadForProvider),
+        });
+        await recordAiLog(aiLogService, buildFourMarketplaceCardsLogEntry({
+          payload: payloadForProvider,
+          requestContext,
+          result,
+        }));
+        return result;
+      } catch (error) {
+        await recordAiLog(aiLogService, buildFourMarketplaceCardsLogEntry({
+          payload: payloadForProvider,
+          requestContext,
+          error,
+        }));
+        throw error;
+      }
+    },
+
     async templatePreview(body) {
       const requestBody = ensureRouteObject(body, "Invalid templatePreview request body");
       const payload = ensureRouteObject(requestBody.payload || {}, "templatePreview payload must be an object");
@@ -513,6 +617,11 @@ const createKartochkaHandlers = (deps) => {
     async historyAssetGet(payload) {
       const requestBody = ensureRouteObject(payload || {}, "Invalid historyAssetGet request");
       return historyAssetService.get(requestBody.id);
+    },
+
+    async generatedAssetGet(payload) {
+      const requestBody = ensureRouteObject(payload || {}, "Invalid generatedAssetGet request");
+      return generatedAssetService.get(requestBody.id);
     },
 
     async billingSummary(body, requestContext) {

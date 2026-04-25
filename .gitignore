@@ -9,6 +9,7 @@ __head_app.js
 server/data/history-store.json
 server/data/billing-store.json
 server/data/ai-log-store.json
+server/data/generated-assets/
 .DS_Store
 **/.DS_Store
 

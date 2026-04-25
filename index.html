@@ -14,10 +14,11 @@
       href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260329-27" />
+    <link rel="stylesheet" href="./styles.css?v=20260423-1" />
     <link rel="stylesheet" href="./landing-override.css" />
-    <link rel="stylesheet" href="./site-overrides.css" />
-    <link rel="stylesheet" href="./theme-refresh.css?v=20260417-4" />
+    <link rel="stylesheet" href="./site-overrides.css?v=20260423-1" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260425-1" />
+    <link rel="stylesheet" href="./enhance-card-module.css?v=20260425-3" />
   </head>
   <body>
     <header class="topbar section-wrap">
@@ -391,6 +392,7 @@
           <nav class="workspace-screen-tabs tab-switch" aria-label="Режимы app">
             <button class="tab-btn active" type="button" data-app-mode-btn="create">Создать</button>
             <button class="tab-btn" type="button" data-app-mode-btn="improve">Улучшить</button>
+            <button class="tab-btn" type="button" data-app-mode-btn="fourCards">1=4</button>
             <button class="tab-btn" type="button" data-app-mode-btn="history">История</button>
             <button class="tab-btn" type="button" data-app-mode-btn="animate">Анимировать</button>
           </nav>
@@ -490,35 +492,52 @@
                 <section class="create-form-card create-template-panel create-reference-summary-panel">
                   <div class="create-card-head create-reference-summary-head">
                     <div>
-                      <h3>Выбрать шаблон</h3>
+                      <h3>Тип товара и ракурс</h3>
                     </div>
-                    <button class="btn btn-outline create-reference-open-btn" id="createReferenceLibraryBtn" type="button">
-                      Выбрать режим
-                    </button>
                   </div>
 
-                  <button class="create-selected-template-card" id="createSelectedTemplateCard" type="button">
-                    <span class="create-selected-template-thumb" id="createSelectedTemplateThumb">
+                  <div class="create-selected-template-card create-product-routing-card" id="createSelectedTemplateCard">
+                    <div class="create-product-mode-row">
+                      <div
+                        class="create-template-mode-switch"
+                        id="createModeChoiceStrip"
+                        aria-label="Режим генерации"
+                      ></div>
+                      <label class="create-product-mode-toggle" for="createIsClothingToggle">
+                        <span class="create-product-mode-option create-product-mode-option-object">Товар</span>
+                        <span class="create-product-mode-switch-shell">
+                          <input id="createIsClothingToggle" type="checkbox" aria-label="Это одежда или обувь" checked />
+                          <span class="create-product-mode-switch" aria-hidden="true">
+                            <span class="create-product-mode-switch-thumb"></span>
+                          </span>
+                        </span>
+                        <span class="create-product-mode-option create-product-mode-option-fashion">Одежда</span>
+                        <span class="visually-hidden" id="createProductModeState">Одежда / обувь</span>
+                      </label>
+                    </div>
+
+                    <div class="create-angle-suggestions-head">
+                      <span id="createAngleSuggestionsLead">Как показать одежду?</span>
+                    </div>
+                    <div class="create-angle-suggestions" id="createAngleSuggestions" role="radiogroup" aria-label="Ракурс товара"></div>
+                    <p class="create-product-routing-summary" id="createProductRoutingSummary">Одежда / обувь • На человеке • 3:4</p>
+
+                    <span class="create-selected-template-legacy hidden" aria-hidden="true">
+                      <span class="create-selected-template-thumb" id="createSelectedTemplateThumb">
                       <img class="hidden" id="createSelectedTemplateThumbImage" alt="Выбранный шаблон" />
                       <span class="create-selected-template-thumb-placeholder" id="createSelectedTemplateThumbPlaceholder">REF</span>
-                    </span>
+                      </span>
 
-                    <span class="create-selected-template-body">
-                      <strong id="createSelectedTemplateTitle">Выберите шаблон</strong>
-                      <span id="createSelectedTemplateDescription">Выберите режим генерации.</span>
-                      <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
+                      <span class="create-selected-template-body">
+                        <strong id="createSelectedTemplateTitle">Лучший</strong>
+                        <span id="createSelectedTemplateDescription">Адаптивный визуал персонально под ваш товар.</span>
+                        <span class="create-selected-template-tags" id="createSelectedTemplateTags"></span>
+                      </span>
                     </span>
-                  </button>
+                  </div>
 
                   <div class="create-instruction-template-panel hidden" id="createInstructionTemplatePanel">
                     <div class="create-instruction-toolbar">
-                      <label class="create-best-model-control" for="createBestModelSelect">
-                        <select id="createBestModelSelect" aria-label="Модель генерации текста для шаблона Лучший">
-                          <option value="good" selected>Хорошая модель</option>
-                          <option value="best">Лучшая модель</option>
-                        </select>
-                      </label>
-
                       <button
                         class="btn btn-outline create-generation-notes-toggle"
                         id="createGenerationNotesToggle"
@@ -528,6 +547,23 @@
                       >
                         Пожелания к генерации
                       </button>
+
+                      <div
+                        class="create-best-model-control"
+                        role="switch"
+                        tabindex="0"
+                        aria-checked="false"
+                        aria-label="Переключить Pro mode генерации текста"
+                      >
+                        <span class="create-best-model-switch-label">PRO MODE</span>
+                        <span class="create-best-model-switch-track" aria-hidden="true">
+                          <span class="create-best-model-switch-thumb"></span>
+                        </span>
+                        <select id="createBestModelSelect" aria-label="Pro mode генерации текста" tabindex="-1">
+                          <option value="good" selected>Start</option>
+                          <option value="best">Pro mode</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div class="create-generation-notes-panel hidden" id="createGenerationNotesPanel">
@@ -635,6 +671,57 @@
                       <h3>Результаты</h3>
                       <p id="createResultsCaption"></p>
                     </div>
+                    <div class="create-results-processing hidden" id="createResultsProcessing" aria-hidden="true">
+                      <div class="create-results-processing-copy">
+                        <span class="create-results-processing-kicker" id="createProcessingKicker">AI FLOW</span>
+                        <h4 id="createProcessingTitle">Анализируем товар</h4>
+                        <p id="createProcessingText">Считываем форму, фактуру и ищем подачу, которая будет лучше цеплять в ленте маркетплейса.</p>
+                        <div class="create-results-processing-pills">
+                          <span class="create-results-processing-pill" id="createProcessingModePill">Одежда / обувь</span>
+                          <span class="create-results-processing-pill" id="createProcessingAnglePill">На человеке</span>
+                          <span class="create-results-processing-pill">Вертикаль 3:4</span>
+                        </div>
+                      </div>
+                      <div class="create-results-processing-visual" aria-hidden="true">
+                        <span class="create-results-processing-glow create-results-processing-glow-a"></span>
+                        <span class="create-results-processing-glow create-results-processing-glow-b"></span>
+                        <div class="create-results-processing-stage-visual">
+                          <span class="create-results-processing-stage-card"></span>
+                          <span class="create-results-processing-stage-line create-results-processing-stage-line-a"></span>
+                          <span class="create-results-processing-stage-line create-results-processing-stage-line-b"></span>
+                          <span class="create-results-processing-stage-line create-results-processing-stage-line-c"></span>
+                          <span class="create-results-processing-stage-scan"></span>
+                        </div>
+                        <div class="create-results-processing-grid">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                      </div>
+                      <div class="create-results-processing-steps">
+                        <div class="create-results-processing-step" data-create-processing-step="analyzing">
+                          <span></span>
+                          <strong>Анализ</strong>
+                          <small>Смотрим товар и фактуру</small>
+                        </div>
+                        <div class="create-results-processing-step" data-create-processing-step="planning">
+                          <span></span>
+                          <strong>Сцена</strong>
+                          <small>Собираем лучший ракурс</small>
+                        </div>
+                        <div class="create-results-processing-step" data-create-processing-step="generating">
+                          <span></span>
+                          <strong>Генерация</strong>
+                          <small>Рендерим карточку</small>
+                        </div>
+                      </div>
+                    </div>
                     <div class="create-results-grid create-results-grid-compact" id="createResultsGrid"></div>
                   </section>
 
@@ -653,7 +740,7 @@
                 <div class="create-reference-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="createReferenceModalTitle">
                   <div class="create-reference-modal-head">
                     <div>
-                      <h3 id="createReferenceModalTitle">Выберите режим</h3>
+                      <h3 id="createReferenceModalTitle">Выберите ракурс</h3>
                     </div>
                     <button class="create-reference-modal-close" id="createReferenceModalClose" type="button" aria-label="Закрыть библиотеку">
                       ×
@@ -662,12 +749,30 @@
 
                   <div class="create-library-hero">
                     <div class="create-library-hero-copy">
-                      <strong>Выберите режим генерации</strong>
-                      <p>Автоматический режим адаптирует визуал под товар, ручной отправляет ваш промт без изменений.</p>
+                      <strong>Ракурсы под выбранный тип товара</strong>
+                      <p>Сначала выберите тип товара в основной карточке, затем отметьте подходящий сценарий показа.</p>
                     </div>
                   </div>
 
                   <div class="create-template-grid create-template-grid-modal" id="createTemplateGrid"></div>
+                </div>
+              </div>
+
+              <div class="create-reference-modal create-mode-choice-modal hidden" id="createModeChoiceModal" aria-hidden="true">
+                <div class="create-reference-modal-backdrop" data-create-mode-choice-close></div>
+
+                <div class="create-reference-modal-dialog create-mode-choice-dialog" role="dialog" aria-modal="true" aria-labelledby="createModeChoiceTitle">
+                  <div class="create-reference-modal-head">
+                    <div>
+                      <h3 id="createModeChoiceTitle">Выберите режим генерации</h3>
+                      <span>Режим определяет, как AI будет работать с фото и текстом карточки.</span>
+                    </div>
+                    <button class="create-reference-modal-close" id="createModeChoiceModalClose" type="button" aria-label="Закрыть выбор режима">
+                      ×
+                    </button>
+                  </div>
+
+                  <div class="create-mode-choice-list" id="createModeChoiceModalList"></div>
                 </div>
               </div>
 
@@ -792,30 +897,81 @@
             <div class="step-title-row">
               <h2>Улучшить карточку</h2>
             </div>
+
+            <div id="enhanceCardStage" class="enhance-card-stage"></div>
+
+            <textarea id="enhanceCardPrompt" class="hidden" placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."></textarea>
+            <input id="enhanceCardPreserveTextToggle" type="checkbox" checked class="hidden" />
+            <div id="enhanceCardToast" class="enhance-card-toast" aria-live="assertive" role="status"></div>
+          </article>
+
+          <article class="step-card step2-mode hidden four-cards-mode-screen" data-app-mode-panel="fourCards">
+            <div class="step-title-row">
+              <h2>Создать 4 дополнительные карточки</h2>
+            </div>
             <p class="section-subtitle">
-              Загрузите карточку и запустите AI-улучшение.
+              Сгенерируем 4 дополнительные карточки для описания товара: преимущества, характеристики, сценарии и детали.
             </p>
 
-            <div class="improve-workbench">
-              <div class="create-form-card improve-workbench-card">
-                <div class="create-card-head improve-workbench-head">
-                  <h3>Карточка для улучшения</h3>
+            <section class="four-cards-workspace">
+              <div class="create-form-card four-cards-source-card">
+                <div class="create-card-head">
+                  <h3>Исходная карточка или товар</h3>
                   <span>PNG, JPG, WEBP</span>
                 </div>
 
-                <div id="enhanceCardStage" class="enhance-card-stage"></div>
+                <input id="fourCardsImageInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" />
+                <button class="four-cards-upload-zone is-empty" id="fourCardsUploadZone" type="button">
+                  <span class="four-cards-upload-preview hidden" id="fourCardsSelectedPreview">
+                    <img id="fourCardsSelectedImage" alt="Исходное изображение" />
+                  </span>
+                  <span class="four-cards-upload-empty" id="fourCardsUploadEmpty">
+                    <strong>Загрузите изображение</strong>
+                    <small>Готовая карточка товара или фото товара</small>
+                  </span>
+                </button>
 
-                <section class="improve-workbench-prompt">
-                  <label class="field-label" for="enhanceCardPrompt">Что улучшить (опционально)</label>
-                  <textarea
-                    id="enhanceCardPrompt"
-                    placeholder="Например: усилить оффер, сделать дизайн чище, повысить читаемость."
-                  ></textarea>
+                <div class="four-cards-actions">
+                  <button class="btn btn-primary" id="fourCardsGenerateBtn" type="button" disabled>
+                    Создать 4 карточки
+                  </button>
+                  <button class="btn btn-outline hidden" id="fourCardsRegenerateBtn" type="button">
+                    Regenerate
+                  </button>
+                </div>
+                <p class="status-message" id="fourCardsStatus" role="status" aria-live="polite"></p>
+                <p class="request-meta" id="fourCardsMeta">Статус запроса: ждём изображение</p>
+              </div>
+
+              <div class="create-form-card four-cards-results-card hidden" id="fourCardsResultsSection">
+                <div class="create-card-head">
+                  <h3>Результат</h3>
+                  <span id="fourCardsResultsCaption">Composite + 4 карточки</span>
+                </div>
+
+                <div class="four-cards-processing hidden" id="fourCardsProcessing">
+                  <span class="loading-spinner" aria-hidden="true"></span>
+                  <strong>Генерируем composite image</strong>
+                  <p>Обычно занимает 3-5 минут. После генерации backend автоматически разрежет изображение на 4 части.</p>
+                </div>
+
+                <section class="four-cards-composite hidden" id="fourCardsCompositeSection">
+                  <div class="four-cards-section-head">
+                    <h4>Composite preview</h4>
+                    <a class="create-result-action" id="fourCardsCompositeDownload" href="#" download="composite.png">Скачать composite</a>
+                  </div>
+                  <img id="fourCardsCompositeImage" alt="Composite preview" />
+                </section>
+
+                <section class="four-cards-sliced hidden" id="fourCardsGridSection">
+                  <div class="four-cards-section-head">
+                    <h4>Готовые карточки</h4>
+                    <button class="create-result-action" id="fourCardsDownloadAllBtn" type="button">Скачать все</button>
+                  </div>
+                  <div class="four-cards-grid" id="fourCardsGrid"></div>
                 </section>
               </div>
-            </div>
-
-            <div id="enhanceCardToast" class="enhance-card-toast" aria-live="assertive" role="status"></div>
+            </section>
           </article>
 
           <article class="step-card step2-mode hidden tools-mode-screen" data-app-mode-panel="tools">
@@ -1016,10 +1172,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="./services/kartochka-services.js?v=20260329-3"></script>
+    <script src="./services/kartochka-services.js?v=20260423-1"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260418-2"></script>
-    <script src="./improve-card-flow.js?v=20260402-1"></script>
+    <script src="./app.js?v=20260424-1"></script>
+    <script src="./enhance-card-service.js?v=20260423-1"></script>
+    <script src="./enhance-card-state.js?v=20260423-1"></script>
+    <script src="./improve-card-flow.js?v=20260425-4"></script>
     <script src="./tools-module.js?v=20260331-1"></script>
     <script src="./ui-loading-theme.js?v=20260331-1"></script>
   </body>

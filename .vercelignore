@@ -1,4 +1,6 @@
 server.js
+node_modules/
+.vercel/output/
 .claude/
 .tmp-text-replace/
 docs/

@@ -22,6 +22,7 @@
     prompt: 1450,
     insight: 980,
     createGeneration: 1600,
+    fourCardsGeneration: 1600,
     improveAnalysis: 900,
     improveGeneration: 1500,
   });
@@ -46,8 +47,10 @@
   const DEFAULT_ENDPOINTS = Object.freeze({
     createAnalyze: "",
     createGenerate: "",
+    generateFourMarketplaceCards: "",
     improveAnalyze: "",
     improveGenerate: "",
+    productDetectType: "",
     historyList: "",
     historyGetById: "",
     historySave: "",
@@ -318,7 +321,7 @@
   const isLikelyLifecycleInterrupted = (params) => {
     if (!params || params.externalAbort) return false;
 
-    const networkLike = params.timedOut || isAbortLikeError(params.error) || /network|fetch/i.test(toLowerText(params.error?.message));
+    const networkLike = isAbortLikeError(params.error) || /network|fetch/i.test(toLowerText(params.error?.message));
     if (!networkLike) return false;
 
     const startSnapshot = params.startSnapshot || {};
@@ -440,8 +443,10 @@
     const variantNumber = clampInt(objectValue.variantNumber || index + 1, 1, 50, index + 1);
     const totalVariants = clampInt(objectValue.totalVariants || objectValue.total || 1, 1, 50, 1);
     const previewUrl = toText(objectValue.previewUrl || objectValue.url);
+    const rawStatus = toLowerText(objectValue.status);
+    const status = rawStatus || (previewUrl ? "completed" : "failed");
 
-    if (!previewUrl) {
+    if (!previewUrl && status !== "failed") {
       throw createInvalidResponseError("Result item is missing previewUrl", objectValue);
     }
 
@@ -451,11 +456,23 @@
       totalVariants,
       previewUrl,
       title: toText(objectValue.title) || "Вариант " + String(index + 1),
+      provider: toText(objectValue.provider),
+      providerLabel: toText(objectValue.providerLabel),
+      status,
+      aggregateStatus: toText(objectValue.aggregateStatus),
+      requestId: toText(objectValue.requestId),
+      generationId: toText(objectValue.generationId),
+      durationMs: Number.isFinite(Number(objectValue.durationMs)) ? Number(objectValue.durationMs) : 0,
+      createdAt: toText(objectValue.createdAt),
+      errorCode: toText(objectValue.errorCode),
+      errorMessage: toText(objectValue.errorMessage),
+      metadata: isPlainObject(objectValue.metadata) ? objectValue.metadata : null,
       marketplace: toText(objectValue.marketplace),
       style: toText(objectValue.style),
       focus: toText(objectValue.focus),
       format: toText(objectValue.format),
       promptPreview: toText(objectValue.promptPreview),
+      normalizedPrompt: toText(objectValue.normalizedPrompt),
       downloadName: toText(objectValue.downloadName),
       strategy: toText(objectValue.strategy),
       styleLabel: toText(objectValue.styleLabel),
@@ -1346,6 +1363,89 @@
       };
     });
   };
+
+  const buildFourMarketplaceCardsResult = (payload, config) => {
+    const previewPool = config.previewPools.improve.concat(config.previewPools.create);
+    const cards = [
+      { index: 1, type: "benefits", title: "Преимущества" },
+      { index: 2, type: "features", title: "Характеристики" },
+      { index: 3, type: "lifestyle", title: "Сценарии" },
+      { index: 4, type: "details", title: "Детали" },
+    ].map((card, index) => ({
+      ...card,
+      url: pickPreview(previewPool, index + 1, config.previewPools.create[0]),
+      width: 1200,
+      height: 1600,
+      downloadName: "card_" + String(card.index) + "_" + card.type + ".png",
+    }));
+
+    return {
+      success: true,
+      mode: "generate-four-marketplace-cards",
+      composite: {
+        url: pickPreview(previewPool, 0, config.previewPools.create[0]),
+        width: 2400,
+        height: 3200,
+        downloadName: "composite.png",
+      },
+      cards,
+      metadata: {
+        requestId: toText(payload?.requestId) || "mock-four-cards-" + String(Date.now()),
+        durationMs: config.delays.fourCardsGeneration,
+        promptPath: "server/prompts/generate-four-marketplace-cards.md",
+        provider: "mock",
+        providerLabel: "Mock",
+        generatedWidth: 2400,
+        generatedHeight: 3200,
+        cardWidth: 1200,
+        cardHeight: 1600,
+      },
+    };
+  };
+
+  const validateFourMarketplaceCardsResponse = (rawValue) => {
+    const data = unwrapEnvelope(rawValue);
+    const objectValue = ensureObject(data, "generateFourMarketplaceCards response must be an object");
+    const composite = ensureObject(objectValue.composite, "generateFourMarketplaceCards response must include composite");
+    const cardsRaw = Array.isArray(objectValue.cards) ? objectValue.cards : [];
+    const compositeUrl = toText(composite.url || composite.previewUrl);
+
+    if (!compositeUrl) {
+      throw createInvalidResponseError("generateFourMarketplaceCards composite must include url", objectValue);
+    }
+    if (cardsRaw.length !== 4) {
+      throw createInvalidResponseError("generateFourMarketplaceCards response must include 4 cards", objectValue);
+    }
+
+    return {
+      success: objectValue.success !== false,
+      mode: toText(objectValue.mode) || "generate-four-marketplace-cards",
+      composite: {
+        url: compositeUrl,
+        width: Number(composite.width) || 0,
+        height: Number(composite.height) || 0,
+        downloadName: toText(composite.downloadName) || "composite.png",
+      },
+      cards: cardsRaw.map((card, index) => {
+        const safeCard = ensureObject(card, "Card result must be an object");
+        const url = toText(safeCard.url || safeCard.previewUrl);
+        if (!url) {
+          throw createInvalidResponseError("Card result is missing url", safeCard);
+        }
+        return {
+          index: Number(safeCard.index) || index + 1,
+          type: toText(safeCard.type) || "card",
+          title: toText(safeCard.title),
+          url,
+          width: Number(safeCard.width) || 0,
+          height: Number(safeCard.height) || 0,
+          downloadName: toText(safeCard.downloadName) || "card_" + String(index + 1) + ".png",
+        };
+      }),
+      metadata: isPlainObject(objectValue.metadata) ? objectValue.metadata : {},
+    };
+  };
+
   const createHistoryStore = (config) => {
     const inMemoryMap = new Map();
 
@@ -1455,6 +1555,18 @@
         return buildCreateResults(payload, config);
       },
 
+      async productDetectType() {
+        await wait(700);
+        return {
+          success: false,
+          detectedType: null,
+          confidence: 0,
+          source: "ai",
+          secondaryCandidates: [],
+          reason: "Mock mode keeps manual product type selection",
+        };
+      },
+
       async improveAnalyze(payload) {
         await wait(config.delays.improveAnalysis);
         return buildImproveAnalysis(payload);
@@ -1463,6 +1575,11 @@
       async improveGenerate(payload) {
         await wait(config.delays.improveGeneration);
         return buildImproveResults(payload, config);
+      },
+
+      async generateFourMarketplaceCards(payload) {
+        await wait(config.delays.fourCardsGeneration);
+        return buildFourMarketplaceCardsResult(payload, config);
       },
 
       async historyList(payload) {
@@ -1650,6 +1767,11 @@
         return validateResultsResponse(raw, "result");
       },
 
+      async productDetectType(payload) {
+        const raw = await postJson("productDetectType", { payload });
+        return ensureObject(raw, "productDetectType response must be an object");
+      },
+
       async improveAnalyze(payload) {
         const raw = await postJson("improveAnalyze", { payload });
         return validateImproveAnalyzeResponse(raw);
@@ -1658,6 +1780,11 @@
       async improveGenerate(payload) {
         const raw = await postJson("improveGenerate", { payload });
         return validateResultsResponse(raw, "improve-result");
+      },
+
+      async generateFourMarketplaceCards(payload) {
+        const raw = await postJson("generateFourMarketplaceCards", { payload });
+        return validateFourMarketplaceCardsResponse(raw);
       },
 
       async historyList(payload) {
@@ -1811,12 +1938,20 @@
         return callGateway("createGenerate", [payload]);
       },
 
+      async productDetectType(payload) {
+        return callGateway("productDetectType", [payload]);
+      },
+
       async improveAnalyze(payload) {
         return callGateway("improveAnalyze", [payload]);
       },
 
       async improveGenerate(payload) {
         return callGateway("improveGenerate", [payload]);
+      },
+
+      async generateFourMarketplaceCards(payload) {
+        return callGateway("generateFourMarketplaceCards", [payload]);
       },
 
       async historyList(payload) {
@@ -1887,6 +2022,10 @@
 
       async improveCards(payload) {
         return client.improveGenerate(payload);
+      },
+
+      async generateFourMarketplaceCards(payload) {
+        return client.generateFourMarketplaceCards(payload);
       },
     });
 
