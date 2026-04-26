@@ -74,6 +74,7 @@ const getRuntimeServices = () => {
   const generationService = createGenerationService({
     adapter: openrouterGenerationAdapter,
     createAdapter: openaiImageGenerationAdapter,
+    bestProductCreateAdapter: openrouterGenerationAdapter,
     improveAdapter: openaiImageGenerationAdapter,
     secondaryAdapters: [],
     textReplaceService,

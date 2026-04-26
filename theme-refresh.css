@@ -5072,8 +5072,8 @@ body:not(.workspace-active) .pricing .section-shell-pricing {
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  min-height: 74px !important;
-  padding: 10px 12px !important;
+  min-height: 104px !important;
+  padding: 14px !important;
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
   border-radius: 18px !important;
   background:
@@ -5115,11 +5115,11 @@ body:not(.workspace-active) .pricing .section-shell-pricing {
 #workspace .create-angle-option-thumb {
   display: grid !important;
   place-items: center !important;
-  width: 52px !important;
-  min-width: 52px !important;
-  height: 52px !important;
+  width: 68px !important;
+  min-width: 68px !important;
+  height: 68px !important;
   overflow: hidden !important;
-  border-radius: 16px !important;
+  border-radius: 18px !important;
   background: rgba(241, 245, 249, 0.96) !important;
   box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.64) !important;
 }
@@ -5132,13 +5132,14 @@ body:not(.workspace-active) .pricing .section-shell-pricing {
 
 #workspace .create-angle-option-body {
   display: grid !important;
-  gap: 2px !important;
+  align-content: center !important;
+  gap: 4px !important;
   min-width: 0 !important;
 }
 
 #workspace .create-angle-option-body strong {
   color: #111827 !important;
-  font-size: 0.86rem !important;
+  font-size: 0.96rem !important;
   font-weight: 900 !important;
   line-height: 1.15 !important;
 }
@@ -5523,15 +5524,7 @@ body:not(.workspace-active) .pricing .section-shell-pricing {
 }
 
 #workspace .create-product-routing-summary {
-  margin: 10px 0 0 !important;
-  min-height: 22px !important;
-  color: #64748b !important;
-  font-size: 0.76rem !important;
-  font-weight: 700 !important;
-  line-height: 1.4 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  display: none !important;
 }
 
 #workspace .create-results-processing {

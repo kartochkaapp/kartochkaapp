@@ -201,6 +201,13 @@ const buildImproveGenerationPayload = (payload = {}) => {
   };
 };
 
+const isInstructionTemplatePromptMode = (payload = {}) => {
+  const reference = payload.reference || payload.selectedTemplate || {};
+  return toText(reference?.kind) === "instruction-template"
+    && toText(reference?.promptFlow) === "gpt_instruction"
+    && Boolean(toText(payload.prompt));
+};
+
 const createOpenAIImageProvider = (config = {}) => {
   const enabled = config.enabled !== false;
   const apiKey = toText(config.apiKey);
@@ -311,7 +318,9 @@ const createOpenAIImageProvider = (config = {}) => {
     const requestId = toText(payload.requestId);
     const startedAt = Date.now();
     const intent = buildCreateGenerationIntent(payload);
-    const prompt = buildOpenAIImagePrompt(intent);
+    const prompt = isInstructionTemplatePromptMode(payload)
+      ? toText(payload.prompt)
+      : buildOpenAIImagePrompt(intent);
     const imageInputs = intent.imageInputs.filter(Boolean);
     const requestTimeoutMs = Math.max(1000, Number(payload.requestTimeoutMs) || timeoutMs);
     const requestInputDetail = normalizeInputDetail(payload.inputDetail || inputDetail);

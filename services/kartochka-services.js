@@ -29,8 +29,8 @@
 
   const DEFAULT_PREVIEW_POOLS = Object.freeze({
     create: Object.freeze([
-      "./assets/generated/accessories-card.png",
-      "./assets/generated/beauty-sale.png",
+      "./assets/examples/best-product-close.png",
+      "./assets/examples/best-product-far.png",
       "./assets/examples/example-tech.png",
       "./assets/examples/example-home.png",
       "./assets/examples/example-beauty.png",

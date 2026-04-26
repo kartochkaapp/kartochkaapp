@@ -48,6 +48,33 @@ const buildGenerationRequestId = (payload) => {
   return toText(payload?.requestId) || "generation-" + String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
 };
 
+const isInstructionTemplate = (payload) => {
+  const template = payload?.selectedTemplate || payload?.reference;
+  return toText(template?.kind) === "instruction-template";
+};
+
+const shouldUseBestProductOpenRouterFlow = (payload) => {
+  if (!isInstructionTemplate(payload)) return false;
+  if (toText(payload?.promptMode).toLowerCase() === "custom") return false;
+
+  const productTypeId = toText(payload?.productTypeId);
+  const productAngleId = toText(payload?.productAngleId);
+  const productType = toText(payload?.productType).trim().toLowerCase();
+  const productAngle = toText(payload?.productAngle).trim().toLowerCase();
+
+  const isGeneralProduct =
+    productTypeId === "general_product"
+    || productType === "товар";
+
+  const isSupportedAngle =
+    productAngleId === "general_product-close"
+    || productAngleId === "general_product-far"
+    || productAngle === "вблизи"
+    || productAngle === "издалека";
+
+  return isGeneralProduct && isSupportedAngle;
+};
+
 const normalizeProviderResult = (result, params) => {
   const providerId = normalizeProviderId(params?.adapter, params?.providerId);
   const providerLabel = normalizeProviderLabel(params?.adapter, params?.providerLabel);
@@ -178,6 +205,7 @@ const buildMultiProviderResults = (jobs, payload) => {
 const createGenerationService = (deps) => {
   const adapter = deps?.adapter;
   const createAdapter = deps?.createAdapter || adapter;
+  const bestProductCreateAdapter = deps?.bestProductCreateAdapter;
   const improveAdapter = deps?.improveAdapter || adapter;
   const secondaryAdapters = Array.isArray(deps?.secondaryAdapters)
     ? deps.secondaryAdapters.filter((item) => item && typeof item.executeCreateGeneration === "function" && item.enabled !== false)
@@ -219,17 +247,23 @@ const createGenerationService = (deps) => {
         return ensureResultList(results, "textReplace createGenerate must return an array");
       }
 
+      const resolvedCreateAdapter = shouldUseBestProductOpenRouterFlow(payload || {})
+        && bestProductCreateAdapter
+        && typeof bestProductCreateAdapter.executeCreateGeneration === "function"
+        ? bestProductCreateAdapter
+        : createAdapter;
+
       if (!secondaryAdapters.length) {
         const requestId = buildGenerationRequestId(payload || {});
         const startedAt = Date.now();
-        const results = await createAdapter.executeCreateGeneration({ ...(payload || {}), requestId });
+        const results = await resolvedCreateAdapter.executeCreateGeneration({ ...(payload || {}), requestId });
         return ensureResultList(results, "createGenerate must return an array").map((result, index) => normalizeProviderResult(
           {
             ...result,
             durationMs: Number(result?.durationMs) || Date.now() - startedAt,
           },
           {
-            adapter: createAdapter,
+            adapter: resolvedCreateAdapter,
             index,
             requestId,
           }
@@ -239,10 +273,10 @@ const createGenerationService = (deps) => {
       const requestId = buildGenerationRequestId(payload || {});
       console.info("[generation] generation_started", {
         requestId,
-        providers: [normalizeProviderId(createAdapter)].concat(secondaryAdapters.map((item) => normalizeProviderId(item))),
+        providers: [normalizeProviderId(resolvedCreateAdapter)].concat(secondaryAdapters.map((item) => normalizeProviderId(item))),
       });
       const jobs = await Promise.all([
-        executeProviderCreate(createAdapter, { ...(payload || {}), requestId }, { requestId }),
+        executeProviderCreate(resolvedCreateAdapter, { ...(payload || {}), requestId }, { requestId }),
         ...secondaryAdapters.map((secondaryAdapter) =>
           executeProviderCreate(secondaryAdapter, { ...(payload || {}), requestId }, { requestId })
         ),

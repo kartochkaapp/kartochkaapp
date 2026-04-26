@@ -320,13 +320,18 @@ const normalizeCreateCardTextLevelsV2 = (value) => {
 
 const formatCreateCardPlacementTextV2 = (payload) => {
   const levels = normalizeCreateCardTextLevelsV2(payload?.cardTextLevels);
-  const lines = [
-    levels.primary ? "- Главный текст (нужно разместить на карточке): " + levels.primary : "",
-    levels.secondary ? "- Второй уровень текста (нужно разместить на карточке): " + levels.secondary : "",
-    levels.tertiary ? "- Третий уровень текста (нужно разместить на карточке): " + levels.tertiary : "",
-  ].filter(Boolean);
+  const fallbackText = toText(payload?.userText).trim();
+  const entries = [
+    ["Level 1", levels.primary || fallbackText],
+    ["Level 2", levels.secondary],
+    ["Level 3", levels.tertiary],
+  ].filter((entry) => toText(entry[1]).trim());
 
-  return lines.length ? lines.join("\n") : "(пусто)";
+  if (!entries.length) return "";
+
+  return entries
+    .map((entry) => entry[0] + ":\n" + String(entry[1]).trim())
+    .join("\n");
 };
 
 const isCreateInstructionPromptRequestV2 = (payload) => {
@@ -376,7 +381,7 @@ const normalizeAutofillLevelLines = (value) => {
 
 const buildCreateInstructionPromptUserTextV2 = (payload) => {
   const instructionText = formatCreateTemplateInstructionTextV2(payload) || "(пусто)";
-  const cardPlacementText = toText(payload?.userText) || formatCreateCardPlacementTextV2(payload);
+  const cardPlacementText = formatCreateCardPlacementTextV2(payload);
   const generationNotes = toText(payload?.generationNotes) || "(пусто)";
 
   return [
