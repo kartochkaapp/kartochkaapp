@@ -468,7 +468,7 @@ const createHistoryService = (deps) => {
       }
     }
 
-    if (hintedUid && !adminAuth) {
+    if (hintedUid) {
       return {
         type: "user",
         scopeKey: hintedUid,
