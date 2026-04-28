@@ -31,6 +31,13 @@
   const billingPackages = document.getElementById("billingPackages");
   const billingActionCosts = document.getElementById("billingActionCosts");
   const billingLedger = document.getElementById("billingLedger");
+  const feedbackModal = document.getElementById("feedbackModal");
+  const feedbackModalBackdrop = document.getElementById("feedbackModalBackdrop");
+  const feedbackModalClose = document.getElementById("feedbackModalClose");
+  const feedbackSkipBtn = document.getElementById("feedbackSkipBtn");
+  const feedbackSubmitBtn = document.getElementById("feedbackSubmitBtn");
+  const feedbackTextInput = document.getElementById("feedbackTextInput");
+  const feedbackStatus = document.getElementById("feedbackStatus");
 
   const authSection = document.getElementById("authSection");
   const authCloseBtn = document.getElementById("authCloseBtn");
@@ -169,6 +176,9 @@
   const createPreviewBadge = document.getElementById("createPreviewBadge");
   const createPreviewTitle = document.getElementById("createPreviewTitle");
   const createPreviewMeta = document.getElementById("createPreviewMeta");
+  const createPreviewFeedback = document.getElementById("createPreviewFeedback");
+  const createPreviewFeedbackUp = document.getElementById("createPreviewFeedbackUp");
+  const createPreviewFeedbackDown = document.getElementById("createPreviewFeedbackDown");
   const createImproveBtn = document.getElementById("createImproveBtn");
   const createExportBtn = document.getElementById("createExportBtn");
   const createProductRoutingSummary = document.getElementById("createProductRoutingSummary");
@@ -1194,6 +1204,7 @@
           historyGetById: "/api/kartochka/historyGetById",
           historySave: "/api/kartochka/historySave",
           historyAssetSave: "/api/kartochka/historyAssetSave",
+          feedbackSave: "/api/kartochka/historySave?action=feedbackSave",
           billingSummary: "/api/kartochka/billingSummary",
           redeemPromo: "/api/kartochka/redeemPromo",
         },
@@ -1214,6 +1225,10 @@
   let createGeneratedResults = [];
   let createActivePreviewResultId = "";
   let createLastHistoryEntryId = "";
+  const createResultFeedback = new Map();
+  const FEEDBACK_PROMPT_STORAGE_KEY = "kartochka:feedback-prompt:v1";
+  let feedbackPromptTriggerAt = 0;
+  let feedbackPromptOpen = false;
   let createInstructionDocumentText = "";
   let createInstructionDocumentName = "";
   let createBestModelTier = "good";
@@ -4096,6 +4111,22 @@
     }
     if (createPreviewMeta) {
       createPreviewMeta.textContent = meta || "Здесь будет итоговое превью 3:4.";
+    }
+
+    if (createPreviewFeedback) {
+      const canRate = Boolean(activeResult?.id && activeResult?.previewUrl);
+      const feedback = canRate ? createResultFeedback.get(activeResult.id) || {} : {};
+      createPreviewFeedback.classList.toggle("hidden", !canRate);
+      createPreviewFeedback.classList.toggle("is-saving", feedback.status === "saving");
+      createPreviewFeedback.classList.toggle("is-error", feedback.status === "error");
+      createPreviewFeedback.dataset.resultId = canRate ? activeResult.id : "";
+      createPreviewFeedback.title = feedback.status === "error"
+        ? "Оценка не сохранилась. Нажмите ещё раз."
+        : "";
+      createPreviewFeedbackUp?.setAttribute("aria-pressed", feedback.rating === "up" ? "true" : "false");
+      createPreviewFeedbackDown?.setAttribute("aria-pressed", feedback.rating === "down" ? "true" : "false");
+      createPreviewFeedbackUp?.toggleAttribute("disabled", feedback.status === "saving" || !canRate);
+      createPreviewFeedbackDown?.toggleAttribute("disabled", feedback.status === "saving" || !canRate);
     }
 
     if (createExportBtn) {
@@ -7916,6 +7947,155 @@
     return mockCreateGenerationRequest(payload);
   };
 
+  const readFeedbackPromptState = () => {
+    try {
+      const raw = window.localStorage?.getItem(FEEDBACK_PROMPT_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object"
+        ? {
+          generationCount: Number(parsed.generationCount) || 0,
+          closedAt2: Boolean(parsed.closedAt2),
+          closedAt5: Boolean(parsed.closedAt5),
+          submitted: Boolean(parsed.submitted),
+        }
+        : { generationCount: 0, closedAt2: false, closedAt5: false, submitted: false };
+    } catch (error) {
+      return { generationCount: 0, closedAt2: false, closedAt5: false, submitted: false };
+    }
+  };
+
+  const writeFeedbackPromptState = (state) => {
+    try {
+      window.localStorage?.setItem(FEEDBACK_PROMPT_STORAGE_KEY, JSON.stringify(state || {}));
+    } catch (error) {
+      // Feedback prompts are non-critical; generation should stay smooth.
+    }
+  };
+
+  const setFeedbackStatus = (message, type) => {
+    if (!feedbackStatus) return;
+    feedbackStatus.textContent = String(message || "");
+    feedbackStatus.classList.toggle("hidden", !message);
+    feedbackStatus.classList.toggle("is-error", type === "error");
+    feedbackStatus.classList.toggle("is-success", type === "success");
+  };
+
+  const openFeedbackPromptModal = (triggerAt) => {
+    if (!feedbackModal || !feedbackTextInput) return;
+    feedbackPromptTriggerAt = Number(triggerAt) || 0;
+    feedbackPromptOpen = true;
+    feedbackTextInput.value = "";
+    setFeedbackStatus("", "");
+    feedbackModal.classList.remove("hidden");
+    feedbackModal.setAttribute("aria-hidden", "false");
+    window.setTimeout(() => feedbackTextInput?.focus(), 50);
+  };
+
+  const closeFeedbackPromptModal = (options = {}) => {
+    if (!feedbackModal) return;
+    const submitted = Boolean(options.submitted);
+    const state = readFeedbackPromptState();
+    if (submitted) {
+      state.submitted = true;
+    } else if (feedbackPromptTriggerAt >= 5) {
+      state.closedAt5 = true;
+    } else if (feedbackPromptTriggerAt >= 2) {
+      state.closedAt2 = true;
+    }
+    writeFeedbackPromptState(state);
+    feedbackPromptOpen = false;
+    feedbackPromptTriggerAt = 0;
+    feedbackModal.classList.add("hidden");
+    feedbackModal.setAttribute("aria-hidden", "true");
+  };
+
+  const maybeShowFeedbackPromptAfterGeneration = () => {
+    const state = readFeedbackPromptState();
+    if (state.submitted || state.closedAt5) return;
+    state.generationCount = Math.max(0, Number(state.generationCount) || 0) + 1;
+    writeFeedbackPromptState(state);
+
+    if (state.generationCount >= 5 && state.closedAt2) {
+      openFeedbackPromptModal(5);
+      return;
+    }
+    if (state.generationCount >= 2 && !state.closedAt2) {
+      openFeedbackPromptModal(2);
+    }
+  };
+
+  const submitFeedbackPrompt = async () => {
+    const message = String(feedbackTextInput?.value || "").trim();
+    if (!message) {
+      setFeedbackStatus("Напишите пару слов перед отправкой.", "error");
+      feedbackTextInput?.focus();
+      return;
+    }
+    if (!serviceClient?.feedbackSave) {
+      setFeedbackStatus("Сервис отзывов временно недоступен.", "error");
+      return;
+    }
+
+    const state = readFeedbackPromptState();
+    feedbackSubmitBtn?.toggleAttribute("disabled", true);
+    setFeedbackStatus("Отправляем отзыв...", "");
+    try {
+      await serviceClient.feedbackSave({
+        type: "product_feedback",
+        message,
+        generationCount: state.generationCount,
+        triggerAt: feedbackPromptTriggerAt,
+        page: activeMode || "create",
+        historyEntryId: createLastHistoryEntryId,
+        mode: activeMode || "create",
+      });
+      setFeedbackStatus("Спасибо, отзыв сохранён.", "success");
+      window.setTimeout(() => closeFeedbackPromptModal({ submitted: true }), 450);
+    } catch (error) {
+      console.warn("[feedback] product feedback save failed", error);
+      setFeedbackStatus("Не удалось сохранить отзыв. Попробуйте ещё раз.", "error");
+    } finally {
+      feedbackSubmitBtn?.toggleAttribute("disabled", false);
+    }
+  };
+
+  const getCreateResultFeedbackPayload = (result, rating) => {
+    const selectedTemplate = getCreateSelectedTemplate();
+    return {
+      type: "generation_rating",
+      rating,
+      mode: "create",
+      requestId: String(result?.requestId || ""),
+      generationId: String(result?.generationId || ""),
+      historyEntryId: String(result?.historyEntryId || createLastHistoryEntryId || ""),
+      resultId: String(result?.id || ""),
+      resultTitle: String(result?.title || ""),
+      resultAssetUrl: String(result?.assetUrl || result?.resultAssetUrl || ""),
+      resultPreviewUrl: String(result?.previewUrl || ""),
+      templateId: String(selectedTemplate?.id || createSelectedTemplateId || ""),
+      templateTitle: String(selectedTemplate?.title || ""),
+      provider: String(result?.provider || ""),
+      providerLabel: String(result?.providerLabel || ""),
+      imageModel: String(result?.metadata?.model || result?.__debug?.imageModel || ""),
+    };
+  };
+
+  const submitCreateResultFeedback = async (resultId, rating) => {
+    const result = createGeneratedResults.find((item) => item.id === resultId) || null;
+    if (!result || !serviceClient?.feedbackSave) return;
+
+    createResultFeedback.set(resultId, { rating, status: "saving" });
+    renderCreateResults();
+    try {
+      await serviceClient.feedbackSave(getCreateResultFeedbackPayload(result, rating));
+      createResultFeedback.set(resultId, { rating, status: "saved" });
+    } catch (error) {
+      console.warn("[feedback] generation rating save failed", error);
+      createResultFeedback.set(resultId, { rating, status: "error" });
+    }
+    renderCreateResults();
+  };
+
   const renderCreateResults = () => {
     if (!createResultsGrid || !createResultsSection) {
       renderCreatePreviewPanel();
@@ -8013,6 +8193,43 @@
           ? "Выбран как основной"
           : "Нажмите, чтобы выбрать основным";
         body.append(subtitle);
+      }
+
+      if (!isFailedResult) {
+        const feedback = createResultFeedback.get(result.id) || {};
+        const feedbackActions = document.createElement("div");
+        feedbackActions.className = "create-result-feedback";
+        feedbackActions.setAttribute("aria-label", "Оценить результат");
+
+        const upButton = document.createElement("button");
+        upButton.className = "create-result-feedback-btn";
+        upButton.type = "button";
+        upButton.dataset.createResultFeedback = "up";
+        upButton.dataset.resultId = result.id;
+        upButton.setAttribute("aria-label", "Нравится");
+        upButton.setAttribute("aria-pressed", feedback.rating === "up" ? "true" : "false");
+        upButton.textContent = "👍";
+
+        const downButton = document.createElement("button");
+        downButton.className = "create-result-feedback-btn";
+        downButton.type = "button";
+        downButton.dataset.createResultFeedback = "down";
+        downButton.dataset.resultId = result.id;
+        downButton.setAttribute("aria-label", "Не нравится");
+        downButton.setAttribute("aria-pressed", feedback.rating === "down" ? "true" : "false");
+        downButton.textContent = "👎";
+
+        if (feedback.status === "saving") {
+          upButton.disabled = true;
+          downButton.disabled = true;
+          feedbackActions.classList.add("is-saving");
+        } else if (feedback.status === "error") {
+          feedbackActions.classList.add("is-error");
+          feedbackActions.title = "Оценка не сохранилась. Нажмите ещё раз.";
+        }
+
+        feedbackActions.append(upButton, downButton);
+        body.append(feedbackActions);
       }
       card.append(media, body);
       createResultsGrid.append(card);
@@ -9426,6 +9643,17 @@
   createResultsGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const feedbackButton = target.closest("[data-create-result-feedback]");
+    if (feedbackButton instanceof HTMLElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const resultId = feedbackButton.dataset.resultId || "";
+      const rating = feedbackButton.dataset.createResultFeedback || "";
+      if (resultId && (rating === "up" || rating === "down")) {
+        void submitCreateResultFeedback(resultId, rating);
+      }
+      return;
+    }
     const previewButton = target.closest("[data-result-preview-id]");
     if (!(previewButton instanceof HTMLElement)) return;
 
@@ -9447,6 +9675,17 @@
     if (event.key !== "Enter" && event.key !== " ") return;
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const feedbackButton = target.closest("[data-create-result-feedback]");
+    if (feedbackButton instanceof HTMLElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const resultId = feedbackButton.dataset.resultId || "";
+      const rating = feedbackButton.dataset.createResultFeedback || "";
+      if (resultId && (rating === "up" || rating === "down")) {
+        void submitCreateResultFeedback(resultId, rating);
+      }
+      return;
+    }
     const previewButton = target.closest("[data-result-preview-id]");
     if (!(previewButton instanceof HTMLElement)) return;
     event.preventDefault();
@@ -9463,6 +9702,38 @@
     });
     void persistCreateVariantSelection(result);
     renderCreateResults();
+  });
+
+  createPreviewFeedbackUp?.addEventListener("click", () => {
+    const resultId = createPreviewFeedback?.dataset.resultId || createActivePreviewResultId || "";
+    if (resultId) {
+      void submitCreateResultFeedback(resultId, "up");
+    }
+  });
+
+  createPreviewFeedbackDown?.addEventListener("click", () => {
+    const resultId = createPreviewFeedback?.dataset.resultId || createActivePreviewResultId || "";
+    if (resultId) {
+      void submitCreateResultFeedback(resultId, "down");
+    }
+  });
+
+  feedbackModalClose?.addEventListener("click", () => closeFeedbackPromptModal());
+  feedbackModalBackdrop?.addEventListener("click", () => closeFeedbackPromptModal());
+  feedbackSkipBtn?.addEventListener("click", () => closeFeedbackPromptModal());
+  feedbackSubmitBtn?.addEventListener("click", () => {
+    void submitFeedbackPrompt();
+  });
+  feedbackTextInput?.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      void submitFeedbackPrompt();
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && feedbackPromptOpen) {
+      closeFeedbackPromptModal();
+    }
   });
 
   createImagesInput?.addEventListener("change", () => {
@@ -9886,6 +10157,7 @@
     createGeneratedResults = [];
     createActivePreviewResultId = "";
     createLastHistoryEntryId = "";
+    createResultFeedback.clear();
     setCreateResultsProcessing(true);
     setCreateResultsProcessingStage("analyzing");
     setDoneState(createDoneBadge, false);
@@ -10018,6 +10290,11 @@
         });
         if (historySave?.entry?.id) {
           createLastHistoryEntryId = historySave.entry.id;
+          createGeneratedResults.forEach((result) => {
+            if (result && typeof result === "object") {
+              result.historyEntryId = createLastHistoryEntryId;
+            }
+          });
         }
         if (!historySave?.ok) {
           setStatusMessage(createStatus, "Генерация готова, но история не сохранилась в backend.", "error");
@@ -10028,6 +10305,7 @@
         setStatusMessage(createStatus, "Генерация готова, но историю сохранить не удалось.", "error");
         setRequestMeta(createMeta, "Статус запроса:", "История не сохранена", "error");
       }
+      maybeShowFeedbackPromptAfterGeneration();
     } catch (error) {
       if (requestId !== createGenerationRequestId) return;
       createGeneratedResults = [];

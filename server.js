@@ -108,7 +108,12 @@ const serveStatic = (requestPath, response) => {
   stream.pipe(response);
 };
 
-const dispatchKartochkaApi = async (pathname, body, requestContext) => {
+const dispatchKartochkaApi = async (pathname, body, requestContext, requestUrl) => {
+  const action = toText(requestUrl?.searchParams?.get("action"));
+  if (pathname === "/api/kartochka/historySave" && action === "feedbackSave") {
+    return kartochkaHandlers.feedbackSave(body, requestContext);
+  }
+
   switch (pathname) {
     case "/api/enhance-card":
       return enhanceCardHandler(body, requestContext);
@@ -134,6 +139,8 @@ const dispatchKartochkaApi = async (pathname, body, requestContext) => {
       return kartochkaHandlers.historySave(body, requestContext);
     case "/api/kartochka/historyAssetSave":
       return kartochkaHandlers.historyAssetSave(body, requestContext);
+    case "/api/kartochka/feedbackSave":
+      return kartochkaHandlers.feedbackSave(body, requestContext);
     case "/api/kartochka/billingSummary":
       return kartochkaHandlers.billingSummary(body, requestContext);
     case "/api/kartochka/redeemPromo":
@@ -199,7 +206,7 @@ const server = http.createServer(async (request, response) => {
       }
 
       const body = await parseJsonBody(request, runtime.app.requestBodyLimitBytes);
-      const data = await dispatchKartochkaApi(pathname, body, requestContext);
+      const data = await dispatchKartochkaApi(pathname, body, requestContext, requestUrl);
       sendJson(response, 200, data, requestContext.responseHeaders);
       return;
     }

@@ -332,6 +332,7 @@ const createKartochkaHandlers = (deps) => {
   const historyService = deps?.historyService;
   const historyAssetService = deps?.historyAssetService;
   const billingService = deps?.billingService;
+  const feedbackService = deps?.feedbackService;
   const aiLogService = deps?.aiLogService;
 
   if (
@@ -383,6 +384,13 @@ const createKartochkaHandlers = (deps) => {
     || typeof billingService.runBillableAction !== "function"
   ) {
     throw new Error("Billing service is not configured correctly");
+  }
+  if (
+    !feedbackService
+    || typeof feedbackService.saveGenerationFeedback !== "function"
+    || typeof feedbackService.saveProductFeedback !== "function"
+  ) {
+    throw new Error("Feedback service is not configured correctly");
   }
 
   return {
@@ -617,6 +625,22 @@ const createKartochkaHandlers = (deps) => {
     async historyAssetGet(payload) {
       const requestBody = ensureRouteObject(payload || {}, "Invalid historyAssetGet request");
       return historyAssetService.get(requestBody.id);
+    },
+
+    async feedbackSave(body, requestContext) {
+      const requestBody = ensureRouteObject(body || {}, "Invalid feedbackSave request body");
+      const feedbackType = toText(requestBody.type || requestBody.feedbackType).toLowerCase();
+      if (feedbackType === "generation_rating" || feedbackType === "rating") {
+        return feedbackService.saveGenerationFeedback(requestBody, requestContext);
+      }
+      if (feedbackType === "product_feedback" || feedbackType === "text") {
+        return feedbackService.saveProductFeedback(requestBody, requestContext);
+      }
+      throw new ApiRouteError({
+        status: 400,
+        code: "invalid_feedback_type",
+        message: "Feedback type must be rating or text",
+      });
     },
 
     async generatedAssetGet(payload) {

@@ -13,6 +13,10 @@ module.exports = async (request, response) => {
     return handleKartochkaAction(request, response, "historyAssetSave");
   }
 
+  if (rawUrl.searchParams.get("action") === "feedbackSave") {
+    return handleKartochkaAction(request, response, "feedbackSave");
+  }
+
   const assetId = String(rawUrl.searchParams.get("assetId") || "").trim();
   if (assetId) {
     try {

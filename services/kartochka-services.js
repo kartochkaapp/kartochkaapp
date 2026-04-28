@@ -55,6 +55,7 @@
     historyGetById: "",
     historySave: "",
     historyAssetSave: "",
+    feedbackSave: "",
     templatePreview: "",
     billingSummary: "",
     redeemPromo: "",
@@ -686,6 +687,11 @@
   const validateRedeemPromoResponse = (rawValue) => {
     const data = unwrapEnvelope(rawValue);
     return ensureObject(data, "redeemPromo response must be an object");
+  };
+
+  const validateFeedbackSaveResponse = (rawValue) => {
+    const data = unwrapEnvelope(rawValue);
+    return ensureObject(data, "feedbackSave response must be an object");
   };
 
   const createHttpClient = (options) => {
@@ -1639,6 +1645,17 @@
         };
       },
 
+      async feedbackSave(payload) {
+        return {
+          ok: true,
+          entry: {
+            id: "mock-feedback-" + String(Date.now()),
+            rating: toText(payload?.rating),
+          },
+          storage: { storage: "mock" },
+        };
+      },
+
       async templatePreview() {
         await wait(config.delays.createGeneration || 1500);
         const pool = config.previewPools.create;
@@ -1818,6 +1835,11 @@
         };
       },
 
+      async feedbackSave(payload) {
+        const raw = await postJson("feedbackSave", payload || {});
+        return validateFeedbackSaveResponse(raw);
+      },
+
       async templatePreview(payload) {
         const raw = await postJson("templatePreview", { payload });
         const url = toText(raw?.previewUrl);
@@ -1970,6 +1992,10 @@
         return callGateway("historyAssetSave", [payload]);
       },
 
+      async feedbackSave(payload) {
+        return callGateway("feedbackSave", [payload]);
+      },
+
       async templatePreview(payload) {
         return callGateway("templatePreview", [payload]);
       },
@@ -2044,6 +2070,10 @@
 
       async saveAsset(payload) {
         return client.historyAssetSave(payload);
+      },
+
+      async saveFeedback(payload) {
+        return client.feedbackSave(payload);
       },
     });
 

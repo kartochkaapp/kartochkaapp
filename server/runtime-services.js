@@ -16,6 +16,7 @@ const { createHistoryService } = require("./services/history-service");
 const { createHistoryAssetService } = require("./services/history-asset-service");
 const { createAiLogService } = require("./services/ai-log-service");
 const { createBillingService } = require("./services/billing-service");
+const { createFeedbackService } = require("./services/feedback-service");
 const { createEnhanceCardPromptService } = require("./services/enhance-card-prompt-service");
 const { createNanoBananaService } = require("./services/nano-banana-service");
 const { createProductTypeDetectionService } = require("./services/product-type-detection-service");
@@ -40,6 +41,14 @@ const resolveAiLogStoreFilePath = (runtime) => {
   }
 
   return path.join(runtime.app.rootDir, "server", "data", "ai-log-store.json");
+};
+
+const resolveFeedbackStoreFilePath = (runtime) => {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join(os.tmpdir(), "kartochka-feedback-store.json");
+  }
+
+  return path.join(runtime.app.rootDir, "server", "data", "feedback-store.json");
 };
 
 const getRuntimeServices = () => {
@@ -115,6 +124,10 @@ const getRuntimeServices = () => {
     promoSeedsRaw: runtime.billing.promoSeeds,
     firebaseAdmin: runtime.firebaseAdmin,
   });
+  const feedbackService = createFeedbackService({
+    filePath: resolveFeedbackStoreFilePath(runtime),
+    firebaseAdmin: runtime.firebaseAdmin,
+  });
   const enhanceCardPromptService = createEnhanceCardPromptService();
   const productTypeDetectionService = createProductTypeDetectionService({
     apiKey: runtime.openai.apiKey,
@@ -132,6 +145,7 @@ const getRuntimeServices = () => {
       historyService,
       historyAssetService,
       billingService,
+      feedbackService,
       aiLogService,
     }),
     enhanceCardHandler: createEnhanceCardHandler({

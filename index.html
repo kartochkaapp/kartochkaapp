@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="./styles.css?v=20260423-1" />
     <link rel="stylesheet" href="./landing-override.css" />
     <link rel="stylesheet" href="./site-overrides.css?v=20260423-1" />
-    <link rel="stylesheet" href="./theme-refresh.css?v=20260425-1" />
+    <link rel="stylesheet" href="./theme-refresh.css?v=20260427-1" />
     <link rel="stylesheet" href="./enhance-card-module.css?v=20260425-3" />
   </head>
   <body>
@@ -653,6 +653,14 @@
                     </div>
                   </div>
 
+                  <div class="create-preview-feedback hidden" id="createPreviewFeedback" aria-label="Оценить результат">
+                    <span>Оцените результат</span>
+                    <div class="create-result-feedback">
+                      <button class="create-result-feedback-btn" id="createPreviewFeedbackUp" type="button" aria-label="Нравится" aria-pressed="false">👍</button>
+                      <button class="create-result-feedback-btn" id="createPreviewFeedbackDown" type="button" aria-label="Не нравится" aria-pressed="false">👎</button>
+                    </div>
+                  </div>
+
                   <div class="create-preview-actions">
                     <button class="btn btn-primary create-generate-btn" id="createGenerateBtn" type="button" disabled>
                       Сгенерировать карточку
@@ -887,6 +895,23 @@
                       <div class="billing-ledger-list" id="billingLedger"></div>
                     </section>
                   </div>
+                </div>
+              </section>
+
+              <section class="feedback-modal hidden" id="feedbackModal" aria-hidden="true">
+                <button class="feedback-modal-backdrop" id="feedbackModalBackdrop" type="button" aria-label="Закрыть окно отзыва"></button>
+                <div class="feedback-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+                  <div class="feedback-modal-head">
+                    <h3 id="feedbackModalTitle">Как Вам Kartochka?</h3>
+                    <button class="feedback-modal-close" id="feedbackModalClose" type="button" aria-label="Закрыть окно отзыва">×</button>
+                  </div>
+                  <p>Пожалуйста, оставьте свой отзыв, это очень важно для нас.</p>
+                  <textarea id="feedbackTextInput" rows="5" placeholder="Что понравилось, что раздражает, чего не хватает?"></textarea>
+                  <div class="feedback-modal-actions">
+                    <button class="btn btn-outline" id="feedbackSkipBtn" type="button">Закрыть</button>
+                    <button class="btn btn-primary" id="feedbackSubmitBtn" type="button">Отправить отзыв</button>
+                  </div>
+                  <p class="status-message hidden" id="feedbackStatus" aria-live="polite"></p>
                 </div>
               </section>
             </div>
@@ -1171,9 +1196,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="./services/kartochka-services.js?v=20260423-1"></script>
+    <script src="./services/kartochka-services.js?v=20260427-1"></script>
     <script src="./create-characteristics-component.js?v=20260328-5"></script>
-    <script src="./app.js?v=20260424-1"></script>
+    <script src="./app.js?v=20260427-1"></script>
     <script src="./enhance-card-service.js?v=20260423-1"></script>
     <script src="./enhance-card-state.js?v=20260423-1"></script>
     <script src="./improve-card-flow.js?v=20260425-4"></script>

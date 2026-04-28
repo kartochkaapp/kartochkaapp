@@ -14,6 +14,7 @@ const { AiLogServiceError } = require("./services/ai-log-service");
 const { NanoBananaServiceError } = require("./services/nano-banana-service");
 const { BillingServiceError } = require("./services/billing-service");
 const { TextReplaceServiceError } = require("./services/text-replace-service");
+const { FeedbackServiceError } = require("./services/feedback-service");
 
 class RequestBodyError extends Error {
   /**
@@ -151,6 +152,7 @@ const toApiErrorPayload = (error) => {
     || error instanceof AiLogServiceError
     || error instanceof NanoBananaServiceError
     || error instanceof BillingServiceError
+    || error instanceof FeedbackServiceError
   ) {
     const code = toText(error.code);
     const status = Number.isFinite(Number(error.status)) ? Number(error.status) : 502;
