@@ -247,11 +247,7 @@ const createGenerationService = (deps) => {
         return ensureResultList(results, "textReplace createGenerate must return an array");
       }
 
-      const resolvedCreateAdapter = shouldUseBestProductOpenRouterFlow(payload || {})
-        && bestProductCreateAdapter
-        && typeof bestProductCreateAdapter.executeCreateGeneration === "function"
-        ? bestProductCreateAdapter
-        : createAdapter;
+      const resolvedCreateAdapter = createAdapter;
 
       if (!secondaryAdapters.length) {
         const requestId = buildGenerationRequestId(payload || {});

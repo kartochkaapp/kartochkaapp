@@ -695,6 +695,8 @@
   ]);
   const CREATE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/best-template-instruction.md";
   const CREATE_INSTRUCTION_TEMPLATE_LABEL = "best-template-instruction.md";
+  const CREATE_PRODUCT_INSTRUCTION_TEMPLATE_PATH = "server/prompts/best-product-template-instruction.md";
+  const CREATE_PRODUCT_INSTRUCTION_TEMPLATE_LABEL = "best-product-template-instruction.md";
   const CREATE_AUTOFILL_TEXTS_INSTRUCTION_PATH = "server/prompts/autofill-marketplace-card-texts-v5.md";
   const IMPROVE_INSTRUCTION_TEMPLATE_PATH = "server/prompts/improve-card-instruction.md";
   const CREATE_BEST_INSTRUCTION_TEMPLATE = Object.freeze({
@@ -2716,6 +2718,23 @@
     };
   };
 
+  const isCreateGeneralProductContext = (productContext) => {
+    return toText(productContext?.productTypeId) === "general_product"
+      || toText(productContext?.productType).trim().toLowerCase() === "товар";
+  };
+
+  const serializeCreateTemplateForProductContext = (template, productContext) => {
+    const serializedTemplate = serializeCreateTemplate(template);
+    if (!serializedTemplate) return null;
+
+    if (isCreateInstructionTemplate(template) && isCreateGeneralProductContext(productContext)) {
+      serializedTemplate.instructionPromptPath = CREATE_PRODUCT_INSTRUCTION_TEMPLATE_PATH;
+      serializedTemplate.instructionPromptLabel = CREATE_PRODUCT_INSTRUCTION_TEMPLATE_LABEL;
+    }
+
+    return serializedTemplate;
+  };
+
   const getCreateTemplateReferencePreviewUrl = async (template) => {
     if (!shouldUseCreateTemplatePreviewAsReference(template)) return "";
     return getCreateTemplatePreviewDataUrl(template?.previewUrl || "");
@@ -4462,6 +4481,7 @@
     const selectedTemplate = getCreateSelectedTemplate();
     const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
     const productContext = buildCreateProductContextPayload();
+    const serializedTemplate = serializeCreateTemplateForProductContext(selectedTemplate, productContext);
     return {
       analysisIntent: "insight",
       title: getCreateProductTitleValue(),
@@ -4489,8 +4509,8 @@
       userText: buildCreateUserText(),
       settings: buildCreateSettingsPayload(),
       characteristics: getCreateCharacteristicRows(),
-      selectedTemplate: serializeCreateTemplate(selectedTemplate),
-      reference: serializeCreateTemplate(selectedTemplate),
+      selectedTemplate: serializedTemplate,
+      reference: serializedTemplate,
       referencePreviewUrl: await getCreateTemplateReferencePreviewUrl(selectedTemplate),
       files: createSelectedFiles.map((file) => ({
         name: file.name,
@@ -4721,6 +4741,7 @@
     const selectedTemplate = getCreateSelectedTemplate();
     const customPromptText = isCreateDirectPromptTemplate(selectedTemplate) ? toText(createCustomPrompt?.value) : "";
     const productContext = buildCreateProductContextPayload();
+    const serializedTemplate = serializeCreateTemplateForProductContext(selectedTemplate, productContext);
     return {
       analysisIntent: "prompt",
       title: getCreateProductTitleValue(),
@@ -4751,8 +4772,8 @@
       userText: buildCreateUserText(),
       settings: buildCreateSettingsPayload(),
       characteristics: getCreateCharacteristicRows(),
-      selectedTemplate: serializeCreateTemplate(selectedTemplate),
-      reference: serializeCreateTemplate(selectedTemplate),
+      selectedTemplate: serializedTemplate,
+      reference: serializedTemplate,
       referencePreviewUrl: await getCreateTemplateReferencePreviewUrl(selectedTemplate),
       files: createSelectedFiles.map((file) => ({
         name: file.name,
@@ -7856,8 +7877,8 @@
     const shortDescription = getCreateProductShortDescriptionValue();
     const characteristics = getCreateCharacteristicRows();
     const settings = buildCreateSettingsPayload();
-    const serializedTemplate = serializeCreateTemplate(selectedTemplate);
     const productContext = buildCreateProductContextPayload();
+    const serializedTemplate = serializeCreateTemplateForProductContext(selectedTemplate, productContext);
 
     return {
       description: (createDescription?.value || "").trim(),
